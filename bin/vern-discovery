@@ -14,6 +14,7 @@
 #   --batch          Non-interactive mode. Auto-reads input files, skips prompts.
 #   --skip-input     In batch mode, don't read input/ files as context.
 #   --vernhole N     After pipeline, run VernHole with N verns (0 to skip, default: skip).
+#   --expanded       Use 7-step expanded pipeline (overrides config pipeline_mode).
 #   --extra-context FILE  Add an extra context file (can be used multiple times).
 #
 # Reads pipeline config from ~/.claude/vern-bot-config.json if it exists,
@@ -31,6 +32,7 @@ DEFAULT_CONFIG="$SCRIPT_DIR/../config.default.json"
 BATCH_MODE=0
 READ_INPUT=1
 VERNHOLE_COUNT=0
+EXPANDED_FLAG=0
 EXTRA_CONTEXT_FILES=()
 
 while [[ "$1" == --* ]]; do
@@ -46,6 +48,10 @@ while [[ "$1" == --* ]]; do
         --vernhole)
             VERNHOLE_COUNT="$2"
             shift 2
+            ;;
+        --expanded)
+            EXPANDED_FLAG=1
+            shift
             ;;
         --extra-context)
             EXTRA_CONTEXT_FILES+=("$2")
@@ -69,57 +75,119 @@ if [ -z "$IDEA" ]; then
     echo "  --batch              Non-interactive mode (for skill/plugin use)"
     echo "  --skip-input         Don't read input/ files as context"
     echo "  --vernhole N         Run VernHole with N verns after pipeline"
+    echo "  --expanded           Use 7-step expanded pipeline"
     echo "  --extra-context FILE Add extra context file (repeatable)"
     exit 1
 fi
 
-# Load config - user config takes priority, then default, then hardcoded fallback
-get_step_config() {
-    local step_num="$1"
-    local field="$2"
-    local config_source="$CONFIG_FILE"
+# ── Load pipeline configuration ──────────────────────────────────────────────
+# Determines which pipeline (default/expanded) to use and loads step configs
+# into indexed shell variables for bash 3.2 compatibility (no associative arrays).
+#
+# Variables produced per step:  STEP_{N}_NAME, STEP_{N}_LLM, STEP_{N}_PROMPT,
+#                               STEP_{N}_PERSONA, STEP_{N}_CONTEXT_MODE
+# Also sets:  PIPELINE_TOTAL, PIPELINE_MODE
 
+load_pipeline() {
+    local config_source="$CONFIG_FILE"
     if [ ! -f "$config_source" ]; then
         config_source="$DEFAULT_CONFIG"
     fi
 
+    # Determine pipeline mode: --expanded flag overrides config
+    if [ "$EXPANDED_FLAG" -eq 1 ]; then
+        PIPELINE_MODE="expanded"
+    else
+        PIPELINE_MODE="default"
+    fi
+
     if [ -f "$config_source" ] && command -v python3 &>/dev/null; then
-        python3 -c "
-import json, sys
+        # Use python3 to parse config and emit shell variable assignments
+        eval "$(python3 -c "
+import json, sys, re
+
 with open('$config_source') as f:
     cfg = json.load(f)
-for step in cfg.get('discovery_pipeline', []):
-    if step.get('step') == $step_num:
-        print(step.get('$field', ''))
-        sys.exit(0)
-print('')
-" 2>/dev/null
+
+mode = '$PIPELINE_MODE'
+
+# Backward compat: old configs have 'discovery_pipeline' (singular array)
+if 'discovery_pipelines' in cfg:
+    pipelines = cfg['discovery_pipelines']
+    # If --expanded not forced, respect config pipeline_mode
+    if '$EXPANDED_FLAG' == '0' and 'pipeline_mode' in cfg:
+        mode = cfg['pipeline_mode']
+    pipeline = pipelines.get(mode, pipelines.get('default', []))
+elif 'discovery_pipeline' in cfg:
+    # Old format — treat as default, ignore expanded request
+    pipeline = cfg['discovery_pipeline']
+    mode = 'default'
+else:
+    pipeline = []
+
+print('PIPELINE_MODE=\"{}\"'.format(mode))
+print('PIPELINE_TOTAL={}'.format(len(pipeline)))
+
+for step in pipeline:
+    n = step.get('step', 0)
+    def shell_escape(s):
+        return s.replace(\"'\", \"'\\\"'\\\"'\")
+    print(\"STEP_{}_NAME='{}'\".format(n, shell_escape(step.get('name', ''))))
+    print(\"STEP_{}_LLM='{}'\".format(n, shell_escape(step.get('llm', ''))))
+    print(\"STEP_{}_PROMPT='{}'\".format(n, shell_escape(step.get('prompt_prefix', ''))))
+    print(\"STEP_{}_PERSONA='{}'\".format(n, shell_escape(step.get('persona', ''))))
+    print(\"STEP_{}_CONTEXT_MODE='{}'\".format(n, shell_escape(step.get('context_mode', 'previous'))))
+" 2>/dev/null)" || true
     fi
 }
 
-# Read pipeline config for each step
-STEP1_LLM=$(get_step_config 1 llm)
-STEP1_PROMPT=$(get_step_config 1 prompt_prefix)
-STEP2_LLM=$(get_step_config 2 llm)
-STEP2_PROMPT=$(get_step_config 2 prompt_prefix)
-STEP3_LLM=$(get_step_config 3 llm)
-STEP3_PROMPT=$(get_step_config 3 prompt_prefix)
-STEP4_LLM=$(get_step_config 4 llm)
-STEP4_PROMPT=$(get_step_config 4 prompt_prefix)
-STEP5_LLM=$(get_step_config 5 llm)
-STEP5_PROMPT=$(get_step_config 5 prompt_prefix)
+load_pipeline
 
-# Fallback defaults if config couldn't be read
-STEP1_LLM="${STEP1_LLM:-codex}"
-STEP1_PROMPT="${STEP1_PROMPT:-You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks.}"
-STEP2_LLM="${STEP2_LLM:-claude}"
-STEP2_PROMPT="${STEP2_PROMPT:-You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance.}"
-STEP3_LLM="${STEP3_LLM:-gemini}"
-STEP3_PROMPT="${STEP3_PROMPT:-You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows.}"
-STEP4_LLM="${STEP4_LLM:-codex}"
-STEP4_PROMPT="${STEP4_PROMPT:-You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features.}"
-STEP5_LLM="${STEP5_LLM:-claude}"
-STEP5_PROMPT="${STEP5_PROMPT:-You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable.}"
+# ── Fallback defaults (no config + no python3) ──────────────────────────────
+if [ -z "$PIPELINE_TOTAL" ] || [ "$PIPELINE_TOTAL" -eq 0 ]; then
+    if [ "$EXPANDED_FLAG" -eq 1 ]; then
+        PIPELINE_MODE="expanded"
+        PIPELINE_TOTAL=7
+        STEP_1_NAME="Initial Analysis";    STEP_1_LLM="codex";  STEP_1_PERSONA="mighty-vern";    STEP_1_CONTEXT_MODE="prompt_only"
+        STEP_1_PROMPT="You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."
+        STEP_2_NAME="Refinement";          STEP_2_LLM="claude";  STEP_2_PERSONA="vernile-great";  STEP_2_CONTEXT_MODE="previous"
+        STEP_2_PROMPT="You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."
+        STEP_3_NAME="Reality Check";       STEP_3_LLM="claude";  STEP_3_PERSONA="vern-mediocre";  STEP_3_CONTEXT_MODE="previous"
+        STEP_3_PROMPT="You are Vern the Mediocre. Reality-check this plan. What's over-engineered? What can be simplified? Where is cleverness hiding complexity? Cut the fluff, keep what ships."
+        STEP_4_NAME="Chaos Check";         STEP_4_LLM="gemini";  STEP_4_PERSONA="yolo-vern";      STEP_4_CONTEXT_MODE="previous"
+        STEP_4_PROMPT="You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
+        STEP_5_NAME="MVP Lens";            STEP_5_LLM="claude";  STEP_5_PERSONA="startup-vern";   STEP_5_CONTEXT_MODE="previous"
+        STEP_5_PROMPT="You are Startup Vern. What's the MVP here? Cut scope ruthlessly. What can ship in week one? What's a nice-to-have disguised as a must-have? If you're not embarrassed by v1, you shipped too late."
+        STEP_6_NAME="Consolidation";       STEP_6_LLM="codex";   STEP_6_PERSONA="mighty-vern";    STEP_6_CONTEXT_MODE="all_previous"
+        STEP_6_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
+        STEP_7_NAME="Architect Breakdown";  STEP_7_LLM="claude";  STEP_7_PERSONA="architect-vern"; STEP_7_CONTEXT_MODE="consolidation"
+        STEP_7_PROMPT="You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+    else
+        PIPELINE_MODE="default"
+        PIPELINE_TOTAL=5
+        STEP_1_NAME="Initial Analysis";    STEP_1_LLM="codex";  STEP_1_PERSONA="mighty-vern";    STEP_1_CONTEXT_MODE="prompt_only"
+        STEP_1_PROMPT="You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."
+        STEP_2_NAME="Refinement";          STEP_2_LLM="claude";  STEP_2_PERSONA="vernile-great";  STEP_2_CONTEXT_MODE="previous"
+        STEP_2_PROMPT="You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."
+        STEP_3_NAME="Chaos Check";         STEP_3_LLM="gemini";  STEP_3_PERSONA="yolo-vern";      STEP_3_CONTEXT_MODE="previous"
+        STEP_3_PROMPT="You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
+        STEP_4_NAME="Consolidation";       STEP_4_LLM="codex";   STEP_4_PERSONA="mighty-vern";    STEP_4_CONTEXT_MODE="all_previous"
+        STEP_4_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
+        STEP_5_NAME="Architect Breakdown";  STEP_5_LLM="claude";  STEP_5_PERSONA="architect-vern"; STEP_5_CONTEXT_MODE="consolidation"
+        STEP_5_PROMPT="You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+    fi
+fi
+
+# ── Helper: slugify a string ─────────────────────────────────────────────────
+slugify() {
+    echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//'
+}
+
+# ── Helper: get step variable by index ────────────────────────────────────────
+get_step_var() {
+    local idx="$1" field="$2"
+    eval echo "\"\$STEP_${idx}_${field}\""
+}
 
 # If no discovery dir provided, create one from the idea name
 if [ -z "$DISCOVERY_DIR" ]; then
@@ -134,6 +202,7 @@ echo "=== VERN DISCOVERY PIPELINE ==="
 echo "Idea: $IDEA"
 echo "Discovery folder: $DISCOVERY_DIR"
 echo "Format: $OUTPUT_FORMAT"
+echo "Pipeline mode: $PIPELINE_MODE ($PIPELINE_TOTAL steps)"
 if [ "$BATCH_MODE" -eq 1 ]; then
     echo "Mode: batch (non-interactive)"
 fi
@@ -144,11 +213,11 @@ else
 fi
 echo ""
 echo "Pipeline:"
-echo "  1. $(get_step_config 1 name 2>/dev/null || echo 'Initial Analysis') → $STEP1_LLM"
-echo "  2. $(get_step_config 2 name 2>/dev/null || echo 'Refinement') → $STEP2_LLM"
-echo "  3. $(get_step_config 3 name 2>/dev/null || echo 'Chaos Check') → $STEP3_LLM"
-echo "  4. $(get_step_config 4 name 2>/dev/null || echo 'Consolidation') → $STEP4_LLM"
-echo "  5. $(get_step_config 5 name 2>/dev/null || echo 'Architect Breakdown') → $STEP5_LLM"
+for i in $(seq 1 $PIPELINE_TOTAL); do
+    step_name=$(get_step_var "$i" NAME)
+    step_llm=$(get_step_var "$i" LLM)
+    printf "  %d. %s → %s\n" "$i" "$step_name" "$step_llm"
+done
 echo ""
 
 # Create directory structure
@@ -247,59 +316,112 @@ $INPUT_CONTEXT
 === END INPUT MATERIALS ==="
 fi
 
-echo ""
-echo ">>> Pass 1: $(get_step_config 1 name 2>/dev/null || echo 'Initial Analysis') ($STEP1_LLM)"
-"$VERN_RUN" "$STEP1_LLM" "$STEP1_PROMPT
+# ── Dynamic pipeline execution ───────────────────────────────────────────────
+# Tracks outputs for context chaining. Uses indexed arrays for bash 3.2 compat.
+CONSOLIDATION_FILE=""
 
-$FULL_PROMPT" "$OUTPUT_DIR/01-codex-analysis.md"
+for i in $(seq 1 $PIPELINE_TOTAL); do
+    step_name=$(get_step_var "$i" NAME)
+    step_llm=$(get_step_var "$i" LLM)
+    step_prompt=$(get_step_var "$i" PROMPT)
+    step_persona=$(get_step_var "$i" PERSONA)
+    step_context_mode=$(get_step_var "$i" CONTEXT_MODE)
 
-echo ""
-echo ">>> Pass 2: $(get_step_config 2 name 2>/dev/null || echo 'Refinement') ($STEP2_LLM)"
-PASS1_OUTPUT=$(cat "$OUTPUT_DIR/01-codex-analysis.md")
-"$VERN_RUN" "$STEP2_LLM" "$STEP2_PROMPT
+    # Build dynamic output filename: NN-persona-slug-step-name-slug.md
+    step_num=$(printf "%02d" "$i")
+    persona_slug=$(slugify "$step_persona")
+    name_slug=$(slugify "$step_name")
+    output_file="$OUTPUT_DIR/${step_num}-${persona_slug}-${name_slug}.md"
+
+    echo ""
+    echo ">>> Pass $i/$PIPELINE_TOTAL: $step_name ($step_llm)"
+
+    # Build the prompt based on context_mode
+    case "$step_context_mode" in
+        prompt_only)
+            # Only the original idea + input materials
+            run_prompt="$step_prompt
+
+$FULL_PROMPT"
+            ;;
+
+        previous)
+            # Original prompt + previous step's output only
+            prev=$((i - 1))
+            prev_file=$(get_step_var "$prev" OUTPUT_FILE)
+            prev_output=""
+            if [ -n "$prev_file" ] && [ -f "$prev_file" ]; then
+                prev_output=$(cat "$prev_file")
+            fi
+            run_prompt="$step_prompt
 
 ORIGINAL REQUEST:
 $FULL_PROMPT
 
 PREVIOUS ANALYSIS:
-$PASS1_OUTPUT" "$OUTPUT_DIR/02-claude-refinement.md"
+$prev_output"
+            ;;
 
-echo ""
-echo ">>> Pass 3: $(get_step_config 3 name 2>/dev/null || echo 'Chaos Check') ($STEP3_LLM)"
-PASS2_OUTPUT=$(cat "$OUTPUT_DIR/02-claude-refinement.md")
-"$VERN_RUN" "$STEP3_LLM" "$STEP3_PROMPT
+        all_previous)
+            # Original prompt + all previous step outputs (consolidation)
+            all_context=""
+            for j in $(seq 1 $((i - 1))); do
+                prev_name=$(get_step_var "$j" NAME)
+                prev_file=$(get_step_var "$j" OUTPUT_FILE)
+                if [ -n "$prev_file" ] && [ -f "$prev_file" ]; then
+                    all_context="$all_context
+
+$prev_name: $(cat "$prev_file")"
+                fi
+            done
+            run_prompt="$step_prompt
 
 ORIGINAL REQUEST:
 $FULL_PROMPT
+$all_context"
+            # Track this as the consolidation file
+            CONSOLIDATION_FILE="$output_file"
+            ;;
 
-REFINED PLAN:
-$PASS2_OUTPUT" "$OUTPUT_DIR/03-gemini-chaos.md"
-
-echo ""
-echo ">>> Pass 4: $(get_step_config 4 name 2>/dev/null || echo 'Consolidation') ($STEP4_LLM)"
-PASS3_OUTPUT=$(cat "$OUTPUT_DIR/03-gemini-chaos.md")
-"$VERN_RUN" "$STEP4_LLM" "$STEP4_PROMPT
-
-ORIGINAL REQUEST:
-$FULL_PROMPT
-
-Analysis: $PASS1_OUTPUT
-
-Refinement: $PASS2_OUTPUT
-
-Chaos Check: $PASS3_OUTPUT" "$OUTPUT_DIR/04-master-plan.md"
-
-echo ""
-echo ">>> Pass 5: $(get_step_config 5 name 2>/dev/null || echo 'Architect Breakdown') ($STEP5_LLM)"
-MASTER_PLAN=$(cat "$OUTPUT_DIR/04-master-plan.md")
-"$VERN_RUN" "$STEP5_LLM" "$STEP5_PROMPT
+        consolidation)
+            # Original prompt + consolidation output only
+            consol_output=""
+            if [ -n "$CONSOLIDATION_FILE" ] && [ -f "$CONSOLIDATION_FILE" ]; then
+                consol_output=$(cat "$CONSOLIDATION_FILE")
+            fi
+            run_prompt="$step_prompt
 
 Format: $OUTPUT_FORMAT
 
 ORIGINAL REQUEST:
 $FULL_PROMPT
 
-Master plan: $MASTER_PLAN" "$OUTPUT_DIR/05-architect-breakdown.md"
+Master plan: $consol_output"
+            ;;
+
+        *)
+            # Fallback: treat like previous
+            prev=$((i - 1))
+            prev_file=$(get_step_var "$prev" OUTPUT_FILE)
+            prev_output=""
+            if [ -n "$prev_file" ] && [ -f "$prev_file" ]; then
+                prev_output=$(cat "$prev_file")
+            fi
+            run_prompt="$step_prompt
+
+ORIGINAL REQUEST:
+$FULL_PROMPT
+
+PREVIOUS ANALYSIS:
+$prev_output"
+            ;;
+    esac
+
+    "$VERN_RUN" "$step_llm" "$run_prompt" "$output_file"
+
+    # Store output file path for later steps to reference
+    eval "STEP_${i}_OUTPUT_FILE=\"$output_file\""
+done
 
 echo ""
 echo "=== DISCOVERY COMPLETE ==="
@@ -313,13 +435,19 @@ echo "  └── output/"
 ls "$OUTPUT_DIR" 2>/dev/null | while read -r f; do echo "      ├── $f"; done
 
 # VernHole: batch mode uses flag, interactive mode asks
+# Use the dynamically tracked consolidation file
+if [ -z "$CONSOLIDATION_FILE" ]; then
+    # Fallback: find the consolidation file by name pattern
+    CONSOLIDATION_FILE=$(ls "$OUTPUT_DIR"/*consolidation*.md 2>/dev/null | head -1)
+fi
+
 if [ "$BATCH_MODE" -eq 1 ]; then
     if [ "$VERNHOLE_COUNT" -gt 0 ]; then
         echo ""
         echo "=== ENTERING THE VERNHOLE ==="
         echo "Feeding original idea + master plan into the chaos..."
         mkdir -p "$DISCOVERY_DIR/vernhole"
-        "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR" "$VERNHOLE_COUNT" "$OUTPUT_DIR/04-master-plan.md"
+        "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR" "$VERNHOLE_COUNT" "$CONSOLIDATION_FILE"
     fi
 else
     echo ""
@@ -329,6 +457,6 @@ else
         echo "=== ENTERING THE VERNHOLE ==="
         echo "Feeding original idea + master plan into the chaos..."
         mkdir -p "$DISCOVERY_DIR/vernhole"
-        "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR" "" "$OUTPUT_DIR/04-master-plan.md"
+        "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR" "" "$CONSOLIDATION_FILE"
     fi
 fi

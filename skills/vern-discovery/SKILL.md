@@ -1,6 +1,6 @@
 ---
 name: vern-discovery
-description: Full Vern Discovery flow - Codex->Claude->Gemini->Consolidate->Architect. Multi-LLM planning pipeline.
+description: Full Vern Discovery flow - multi-LLM planning pipeline with Default (5-step) and Expanded (7-step) modes.
 argument-hint: [name] [prompt] or just [prompt]
 ---
 
@@ -56,13 +56,17 @@ If yes: Ask the user to provide file paths one at a time. Collect them as EXTRA_
 
 Ask the user using AskUserQuestion:
 
-1. **Output format**: What deliverable format?
+1. **Pipeline mode**: Which pipeline to run?
+   - `Default (5-step)` — Analysis → Refinement → Chaos Check → Consolidation → Architect (Recommended)
+   - `Expanded (7-step)` — Adds Reality Check (Vern the Mediocre) and MVP Lens (Startup Vern) before consolidation
+
+2. **Output format**: What deliverable format?
    - `tasks` - Simple task list (Recommended)
    - `issues` - GitHub Issues
    - `tickets` - Jira-style tickets
    - `beads` - Beads format
 
-2. **VernHole**: Run VernHole on the result after pipeline completes?
+3. **VernHole**: Run VernHole on the result after pipeline completes?
    - **No, just the pipeline** (Recommended)
    - **Yes, 5-6 Verns** (focused council)
    - **Yes, 7-9 Verns** (getting chaotic)
@@ -78,6 +82,7 @@ Build the command:
 
 ```bash
 {plugin_root}/bin/vern-discovery --batch \
+  [--expanded]                            # if user chose expanded pipeline mode
   [--skip-input]                          # if user said no to reading input files
   [--vernhole N]                          # if user wants VernHole (pick random N in their range)
   [--extra-context /path/to/file ...]     # for each extra context file the user provided
@@ -87,6 +92,7 @@ Build the command:
 ```
 
 ### Flag mapping:
+- User chose **Expanded** pipeline → add `--expanded`
 - User said **no** to reading input files → add `--skip-input`
 - User said **yes** to VernHole → add `--vernhole N` where N is a random number in their chosen range (5-6, 7-9, or 10-12)
 - User provided extra files → add `--extra-context /path/to/file` for each one
@@ -101,18 +107,53 @@ Build the command:
 
 After the script completes, tell the user:
 - Where files were created
+- Pipeline mode used (default or expanded) and number of steps
 - Summary of the pipeline output
-- Read and briefly summarize the master plan from `output/04-master-plan.md`
+- Read and briefly summarize the master plan from the consolidation output file
 - The folder structure for reference
 
-## The Pipeline
+## The Pipelines
+
+### Default (5-step)
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   CODEX     │────▶│   CLAUDE    │────▶│   GEMINI    │
 │  (MightyVern)│     │(Vernile/Ket)│     │ (YOLO Vern) │
-│  First Pass │     │ Refinement  │     │ Chaos Check │
+│  Analysis   │     │ Refinement  │     │ Chaos Check │
 └─────────────┘     └─────────────┘     └─────────────┘
+                            │
+                            ▼
+                    ┌─────────────┐
+                    │   CODEX     │
+                    │   Master    │
+                    │ Consolidate │
+                    └─────────────┘
+                            │
+                            ▼
+                    ┌─────────────┐
+                    │  ARCHITECT  │
+                    │    VERN     │
+                    │ Break Down  │
+                    └─────────────┘
+```
+
+### Expanded (7-step)
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   CODEX     │────▶│   CLAUDE    │────▶│   CLAUDE    │
+│  (MightyVern)│     │  (Vernile)  │     │ (Mediocre)  │
+│  Analysis   │     │ Refinement  │     │Reality Check│
+└─────────────┘     └─────────────┘     └─────────────┘
+                                               │
+        ┌──────────────────────────────────────┘
+        ▼
+┌─────────────┐     ┌─────────────┐
+│   GEMINI    │────▶│   CLAUDE    │
+│ (YOLO Vern) │     │(Startup Vern)│
+│ Chaos Check │     │  MVP Lens   │
+└─────────────┘     └─────────────┘
                             │
                             ▼
                     ┌─────────────┐
@@ -133,23 +174,42 @@ After the script completes, tell the user:
 
 ## Folder Structure (Final)
 
+### Default mode
 ```
 discovery/{name}/
 ├── input/
-│   ├── prompt.md              # The original prompt/idea
-│   └── {any reference files}  # User-provided context
+│   ├── prompt.md                          # The original prompt/idea
+│   └── {any reference files}              # User-provided context
 ├── output/
-│   ├── 01-codex-analysis.md
-│   ├── 02-claude-refinement.md
-│   ├── 03-gemini-chaos.md
-│   ├── 04-master-plan.md
-│   ├── 05-architect-breakdown.md
-│   └── {format}/              # tasks/ or issues/ or tickets/
+│   ├── 01-mighty-vern-initial-analysis.md
+│   ├── 02-vernile-great-refinement.md
+│   ├── 03-yolo-vern-chaos-check.md
+│   ├── 04-mighty-vern-consolidation.md
+│   ├── 05-architect-vern-architect-breakdown.md
+│   └── {format}/                          # tasks/ or issues/ or tickets/
 │       ├── 001-item.md
 │       └── ...
-└── vernhole/                  # Only if user opted in
+└── vernhole/                              # Only if user opted in
     ├── 01-{persona}.md
     └── synthesis.md
+```
+
+### Expanded mode
+```
+discovery/{name}/
+├── input/
+│   ├── prompt.md
+│   └── {any reference files}
+├── output/
+│   ├── 01-mighty-vern-initial-analysis.md
+│   ├── 02-vernile-great-refinement.md
+│   ├── 03-vern-mediocre-reality-check.md
+│   ├── 04-yolo-vern-chaos-check.md
+│   ├── 05-startup-vern-mvp-lens.md
+│   ├── 06-mighty-vern-consolidation.md
+│   ├── 07-architect-vern-architect-breakdown.md
+│   └── {format}/
+└── vernhole/
 ```
 
 Begin discovery on: $ARGUMENTS

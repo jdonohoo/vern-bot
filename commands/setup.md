@@ -31,21 +31,33 @@ Options (multiSelect: true):
 
 Based on their answer, set `llms.codex` and `llms.gemini` to true/false. `llms.claude` is always true.
 
-## Step 3: Configure Discovery Pipeline
+## Step 3: Pipeline Mode
+
+Ask using AskUserQuestion:
+
+> "Which pipeline mode should be your default?"
+
+Options:
+- **Default (5-step)** (Recommended) — Analysis → Refinement → Chaos Check → Consolidation → Architect. Faster, lower token usage.
+- **Expanded (7-step)** — Adds Reality Check (Vern the Mediocre) and MVP Lens (Startup Vern) before consolidation. More thorough, higher token usage.
+
+Track the answer as `pipeline_mode` ("default" or "expanded").
+
+## Step 4: Configure Discovery Pipeline
 
 If they have ALL three LLMs, ask:
 
 > "Use the default discovery pipeline? (Codex -> Claude -> Gemini -> Codex -> Claude)"
 
 Options:
-- **Yes, use defaults** (Recommended) - skip to Step 4
+- **Yes, use defaults** (Recommended) - skip to Step 5
 - **No, let me customize** - proceed to custom config
 
 If they're MISSING an LLM, or they chose to customize:
 
 > "Let's configure each pipeline step. Every persona can run on any LLM you have - the persona is the personality, the LLM is the engine."
 
-For each of the 5 pipeline steps, ask using AskUserQuestion:
+For each of the 5 default pipeline steps, ask using AskUserQuestion:
 
 ### Step 1 - Initial Analysis
 > "Who should do the initial analysis?"
@@ -93,7 +105,27 @@ Options:
 - **Startup Vern on Claude** - MVP-focused breakdown
 - **Vernile on Claude** - elegant task breakdown
 
-## Step 4: VernHole Defaults
+### Expanded mode extra steps (only if pipeline_mode is "expanded"):
+
+If the user chose expanded mode in Step 3, also configure:
+
+### Expanded Step 3 - Reality Check
+> "Who should reality-check the refined plan?"
+
+Options:
+- **Vern the Mediocre on Claude** (Recommended) - pragmatic reality check
+- **Inverse Vern on Claude** - contrarian reality check
+- **Paranoid Vern on Claude** - risk-focused reality check
+
+### Expanded Step 5 - MVP Lens
+> "Who should apply the MVP lens?"
+
+Options:
+- **Startup Vern on Claude** (Recommended) - lean MVP analysis
+- **Vern the Mediocre on Claude** - "good enough" lens
+- **Enterprise Vern on Claude** - enterprise MVP (bigger scope)
+
+## Step 5: VernHole Defaults
 
 Ask using AskUserQuestion:
 
@@ -105,55 +137,121 @@ Options:
 - **Medium chaos (7-9)** - good balance
 - **Full VernHole (10-12)** - maximum perspectives
 
-## Step 5: Save Config
+## Step 6: Save Config
 
 Write the config to `~/.claude/vern-bot-config.json`:
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "llms": {
     "claude": true,
     "codex": true,
     "gemini": false
   },
-  "discovery_pipeline": [
-    {
-      "step": 1,
-      "name": "Initial Analysis",
-      "persona": "mighty-vern",
-      "llm": "codex",
-      "description": "MightyVern on Codex"
-    },
-    {
-      "step": 2,
-      "name": "Refinement",
-      "persona": "vernile-great",
-      "llm": "claude",
-      "description": "Vernile on Claude"
-    },
-    {
-      "step": 3,
-      "name": "Chaos Check",
-      "persona": "yolo-vern",
-      "llm": "claude",
-      "description": "YOLO Vern on Claude"
-    },
-    {
-      "step": 4,
-      "name": "Consolidation",
-      "persona": "mighty-vern",
-      "llm": "codex",
-      "description": "MightyVern on Codex"
-    },
-    {
-      "step": 5,
-      "name": "Architect Breakdown",
-      "persona": "architect-vern",
-      "llm": "claude",
-      "description": "Architect Vern on Claude"
-    }
-  ],
+  "pipeline_mode": "default",
+  "discovery_pipelines": {
+    "default": [
+      {
+        "step": 1,
+        "name": "Initial Analysis",
+        "persona": "mighty-vern",
+        "llm": "codex",
+        "context_mode": "prompt_only",
+        "description": "MightyVern on Codex"
+      },
+      {
+        "step": 2,
+        "name": "Refinement",
+        "persona": "vernile-great",
+        "llm": "claude",
+        "context_mode": "previous",
+        "description": "Vernile on Claude"
+      },
+      {
+        "step": 3,
+        "name": "Chaos Check",
+        "persona": "yolo-vern",
+        "llm": "claude",
+        "context_mode": "previous",
+        "description": "YOLO Vern on Claude"
+      },
+      {
+        "step": 4,
+        "name": "Consolidation",
+        "persona": "mighty-vern",
+        "llm": "codex",
+        "context_mode": "all_previous",
+        "description": "MightyVern on Codex"
+      },
+      {
+        "step": 5,
+        "name": "Architect Breakdown",
+        "persona": "architect-vern",
+        "llm": "claude",
+        "context_mode": "consolidation",
+        "description": "Architect Vern on Claude"
+      }
+    ],
+    "expanded": [
+      {
+        "step": 1,
+        "name": "Initial Analysis",
+        "persona": "mighty-vern",
+        "llm": "codex",
+        "context_mode": "prompt_only",
+        "description": "MightyVern on Codex"
+      },
+      {
+        "step": 2,
+        "name": "Refinement",
+        "persona": "vernile-great",
+        "llm": "claude",
+        "context_mode": "previous",
+        "description": "Vernile on Claude"
+      },
+      {
+        "step": 3,
+        "name": "Reality Check",
+        "persona": "vern-mediocre",
+        "llm": "claude",
+        "context_mode": "previous",
+        "description": "Vern the Mediocre on Claude"
+      },
+      {
+        "step": 4,
+        "name": "Chaos Check",
+        "persona": "yolo-vern",
+        "llm": "gemini",
+        "context_mode": "previous",
+        "description": "YOLO Vern on Gemini"
+      },
+      {
+        "step": 5,
+        "name": "MVP Lens",
+        "persona": "startup-vern",
+        "llm": "claude",
+        "context_mode": "previous",
+        "description": "Startup Vern on Claude"
+      },
+      {
+        "step": 6,
+        "name": "Consolidation",
+        "persona": "mighty-vern",
+        "llm": "codex",
+        "context_mode": "all_previous",
+        "description": "MightyVern on Codex"
+      },
+      {
+        "step": 7,
+        "name": "Architect Breakdown",
+        "persona": "architect-vern",
+        "llm": "claude",
+        "context_mode": "consolidation",
+        "description": "Architect Vern on Claude"
+      }
+    ]
+  },
   "vernhole": {
     "default_count": "random",
     "min": 5,
@@ -162,7 +260,9 @@ Write the config to `~/.claude/vern-bot-config.json`:
 }
 ```
 
-## Step 6: Confirm Setup
+Note: When customizing, update the persona/llm/description in both the `default` and `expanded` pipeline arrays as appropriate. Steps that exist in both pipelines (1, 2, Chaos Check, Consolidation, Architect Breakdown) should be kept in sync.
+
+## Step 7: Confirm Setup
 
 Show the user a summary:
 
@@ -171,12 +271,23 @@ Show the user a summary:
 
 LLMs: Claude ✓  Codex ✓  Gemini ✗
 
-Discovery Pipeline:
+Default Pipeline Mode: default (5-step)
+
+Default Pipeline:
   1. Initial Analysis    → MightyVern on Codex
   2. Refinement          → Vernile on Claude
   3. Chaos Check         → YOLO Vern on Claude
   4. Consolidation       → MightyVern on Codex
   5. Architect Breakdown → Architect Vern on Claude
+
+Expanded Pipeline (use --expanded or select at runtime):
+  1. Initial Analysis    → MightyVern on Codex
+  2. Refinement          → Vernile on Claude
+  3. Reality Check       → Vern the Mediocre on Claude
+  4. Chaos Check         → YOLO Vern on Claude
+  5. MVP Lens            → Startup Vern on Claude
+  6. Consolidation       → MightyVern on Codex
+  7. Architect Breakdown → Architect Vern on Claude
 
 VernHole: Random (5-12 Verns)
 
@@ -189,5 +300,6 @@ Run /setup anytime to reconfigure.
 - The bin scripts read this config to determine which LLM to invoke
 - Any persona can run on any LLM - the persona prompt is the personality, the LLM is the engine
 - If no config exists, the pipeline falls back to defaults (codex/claude/gemini)
+- Use `--expanded` flag with `/vern-discovery` to override the default pipeline mode for a single run
 
 Begin setup: $ARGUMENTS

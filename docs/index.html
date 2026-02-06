@@ -40,13 +40,13 @@
         .hero h1 {
             font-size: 3rem;
             font-weight: 800;
-            margin-bottom: 16px;
+            margin-bottom: 6px;
             background: linear-gradient(135deg, var(--accent), var(--purple), var(--cyan));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .hero .tagline {
-            font-size: 1.25rem;
+            font-size: 1.05rem;
             color: var(--text-muted);
             max-width: 800px;
             margin: 0 auto 32px;
@@ -75,7 +75,6 @@
             color: var(--text-muted);
             max-width: 680px;
             margin: 0 auto;
-            text-align: left;
         }
 
         /* Section headers */
@@ -654,13 +653,32 @@ Config saved to ~/.claude/vern-bot-config.json</div>
 
                 <h4 style="margin-bottom: 8px;">Discovery Pipeline</h4>
                 <div class="cmd">/vern-discovery &lt;prompt&gt;</div>
-                <p>Your idea goes through 5 passes across multiple LLMs. Each pass builds on the last. The original prompt rides along the entire chain so nothing gets lost.</p>
+                <p>Your idea goes through multiple passes across competing LLMs. Each pass builds on the last. The original prompt rides along the entire chain so nothing gets lost. Choose Default (5-step) or Expanded (7-step) mode.</p>
+
+                <p style="margin-top: 16px; margin-bottom: 8px; font-size: 0.9rem; color: var(--accent);"><strong>Default (5 steps)</strong></p>
                 <div class="pipeline-steps">
                     <div class="step"><strong>MightyVern</strong><br><small>Analysis</small></div>
                     <span class="step-arrow">&rarr;</span>
                     <div class="step"><strong>Vernile</strong><br><small>Refinement</small></div>
                     <span class="step-arrow">&rarr;</span>
                     <div class="step"><strong>YOLO Vern</strong><br><small>Chaos Check</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step"><strong>Architect Vern</strong><br><small>Breakdown</small></div>
+                </div>
+
+                <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--purple);"><strong>Expanded (7 steps)</strong> &mdash; use <code>--expanded</code></p>
+                <div class="pipeline-steps">
+                    <div class="step"><strong>MightyVern</strong><br><small>Analysis</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step"><strong>Vernile</strong><br><small>Refinement</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step" style="border-color: var(--purple);"><strong>Mediocre</strong><br><small>Reality Check</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step"><strong>YOLO Vern</strong><br><small>Chaos Check</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step" style="border-color: var(--purple);"><strong>Startup Vern</strong><br><small>MVP Lens</small></div>
                     <span class="step-arrow">&rarr;</span>
                     <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
                     <span class="step-arrow">&rarr;</span>
@@ -728,15 +746,14 @@ Synthesizing 7 perspectives into final report...</div>
         <!-- 4. Discovery Pipeline -->
         <div class="example-group">
             <h3>Discovery Pipeline</h3>
-            <p class="group-desc">A structured multi-LLM chain that evolves your idea through 5 passes. Each pass builds on the previous one, and your original prompt rides along the entire chain.</p>
+            <p class="group-desc">A structured multi-LLM chain that evolves your idea through 5 or 7 passes. Choose Default (5-step) or Expanded (7-step) mode. Each pass builds on the previous one, and your original prompt rides along the entire chain.</p>
 
             <div class="example-block">
                 <div class="example-cmd"><span class="prompt">$ </span>/vern-discovery build a SaaS platform for freelancer invoicing</div>
-                <div class="example-explain"><strong>Quick discovery</strong> &mdash; no prep needed. You'll be prompted for a project name and output location, then the 5-pass pipeline runs: Analysis &rarr; Refinement &rarr; Chaos Check &rarr; Consolidation &rarr; Breakdown. At the end, you're asked if you want to run a VernHole on the result.</div>
+                <div class="example-explain"><strong>Quick discovery (default mode)</strong> &mdash; no prep needed. You'll be prompted for a project name, pipeline mode, and output location, then the pipeline runs. At the end, you're asked if you want to run a VernHole on the result.</div>
                 <div class="example-output"><span class="out-label">Flow:</span>
 Name this discovery: <strong style="color: var(--cyan);">freelancer-invoicing</strong>
-
-Read input files as context? [Y/n]: <strong style="color: var(--cyan);">n</strong>
+Pipeline mode: <strong style="color: var(--cyan);">Default (5-step)</strong>
 
 Running discovery pipeline...
  Step 1/5: MightyVern (Codex) - Analysis pass...
@@ -747,6 +764,22 @@ Running discovery pipeline...
 
 Run a VernHole on this plan? [y/N]: <strong style="color: var(--cyan);">y</strong>
 How many Verns? (5-12): <strong style="color: var(--cyan);">8</strong></div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern-discovery build a SaaS platform for freelancer invoicing</div>
+                <div class="example-explain"><strong>Expanded mode (7-step)</strong> &mdash; adds Vern the Mediocre (Reality Check) and Startup Vern (MVP Lens) before consolidation for more thorough analysis.</div>
+                <div class="example-output"><span class="out-label">Flow:</span>
+Pipeline mode: <strong style="color: var(--purple);">Expanded (7-step)</strong>
+
+Running discovery pipeline...
+ Step 1/7: MightyVern (Codex) - Analysis...
+ Step 2/7: Vernile (Claude) - Refinement...
+ Step 3/7: Vern the Mediocre (Claude) - Reality Check...
+ Step 4/7: YOLO Vern (Gemini) - Chaos Check...
+ Step 5/7: Startup Vern (Claude) - MVP Lens...
+ Step 6/7: MightyVern (Codex) - Consolidation...
+ Step 7/7: Architect Vern (Claude) - Breakdown...</div>
             </div>
 
             <div class="example-block">

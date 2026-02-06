@@ -111,7 +111,7 @@ Each persona is a separate skill invoked directly:
 | Command | Description |
 |---------|-------------|
 | `/vern-new-idea` | Create discovery folder with input/output structure |
-| `/vern-discovery` | Full pipeline: Codex->Claude->Gemini->Consolidate->Architect |
+| `/vern-discovery` | Full pipeline: Default (5-step) or Expanded (7-step) multi-LLM discovery |
 | `/vernhole` | 5-12 random Verns brainstorm your idea |
 
 ## The Discovery Pipeline
@@ -136,8 +136,11 @@ Two ways to use it:
 
 1. Checks for input files, asks if you want them read as context
 2. Asks if you want to add any other files (one at a time, easy to stop)
-3. Builds the full prompt from your idea + all gathered context
-4. Runs the multi-LLM gauntlet:
+3. Choose pipeline mode: Default (5-step) or Expanded (7-step)
+4. Builds the full prompt from your idea + all gathered context
+5. Runs the multi-LLM gauntlet:
+
+#### Default Pipeline (5 steps)
 
 ```
 Codex (Analysis) -> Claude (Refinement) -> Gemini (Chaos Check)
@@ -147,10 +150,24 @@ Codex (Analysis) -> Claude (Refinement) -> Gemini (Chaos Check)
                           |
                           v
                   Architect Vern (Breakdown)
+```
+
+#### Expanded Pipeline (7 steps) — use `--expanded` flag
+
+```
+Codex (Analysis) -> Claude (Refinement) -> Claude (Reality Check)
+                                                  |
+                                                  v
+                  Gemini (Chaos Check) -> Claude (MVP Lens)
                           |
                           v
-                  [Optional] VernHole on the plan
+                  Codex (Consolidation)
+                          |
+                          v
+                  Architect Vern (Breakdown)
 ```
+
+The expanded pipeline inserts **Vern the Mediocre** (Reality Check) and **Startup Vern** (MVP Lens) before consolidation for more thorough analysis.
 
 Every pass receives the **original prompt + all input context** alongside the chain outputs, so nothing gets lost.
 
@@ -164,11 +181,11 @@ discovery/{name}/
 │   ├── prompt.md              # Your idea description
 │   └── {reference files}      # Specs, designs, code, anything
 ├── output/
-│   ├── 01-codex-analysis.md
-│   ├── 02-claude-refinement.md
-│   ├── 03-gemini-chaos.md
-│   ├── 04-master-plan.md
-│   ├── 05-architect-breakdown.md
+│   ├── 01-mighty-vern-initial-analysis.md
+│   ├── 02-vernile-great-refinement.md
+│   ├── 03-yolo-vern-chaos-check.md       # (or 03-vern-mediocre-reality-check.md in expanded)
+│   ├── 04-mighty-vern-consolidation.md   # (or 06-... in expanded)
+│   ├── 05-architect-vern-architect-breakdown.md  # (or 07-... in expanded)
 │   └── tasks/                 # (or issues/ tickets/ beads/)
 └── vernhole/                  # Only if you opted in
 ```
