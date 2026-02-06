@@ -705,45 +705,7 @@ Config saved to ~/.claude/vern-bot-config.json</div>
             </div>
         </div>
 
-        <!-- 3. VernHole (Chaos Mode) -->
-        <div class="example-group">
-            <h3>VernHole (Chaos Mode)</h3>
-            <p class="group-desc">Summon 5&ndash;12 random personas at once. Each gives their independent take on your idea, then a synthesis pass weaves the chaos into something useful.</p>
-
-            <div class="example-block">
-                <div class="example-cmd"><span class="prompt">$ </span>/vernhole should we migrate from REST to GraphQL?</div>
-                <div class="example-explain">Launches VernHole. You'll be prompted: <strong>"How many Verns do you want to summon? (5-12)"</strong>. Pick your chaos level and watch the perspectives fly.</div>
-                <div class="example-output"><span class="out-label">Prompt:</span>
-How many Verns do you want to summon? (5-12): <strong style="color: var(--cyan);">7</strong>
-
-Summoning 7 Verns from the roster...
- Pass 1/7: Paranoid Vern analyzing...
- Pass 2/7: YOLO Vern analyzing...
- Pass 3/7: Academic Vern analyzing...
- Pass 4/7: Startup Vern analyzing...
- Pass 5/7: Architect Vern analyzing...
- Pass 6/7: Enterprise Vern analyzing...
- Pass 7/7: Inverse Vern analyzing...
-
-Synthesizing 7 perspectives into final report...</div>
-            </div>
-
-            <div class="example-block">
-                <div class="example-cmd"><span class="prompt">$ </span>/vernhole build a real-time collaborative code editor</div>
-                <div class="example-explain">Great for ambitious ideas where you want diverse perspectives before committing to an architecture.</div>
-            </div>
-
-            <div class="example-block">
-                <div class="example-cmd"><span class="prompt">$ </span>/vernhole is microservices the right call for our 3-person team?</div>
-                <div class="example-explain">VernHole shines on decisions with strong tradeoffs. Paranoid Vern will warn about operational complexity, Startup Vern will argue for the monolith, Architect Vern will design for maintainability, Enterprise Vern will insist on governance, and the synthesis pulls it all together.</div>
-            </div>
-
-            <div class="tip-box">
-                <strong>Depth guide:</strong> 5&ndash;6 Verns gives a focused council of perspectives. 7&ndash;9 gets increasingly chaotic and creative. 10&ndash;12 is the full VernHole experience &mdash; maximum diversity, maximum noise, maximum signal buried in the chaos.
-            </div>
-        </div>
-
-        <!-- 4. Discovery Pipeline -->
+        <!-- 3. Discovery Pipeline -->
         <div class="example-group">
             <h3>Discovery Pipeline</h3>
             <p class="group-desc">A structured multi-LLM chain that evolves your idea through 5 or 7 passes. Choose Default (5-step) or Expanded (7-step) mode. Each pass builds on the previous one, and your original prompt rides along the entire chain.</p>
@@ -811,6 +773,44 @@ Running discovery pipeline with 4 input files...</div>
 
             <div class="tip-box">
                 <strong>Tip:</strong> The prepared path (<code>/vern-new-idea</code> then <code>/vern-discovery</code>) is recommended for complex ideas. Drop competitor analysis, user research, technical specs &mdash; anything relevant &mdash; into the <code>input/</code> folder. The pipeline reads it all.
+            </div>
+        </div>
+
+        <!-- 4. VernHole (Chaos Mode) -->
+        <div class="example-group">
+            <h3>VernHole (Chaos Mode)</h3>
+            <p class="group-desc">Summon 5&ndash;12 random personas at once. Each gives their independent take on your idea, then a synthesis pass weaves the chaos into something useful.</p>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vernhole should we migrate from REST to GraphQL?</div>
+                <div class="example-explain">Launches VernHole. You'll be prompted: <strong>"How many Verns do you want to summon? (5-12)"</strong>. Pick your chaos level and watch the perspectives fly.</div>
+                <div class="example-output"><span class="out-label">Prompt:</span>
+How many Verns do you want to summon? (5-12): <strong style="color: var(--cyan);">7</strong>
+
+Summoning 7 Verns from the roster...
+ Pass 1/7: Paranoid Vern analyzing...
+ Pass 2/7: YOLO Vern analyzing...
+ Pass 3/7: Academic Vern analyzing...
+ Pass 4/7: Startup Vern analyzing...
+ Pass 5/7: Architect Vern analyzing...
+ Pass 6/7: Enterprise Vern analyzing...
+ Pass 7/7: Inverse Vern analyzing...
+
+Synthesizing 7 perspectives into final report...</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vernhole build a real-time collaborative code editor</div>
+                <div class="example-explain">Great for ambitious ideas where you want diverse perspectives before committing to an architecture.</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vernhole is microservices the right call for our 3-person team?</div>
+                <div class="example-explain">VernHole shines on decisions with strong tradeoffs. Paranoid Vern will warn about operational complexity, Startup Vern will argue for the monolith, Architect Vern will design for maintainability, Enterprise Vern will insist on governance, and the synthesis pulls it all together.</div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Depth guide:</strong> 5&ndash;6 Verns gives a focused council of perspectives. 7&ndash;9 gets increasingly chaotic and creative. 10&ndash;12 is the full VernHole experience &mdash; maximum diversity, maximum noise, maximum signal buried in the chaos.
             </div>
         </div>
 
