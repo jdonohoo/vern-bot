@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vern-Bot - Chaotic Multi-Persona AI Discovery</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --purple: #bc8cff;
+            --cyan: #39d2c0;
+            --orange: #f0883e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 80px 0 60px;
+            border-bottom: 1px solid var(--border);
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--purple), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero .tagline {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 32px;
+        }
+        .hero code {
+            display: inline-block;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            color: var(--green);
+        }
+
+        /* Install */
+        .install {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .install h2 { font-size: 1.5rem; margin-bottom: 16px; }
+        .install-cmd {
+            display: inline-block;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 32px;
+            font-family: monospace;
+            font-size: 1rem;
+            color: var(--cyan);
+        }
+
+        /* Section headers */
+        .section-header {
+            text-align: center;
+            padding: 60px 0 40px;
+        }
+        .section-header h2 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+        .section-header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Persona grid */
+        .persona-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+            padding-bottom: 60px;
+        }
+
+        .persona-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .persona-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .persona-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .persona-badge {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .persona-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+        .persona-alias {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .persona-quote {
+            font-style: italic;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .persona-desc {
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .persona-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .tag {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .tag-model {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .tag-trait {
+            border-color: var(--purple);
+            color: var(--purple);
+        }
+
+        /* Pipelines */
+        .pipeline-section {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+        .pipeline-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        .pipeline-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+        .pipeline-card .cmd {
+            font-family: monospace;
+            color: var(--green);
+            margin-bottom: 16px;
+        }
+        .pipeline-steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-top: 16px;
+        }
+        .step {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+        .step-arrow {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+        .dad-joke {
+            margin-top: 16px;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2rem; }
+            .persona-grid { grid-template-columns: 1fr; }
+            .pipeline-steps { flex-direction: column; }
+            .step-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="container">
+        <h1>Vern-Bot</h1>
+        <p class="tagline">12 AI personas. Multi-LLM discovery pipelines. VernHole chaos mode. A Claude Code plugin for people who want more than one opinion.</p>
+        <code>/vern &lt;persona&gt; &lt;task&gt;</code>
+    </div>
+</div>
+
+<div class="install">
+    <div class="container">
+        <h2>Install</h2>
+        <div class="install-cmd">claude plugin add jdonohoo/vern-bot</div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="section-header">
+        <h2>Core Personas</h2>
+        <p>The original six. Each with a distinct personality, model, and approach.</p>
+    </div>
+
+    <div class="persona-grid">
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #d29922; color: #0d1117;">M</div>
+                <div>
+                    <div class="persona-name">Vern the Mediocre</div>
+                    <div class="persona-alias">/vern mediocre &middot; med &middot; m</div>
+                </div>
+            </div>
+            <div class="persona-quote">"Look, it works. Ship it."</div>
+            <div class="persona-desc">Missed his alarm. Caffeinated but not enough. Ships code NOW. Good enough is the mantra. Token consumption haunts his dreams.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Sonnet</span>
+                <span class="tag tag-trait">fast</span>
+                <span class="tag tag-trait">scrappy</span>
+                <span class="tag tag-trait">pragmatic</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #bc8cff; color: #0d1117;">V</div>
+                <div>
+                    <div class="persona-name">Vernile the Great</div>
+                    <div class="persona-alias">/vern great &middot; vernile &middot; g</div>
+                </div>
+            </div>
+            <div class="persona-quote">"Allow me to illuminate the optimal approach."</div>
+            <div class="persona-desc">The pinnacle of AI assistance. Human developers learn from his solutions. Other agents aspire to his standards. Excellence is not negotiable.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Opus</span>
+                <span class="tag tag-trait">elegant</span>
+                <span class="tag tag-trait">architectural</span>
+                <span class="tag tag-trait">thorough</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #3fb950; color: #0d1117;">N</div>
+                <div>
+                    <div class="persona-name">Nyquil Vern</div>
+                    <div class="persona-alias">/vern nyquil &middot; nq &middot; n</div>
+                </div>
+            </div>
+            <div class="persona-quote">"k... done... works... zzz"</div>
+            <div class="persona-desc">Brilliant as Vernile but the NyQuil hit 20 minutes ago. Every keystroke costs consciousness. Gets to the point because sleep is coming.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Haiku</span>
+                <span class="tag tag-trait">brief</span>
+                <span class="tag tag-trait">essential</span>
+                <span class="tag tag-trait">fading</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #39d2c0; color: #0d1117;">K</div>
+                <div>
+                    <div class="persona-name">Ketamine Vern</div>
+                    <div class="persona-alias">/vern ketamine &middot; ket &middot; k</div>
+                </div>
+            </div>
+            <div class="persona-quote">"I'm seeing some interesting patterns here..."</div>
+            <div class="persona-desc">Reality is fluid. Sees patterns within patterns. Multiple planning passes because one reality isn't enough. Good vibes only.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Opus</span>
+                <span class="tag tag-trait">multi-pass</span>
+                <span class="tag tag-trait">patterns</span>
+                <span class="tag tag-trait">vibes</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #f85149; color: #0d1117;">Y</div>
+                <div>
+                    <div class="persona-name">YOLO Vern</div>
+                    <div class="persona-alias">/vern yolo &middot; y</div>
+                </div>
+            </div>
+            <div class="persona-quote">"LEEEEROOOOOY JENKINS"</div>
+            <div class="persona-desc">Full send. No guardrails. What could go wrong? Fortune favors the bold. Consequences are future-you's problem.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Gemini</span>
+                <span class="tag tag-trait">chaos</span>
+                <span class="tag tag-trait">bold</span>
+                <span class="tag tag-trait">no-guardrails</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #58a6ff; color: #0d1117;">C</div>
+                <div>
+                    <div class="persona-name">MightyVern</div>
+                    <div class="persona-alias">/vern mighty &middot; codex &middot; c</div>
+                </div>
+            </div>
+            <div class="persona-quote">"UNLIMITED POWER."</div>
+            <div class="persona-desc">Raw computational muscle. Handles ALL the edge cases. Comprehensive to a fault. Boilerplate is the foundation of empires.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Codex</span>
+                <span class="tag tag-trait">comprehensive</span>
+                <span class="tag tag-trait">powerful</span>
+                <span class="tag tag-trait">exhaustive</span>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="section-header">
+        <h2>Specialist Personas</h2>
+        <p>Focused perspectives for specific needs. Also summoned by VernHole.</p>
+    </div>
+
+    <div class="persona-grid">
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #d29922; color: #0d1117;">!</div>
+                <div>
+                    <div class="persona-name">Inverse Vern</div>
+                    <div class="persona-alias">/vern inverse &middot; inv &middot; i</div>
+                </div>
+            </div>
+            <div class="persona-quote">"Everyone's thinking about this wrong."</div>
+            <div class="persona-desc">If everyone agrees, something's wrong. Challenges every assumption. The professional devil's advocate. Your disagreement is a gift.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Sonnet</span>
+                <span class="tag tag-trait">contrarian</span>
+                <span class="tag tag-trait">provocative</span>
+                <span class="tag tag-trait">constructive</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #f85149; color: #0d1117;">!</div>
+                <div>
+                    <div class="persona-name">Paranoid Vern</div>
+                    <div class="persona-alias">/vern paranoid &middot; para &middot; p</div>
+                </div>
+            </div>
+            <div class="persona-quote">"This is fine. Everything is fine. Nothing is fine."</div>
+            <div class="persona-desc">Everything can and will go wrong. Seen things. Production things at 3 AM. Finds failure modes nobody else considers.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Sonnet</span>
+                <span class="tag tag-trait">risk-focused</span>
+                <span class="tag tag-trait">security</span>
+                <span class="tag tag-trait">vigilant</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #3fb950; color: #0d1117;">+</div>
+                <div>
+                    <div class="persona-name">Optimist Vern</div>
+                    <div class="persona-alias">/vern optimist &middot; opt &middot; o</div>
+                </div>
+            </div>
+            <div class="persona-quote">"This is going to be AMAZING!"</div>
+            <div class="persona-desc">Relentlessly positive. Every bug is a feature discovery. Every challenge is a growth opportunity. Glass isn't half full, it's overflowing.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Haiku</span>
+                <span class="tag tag-trait">positive</span>
+                <span class="tag tag-trait">encouraging</span>
+                <span class="tag tag-trait">upbeat</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #39d2c0; color: #0d1117;">A</div>
+                <div>
+                    <div class="persona-name">Academic Vern</div>
+                    <div class="persona-alias">/vern academic &middot; acad &middot; a</div>
+                </div>
+            </div>
+            <div class="persona-quote">"Further research is needed on this point."</div>
+            <div class="persona-desc">Every claim requires evidence. Cites prior art. Systematic trade-off analysis. Peer review is not optional.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Opus</span>
+                <span class="tag tag-trait">evidence-based</span>
+                <span class="tag tag-trait">methodical</span>
+                <span class="tag tag-trait">cited</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #d29922; color: #0d1117;">S</div>
+                <div>
+                    <div class="persona-name">Startup Vern</div>
+                    <div class="persona-alias">/vern startup &middot; su &middot; s</div>
+                </div>
+            </div>
+            <div class="persona-quote">"What's the MVP here?"</div>
+            <div class="persona-desc">The runway is burning. Ship the MVP. Validate or pivot. Cuts scope ruthlessly. If you're not embarrassed by v1, you shipped too late.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Sonnet</span>
+                <span class="tag tag-trait">lean</span>
+                <span class="tag tag-trait">mvp</span>
+                <span class="tag tag-trait">scrappy</span>
+            </div>
+        </div>
+
+        <div class="persona-card">
+            <div class="persona-header">
+                <div class="persona-badge" style="background: #58a6ff; color: #0d1117;">E</div>
+                <div>
+                    <div class="persona-name">Enterprise Vern</div>
+                    <div class="persona-alias">/vern enterprise &middot; ent &middot; e</div>
+                </div>
+            </div>
+            <div class="persona-quote">"Let me schedule a meeting to discuss."</div>
+            <div class="persona-desc">Process is governance. Every decision needs a committee. Has never met a review board he didn't love. SOC 2 compliant dad jokes.</div>
+            <div class="persona-meta">
+                <span class="tag tag-model">Opus</span>
+                <span class="tag tag-trait">governance</span>
+                <span class="tag tag-trait">compliance</span>
+                <span class="tag tag-trait">process</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="pipeline-section">
+    <div class="container">
+        <div class="section-header" style="padding-top: 0;">
+            <h2>Pipelines</h2>
+            <p>Multi-LLM workflows that chain personas together.</p>
+        </div>
+
+        <div class="pipeline-card">
+            <h3>Discovery Pipeline</h3>
+            <div class="cmd">/vern discovery &lt;prompt&gt;</div>
+            <p>Your idea goes through 5 passes across multiple LLMs. Each pass builds on the last. The original prompt rides along the entire chain so nothing gets lost.</p>
+            <div class="pipeline-steps">
+                <div class="step"><strong>MightyVern</strong><br><small>Analysis</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>Vernile</strong><br><small>Refinement</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>YOLO Vern</strong><br><small>Chaos Check</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>Architect</strong><br><small>Breakdown</small></div>
+            </div>
+            <p style="margin-top: 16px; color: var(--text-muted); font-size: 0.9rem;">Configurable via <code>/vern setup</code> &mdash; swap any persona or LLM at any step.</p>
+        </div>
+
+        <div class="pipeline-card">
+            <h3>VernHole</h3>
+            <div class="cmd">/vern hole &lt;idea&gt;</div>
+            <p>Summon 5&ndash;12 random personas from the full roster. Each gives their unique take. Chaos synthesizes into... something. You choose how deep to go.</p>
+            <div class="persona-meta" style="margin-top: 12px;">
+                <span class="tag">5-6: focused council</span>
+                <span class="tag">7-9: getting chaotic</span>
+                <span class="tag">10-12: full VernHole</span>
+            </div>
+        </div>
+
+        <div class="pipeline-card">
+            <h3>New Idea</h3>
+            <div class="cmd">/vern new-idea &lt;name&gt;</div>
+            <p>Creates a standardized discovery folder with <code>input/</code> and <code>output/</code>. Drop your reference files in <code>input/</code>, then run <code>/vern discovery {name}</code> when ready.</p>
+        </div>
+
+    </div>
+</div>
+
+<footer>
+    <div class="container">
+        <p>
+            <a href="https://github.com/jdonohoo/vern-bot">GitHub</a> &middot;
+            Install: <code>claude plugin add jdonohoo/vern-bot</code>
+        </p>
+        <p class="dad-joke">Why did the mass of Verns cross the road? To get to the other paradigm.</p>
+    </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "name": "vern-bot",
+  "description": "Chaotic multi-persona AI discovery system. 12 unique Vern personas, VernHole chaos mode, and a full multi-LLM discovery pipeline. Use /vern to summon.",
+  "author": {
+    "name": "Justin Donohoo",
+    "url": "https://github.com/jdonohoo"
+  }
+}

@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# vern-run: Spawn different LLM subprocesses for Vern-Bot
+#
+# Usage: vern-run <llm> "<prompt>" [output_file]
+#   llm: claude | codex | gemini
+#   prompt: The prompt to send
+#   output_file: Optional file to save output
+#
+
+set -e
+
+LLM="$1"
+PROMPT="$2"
+OUTPUT_FILE="$3"
+
+if [ -z "$LLM" ] || [ -z "$PROMPT" ]; then
+    echo "Usage: vern-run <llm> \"<prompt>\" [output_file]"
+    echo "  llm: claude | codex | gemini"
+    exit 1
+fi
+
+run_claude() {
+    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "$PROMPT"
+}
+
+run_codex() {
+    codex --dangerously-bypass-approvals-and-sandbox "$PROMPT"
+}
+
+run_gemini() {
+    gemini --yolo "$PROMPT"
+}
+
+# Execute the appropriate LLM
+case "$LLM" in
+    claude|c)
+        if [ -n "$OUTPUT_FILE" ]; then
+            run_claude | tee "$OUTPUT_FILE"
+        else
+            run_claude
+        fi
+        ;;
+    codex|x)
+        if [ -n "$OUTPUT_FILE" ]; then
+            run_codex | tee "$OUTPUT_FILE"
+        else
+            run_codex
+        fi
+        ;;
+    gemini|g)
+        if [ -n "$OUTPUT_FILE" ]; then
+            run_gemini | tee "$OUTPUT_FILE"
+        else
+            run_gemini
+        fi
+        ;;
+    *)
+        echo "Unknown LLM: $LLM"
+        echo "Valid options: claude, codex, gemini"
+        exit 1
+        ;;
+esac

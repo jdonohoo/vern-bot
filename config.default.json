@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "llms": {
+    "claude": true,
+    "codex": true,
+    "gemini": true
+  },
+  "discovery_pipeline": [
+    {
+      "step": 1,
+      "name": "Initial Analysis",
+      "persona": "mighty-vern",
+      "llm": "codex",
+      "prompt_prefix": "You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."
+    },
+    {
+      "step": 2,
+      "name": "Refinement",
+      "persona": "vernile-great",
+      "llm": "claude",
+      "prompt_prefix": "You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."
+    },
+    {
+      "step": 3,
+      "name": "Chaos Check",
+      "persona": "yolo-vern",
+      "llm": "gemini",
+      "prompt_prefix": "You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
+    },
+    {
+      "step": 4,
+      "name": "Consolidation",
+      "persona": "mighty-vern",
+      "llm": "codex",
+      "prompt_prefix": "You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
+    },
+    {
+      "step": 5,
+      "name": "Architect Breakdown",
+      "persona": "systems-architect",
+      "llm": "claude",
+      "prompt_prefix": "You are the Systems Architect. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies."
+    }
+  ],
+  "vernhole": {
+    "default_count": "random",
+    "min": 5,
+    "max": 12
+  }
+}

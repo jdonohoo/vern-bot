@@ -1,0 +1,115 @@
+#!/bin/bash
+#
+# vernhole: Summon 5-10 random Vern personas for chaotic discovery
+#
+# Usage: vernhole "<idea>" [output_dir] [num_verns] [context_file]
+#   idea: The idea to explore
+#   output_dir: Where to save output (default: current dir)
+#   num_verns: Number of Verns to summon, 5-10 (default: random)
+#   context_file: Optional path to a context file (e.g. a discovery master plan)
+#                 whose contents will be included in each persona's prompt
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERN_RUN="$SCRIPT_DIR/vern-run"
+
+IDEA="$1"
+OUTPUT_DIR="${2:-.}"
+NUM_VERNS="${3:-$(shuf -i 5-12 -n 1)}"
+CONTEXT_FILE="${4:-}"
+
+if [ -z "$IDEA" ]; then
+    echo "Usage: vernhole \"<idea>\" [output_dir] [num_verns] [context_file]"
+    exit 1
+fi
+
+# Build context block if a context file was provided
+CONTEXT_BLOCK=""
+if [ -n "$CONTEXT_FILE" ] && [ -f "$CONTEXT_FILE" ]; then
+    CONTEXT_BLOCK="
+
+=== PRIOR DISCOVERY PLAN ===
+The following plan was synthesised from a full Vern Discovery Pipeline run on this idea. Use it as context, but bring your own unique perspective. Challenge it, build on it, tear it apart — whatever your persona demands.
+
+$(cat "$CONTEXT_FILE")
+
+=== END PRIOR DISCOVERY PLAN ==="
+    echo "Context loaded from: $CONTEXT_FILE"
+    echo ""
+fi
+
+# The Vern roster
+VERNS=(
+    "mediocre:sonnet:Vern the Mediocre - scrappy speed demon, ship it fast"
+    "vernile:opus:Vernile the Great - excellence incarnate, elegant solutions"
+    "nyquil:haiku:Nyquil Vern - brilliant but brief, NyQuil kicking in"
+    "ketamine:opus:Ketamine Vern - multi-dimensional vibes, sees patterns"
+    "yolo:gemini:YOLO Vern - full send, no guardrails"
+    "mighty:codex:MightyVern - raw power, comprehensive analysis"
+    "inverse:sonnet:Inverse Vern - contrarian takes only"
+    "paranoid:sonnet:Paranoid Vern - what could possibly go wrong?"
+    "optimist:haiku:Optimist Vern - everything will be fine!"
+    "academic:opus:Academic Vern - needs more research, cites sources"
+    "startup:sonnet:Startup Vern - MVP or die, move fast"
+    "enterprise:opus:Enterprise Vern - needs 6 meetings and a committee"
+)
+
+# Create project name from idea
+PROJECT_NAME=$(echo "$IDEA" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
+VERNHOLE_DIR="$OUTPUT_DIR/vernhole/$PROJECT_NAME"
+
+echo "=== WELCOME TO THE VERNHOLE ==="
+echo "Idea: $IDEA"
+echo "Summoning $NUM_VERNS Verns..."
+echo ""
+
+mkdir -p "$VERNHOLE_DIR"
+
+# Randomly select Verns
+SELECTED=$(printf '%s\n' "${VERNS[@]}" | shuf -n "$NUM_VERNS")
+
+# Track all outputs for synthesis
+ALL_OUTPUTS=""
+VERN_NUM=1
+
+while IFS= read -r vern_line; do
+    IFS=':' read -r vern_id model desc <<< "$vern_line"
+
+    echo ">>> Vern $VERN_NUM/$NUM_VERNS: $desc"
+
+    # Determine which LLM to use based on model hint
+    case "$model" in
+        codex) LLM="codex" ;;
+        gemini) LLM="gemini" ;;
+        *) LLM="claude" ;;
+    esac
+
+    OUTPUT_FILE="$VERNHOLE_DIR/$(printf '%02d' $VERN_NUM)-$vern_id.md"
+
+    "$VERN_RUN" "$LLM" "You are $desc. Analyze this idea from your unique perspective. Be true to your persona.
+
+Original idea: $IDEA$CONTEXT_BLOCK" "$OUTPUT_FILE"
+
+    ALL_OUTPUTS="$ALL_OUTPUTS
+
+=== $desc ===
+$(cat "$OUTPUT_FILE")"
+
+    ((VERN_NUM++))
+    echo ""
+done <<< "$SELECTED"
+
+echo ">>> Synthesizing the chaos..."
+"$VERN_RUN" claude "You are the VernHole Orchestrator. Synthesize these diverse perspectives into actionable insights. Identify common themes, interesting contradictions, and recommended paths forward.
+
+ORIGINAL IDEA: $IDEA
+$CONTEXT_BLOCK
+THE VERNS HAVE SPOKEN:
+$ALL_OUTPUTS" "$VERNHOLE_DIR/synthesis.md"
+
+echo ""
+echo "=== THE VERNHOLE HAS SPOKEN ==="
+echo "Files created in: $VERNHOLE_DIR"
+ls -la "$VERNHOLE_DIR"
