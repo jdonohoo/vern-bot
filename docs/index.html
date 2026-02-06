@@ -51,14 +51,17 @@
             max-width: 600px;
             margin: 0 auto 32px;
         }
-        .hero code {
-            display: inline-block;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 1.1rem;
-            color: var(--green);
+        .hero .dad-joke-hook {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ff6ec7, #bc8cff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .hero .dad-joke-sub {
+            font-size: 0.95rem;
+            color: var(--text-muted);
         }
 
         /* Section headers */
@@ -321,8 +324,9 @@
 <div class="hero">
     <div class="container">
         <h1>Vern-Bot</h1>
-        <p class="tagline">13 AI personas. Multi-LLM discovery pipelines. VernHole chaos mode. A Claude Code plugin for people who want more than one opinion.</p>
-        <code>/&lt;persona-skill&gt; &lt;task&gt;</code>
+        <p class="tagline">50 Shades of Vern. A Claude Code plugin with multiple personalities — and none of them are sorry.</p>
+        <p class="dad-joke-hook">Like Dad Jokes? So does Vern.</p>
+        <p class="dad-joke-sub">Every shade of Vern comes with a different shade of dad joke.</p>
     </div>
 </div>
 
