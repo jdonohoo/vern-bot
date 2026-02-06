@@ -125,7 +125,7 @@ All output goes to `{discovery_dir}/output/`.
 
 ### Pass 1: MightyVern (Codex) - Initial Analysis
 ```bash
-~/.claude/skills/vern-bot/bin/vern-run codex "{FULL_PROMPT}" output/01-codex-analysis.md
+bin/vern-run codex "{FULL_PROMPT}" output/01-codex-analysis.md
 ```
 
 ### Pass 2: Claude - Refinement
