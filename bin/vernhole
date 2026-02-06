@@ -54,6 +54,7 @@ VERNS=(
     "academic:opus:Academic Vern - needs more research, cites sources"
     "startup:sonnet:Startup Vern - MVP or die, move fast"
     "enterprise:opus:Enterprise Vern - needs 6 meetings and a committee"
+    "architect:opus:Architect Vern - systems design, blueprints before builds"
 )
 
 # Create project name from idea

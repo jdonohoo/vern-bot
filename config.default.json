@@ -37,9 +37,9 @@
     {
       "step": 5,
       "name": "Architect Breakdown",
-      "persona": "systems-architect",
+      "persona": "architect-vern",
       "llm": "claude",
-      "prompt_prefix": "You are the Systems Architect. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies."
+      "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
     }
   ],
   "vernhole": {

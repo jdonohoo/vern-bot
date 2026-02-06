@@ -56,7 +56,7 @@ Report:
 - They can now:
   1. Edit `input/prompt.md` with their idea description
   2. Drop any reference files into `input/` (specs, diagrams, existing code, etc.)
-  3. Run `/vern discovery {name}` to execute the pipeline
-- Or skip prep and just run `/vern discovery {prompt}` directly
+  3. Run `/vern-discovery {name}` to execute the pipeline
+- Or skip prep and just run `/vern-discovery {prompt}` directly
 
 Begin setup for: $ARGUMENTS

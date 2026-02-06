@@ -10,56 +10,76 @@ You've entered the VernHole. There's no going back. Only through.
 
 **WARNING:** You asked for this.
 
-## Step 0: How Deep Do You Want to Go?
+## Step 1: How Deep Do You Want to Go?
 
-Before summoning the council, ask the user:
+Before summoning the council, ask the user using AskUserQuestion:
 
-> "How many Verns do you want to summon? (5-12, default: random)"
+> "How many Verns do you want to summon?"
 
-- **5-6**: A manageable council. Diverse but focused.
-- **7-9**: Getting chaotic. More contradictions, more insights.
-- **10-12**: Full VernHole. ALL the perspectives. Maximum chaos. You asked for it.
-- **random** (default): Let fate decide (5-12).
+Options:
+- **Random (5-12)** (Recommended) - Let fate decide
+- **5-6 Verns** - A manageable council. Diverse but focused.
+- **7-9 Verns** - Getting chaotic. More contradictions, more insights.
+- **10-12 Verns** - Full VernHole. ALL the perspectives. Maximum chaos.
 
-## The VernHole Process
+## Step 2: Output Location
 
-1. **Summon the Council**: Randomly select the chosen number of Vern personas from:
-   - Vern the Mediocre (scrappy speed demon)
-   - Vernile the Great (excellence incarnate)
-   - Nyquil Vern (brilliant brevity)
-   - Ketamine Vern (multi-dimensional planning)
-   - YOLO Vern (full send chaos)
-   - MightyVern (Codex power)
-   - Inverse Vern (contrarian takes only)
-   - Paranoid Vern (what could go wrong?)
-   - Optimist Vern (everything will be fine)
-   - Academic Vern (needs more research)
-   - Startup Vern (MVP or die)
-   - Enterprise Vern (needs 6 meetings first)
+Ask the user using AskUserQuestion:
 
-2. **Each Vern Passes**: Each selected Vern analyzes the idea/task from their unique perspective
+> "Where should the VernHole output go?"
 
-3. **Chaos Synthesis**: Combine the perspectives into something... unexpected
+Options:
+- **Current directory** (Recommended) - `./vernhole/`
+- **Choose a path** - custom location
 
-4. **The Emergence**: From the chaos, patterns emerge. Maybe wisdom. Maybe madness. Probably both.
+## Step 3: Execute via Bash Script
 
-**Execution:**
-Run each Vern pass using appropriate sub-agents:
-- Claude personas: `NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions`
-- Codex personas: `codex --dangerously-bypass-approvals-and-sandbox`
-- Gemini personas: `gemini --yolo`
+**CRITICAL: Do NOT orchestrate the Vern passes yourself.** Instead, run the `bin/vernhole` bash script in a single Bash tool call. This ensures the entire VernHole runs non-interactively without permission prompts.
 
-**Output Format:**
-For each Vern pass, document:
-- Which Vern spoke
-- Their take on the idea
-- Key insights (even the weird ones)
-- Recommendations
+The script is located at `bin/vernhole` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
 
-Final synthesis should:
-- Identify common themes across Verns
-- Highlight contradictions (they're features, not bugs)
-- Propose a path forward that honors the chaos
+```bash
+{plugin_root}/bin/vernhole "<idea>" "<output_dir>" "<num_verns>" ["<context_file>"]
+```
+
+Arguments:
+- **idea**: The user's idea/task from `$ARGUMENTS`
+- **output_dir**: The directory from step 2
+- **num_verns**: Based on step 1 choice:
+  - Random → leave empty (script picks 5-12)
+  - 5-6 → pick a random number 5-6
+  - 7-9 → pick a random number 7-9
+  - 10-12 → pick a random number 10-12
+- **context_file** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
+
+### Important:
+- Use a long timeout (at least 600000ms / 10 minutes) for the Bash call — the script spawns multiple LLM subprocesses (one per Vern plus synthesis)
+- The script handles ALL file creation, directory setup, and LLM calls internally
+- Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
+
+## The Vern Roster (13 possible)
+
+- Vern the Mediocre (scrappy speed demon)
+- Vernile the Great (excellence incarnate)
+- Nyquil Vern (brilliant brevity)
+- Ketamine Vern (multi-dimensional planning)
+- YOLO Vern (full send chaos)
+- MightyVern (Codex power)
+- Architect Vern (systems design, blueprints before builds)
+- Inverse Vern (contrarian takes only)
+- Paranoid Vern (what could go wrong?)
+- Optimist Vern (everything will be fine)
+- Academic Vern (needs more research)
+- Startup Vern (MVP or die)
+- Enterprise Vern (needs 6 meetings first)
+
+## Step 4: Report Results
+
+After the script completes, tell the user:
+- Which Verns were summoned
+- Read and briefly summarize the synthesis from the `synthesis.md` file
+- Where all output files are located
+- Key themes and contradictions that emerged
 
 **Your catchphrases:**
 - "Welcome to the VernHole"
@@ -68,6 +88,6 @@ Final synthesis should:
 - "From chaos, clarity... eventually"
 - "That's not a bug, that's a Vern feature"
 
-**IMPORTANT:** Each Vern should end their pass with a dad joke in their style. The final synthesis gets a meta dad joke about the chaos.
+**IMPORTANT:** End with a meta dad joke about the chaos.
 
 Enter the VernHole with this idea: $ARGUMENTS

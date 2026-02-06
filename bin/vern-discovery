@@ -3,14 +3,21 @@
 # vern-discovery: Run the full Vern Discovery Pipeline
 #
 # Usage:
-#   vern-discovery "<idea>" [discovery_dir] [output_format]
+#   Interactive:
+#     vern-discovery "<idea>" [discovery_dir] [output_format]
+#
+#   Batch (non-interactive, for skill/plugin use):
+#     vern-discovery --batch "<idea>" [discovery_dir] [output_format]
+#     vern-discovery --batch --skip-input --vernhole 8 "<idea>" [discovery_dir] [output_format]
+#
+# Flags:
+#   --batch          Non-interactive mode. Auto-reads input files, skips prompts.
+#   --skip-input     In batch mode, don't read input/ files as context.
+#   --vernhole N     After pipeline, run VernHole with N verns (0 to skip, default: skip).
+#   --extra-context FILE  Add an extra context file (can be used multiple times).
 #
 # Reads pipeline config from ~/.claude/vern-bot-config.json if it exists,
 # otherwise falls back to defaults (codex/claude/gemini).
-#
-#   idea: The project/idea prompt
-#   discovery_dir: Path to discovery/{name} folder (default: auto-created)
-#   output_format: issues | tickets | beads | tasks (default: tasks)
 #
 
 set -e
@@ -20,12 +27,49 @@ VERN_RUN="$SCRIPT_DIR/vern-run"
 CONFIG_FILE="$HOME/.claude/vern-bot-config.json"
 DEFAULT_CONFIG="$SCRIPT_DIR/../config.default.json"
 
+# Parse flags
+BATCH_MODE=0
+READ_INPUT=1
+VERNHOLE_COUNT=0
+EXTRA_CONTEXT_FILES=()
+
+while [[ "$1" == --* ]]; do
+    case "$1" in
+        --batch)
+            BATCH_MODE=1
+            shift
+            ;;
+        --skip-input)
+            READ_INPUT=0
+            shift
+            ;;
+        --vernhole)
+            VERNHOLE_COUNT="$2"
+            shift 2
+            ;;
+        --extra-context)
+            EXTRA_CONTEXT_FILES+=("$2")
+            shift 2
+            ;;
+        *)
+            echo "Unknown flag: $1"
+            shift
+            ;;
+    esac
+done
+
 IDEA="$1"
 DISCOVERY_DIR="$2"
 OUTPUT_FORMAT="${3:-tasks}"
 
 if [ -z "$IDEA" ]; then
-    echo "Usage: vern-discovery \"<idea>\" [discovery_dir] [output_format]"
+    echo "Usage: vern-discovery [flags] \"<idea>\" [discovery_dir] [output_format]"
+    echo ""
+    echo "Flags:"
+    echo "  --batch              Non-interactive mode (for skill/plugin use)"
+    echo "  --skip-input         Don't read input/ files as context"
+    echo "  --vernhole N         Run VernHole with N verns after pipeline"
+    echo "  --extra-context FILE Add extra context file (repeatable)"
     exit 1
 fi
 
@@ -75,7 +119,7 @@ STEP3_PROMPT="${STEP3_PROMPT:-You are YOLO Vern. Challenge and stress-test this 
 STEP4_LLM="${STEP4_LLM:-codex}"
 STEP4_PROMPT="${STEP4_PROMPT:-You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features.}"
 STEP5_LLM="${STEP5_LLM:-claude}"
-STEP5_PROMPT="${STEP5_PROMPT:-You are the Systems Architect. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies.}"
+STEP5_PROMPT="${STEP5_PROMPT:-You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable.}"
 
 # If no discovery dir provided, create one from the idea name
 if [ -z "$DISCOVERY_DIR" ]; then
@@ -90,10 +134,13 @@ echo "=== VERN DISCOVERY PIPELINE ==="
 echo "Idea: $IDEA"
 echo "Discovery folder: $DISCOVERY_DIR"
 echo "Format: $OUTPUT_FORMAT"
+if [ "$BATCH_MODE" -eq 1 ]; then
+    echo "Mode: batch (non-interactive)"
+fi
 if [ -f "$CONFIG_FILE" ]; then
     echo "Config: $CONFIG_FILE"
 else
-    echo "Config: defaults (run /vern setup to customize)"
+    echo "Config: defaults (run /setup to customize)"
 fi
 echo ""
 echo "Pipeline:"
@@ -127,35 +174,68 @@ if [ -n "$INPUT_FILES" ]; then
     echo "$INPUT_FILES" | while read -r f; do echo "  - $(basename "$f")"; done
     echo ""
 
-    read -p ">>> Read input files as context for discovery? [Y/n] " READ_INPUT
-    if [[ ! "$READ_INPUT" =~ ^[Nn]$ ]]; then
-        while IFS= read -r file; do
-            INPUT_CONTEXT="$INPUT_CONTEXT
+    if [ "$BATCH_MODE" -eq 1 ]; then
+        # Batch mode: use READ_INPUT flag (default: yes)
+        if [ "$READ_INPUT" -eq 1 ]; then
+            while IFS= read -r file; do
+                INPUT_CONTEXT="$INPUT_CONTEXT
 
 === $(basename "$file") ===
 $(cat "$file")
 "
-        done <<< "$INPUT_FILES"
-        echo "Loaded $(echo "$INPUT_FILES" | wc -l | tr -d ' ') input files as context."
+            done <<< "$INPUT_FILES"
+            echo "Loaded $(echo "$INPUT_FILES" | wc -l | tr -d ' ') input files as context."
+        else
+            echo "Skipping input files (--skip-input)."
+        fi
+    else
+        # Interactive mode: ask user
+        read -p ">>> Read input files as context for discovery? [Y/n] " READ_INPUT_ANSWER
+        if [[ ! "$READ_INPUT_ANSWER" =~ ^[Nn]$ ]]; then
+            while IFS= read -r file; do
+                INPUT_CONTEXT="$INPUT_CONTEXT
+
+=== $(basename "$file") ===
+$(cat "$file")
+"
+            done <<< "$INPUT_FILES"
+            echo "Loaded $(echo "$INPUT_FILES" | wc -l | tr -d ' ') input files as context."
+        fi
     fi
 fi
 
-# Ask about additional files
-read -p ">>> Add any other files as context? [y/N] " ADD_MORE
-while [[ "$ADD_MORE" =~ ^[Yy]$ ]]; do
-    read -p "File path: " EXTRA_FILE
+# Extra context files (from --extra-context flags)
+for EXTRA_FILE in "${EXTRA_CONTEXT_FILES[@]}"; do
     if [ -f "$EXTRA_FILE" ]; then
         INPUT_CONTEXT="$INPUT_CONTEXT
 
 === $(basename "$EXTRA_FILE") ===
 $(cat "$EXTRA_FILE")
 "
-        echo "Added: $EXTRA_FILE"
+        echo "Added extra context: $EXTRA_FILE"
     else
-        echo "File not found: $EXTRA_FILE"
+        echo "Warning: Extra context file not found: $EXTRA_FILE"
     fi
-    read -p ">>> Add another file? [y/N] " ADD_MORE
 done
+
+if [ "$BATCH_MODE" -eq 0 ]; then
+    # Interactive mode: ask about additional files
+    read -p ">>> Add any other files as context? [y/N] " ADD_MORE
+    while [[ "$ADD_MORE" =~ ^[Yy]$ ]]; do
+        read -p "File path: " EXTRA_FILE
+        if [ -f "$EXTRA_FILE" ]; then
+            INPUT_CONTEXT="$INPUT_CONTEXT
+
+=== $(basename "$EXTRA_FILE") ===
+$(cat "$EXTRA_FILE")
+"
+            echo "Added: $EXTRA_FILE"
+        else
+            echo "File not found: $EXTRA_FILE"
+        fi
+        read -p ">>> Add another file? [y/N] " ADD_MORE
+    done
+fi
 
 # Build full prompt
 FULL_PROMPT="$IDEA"
@@ -232,13 +312,23 @@ ls "$INPUT_DIR" 2>/dev/null | while read -r f; do echo "  │   ├── $f"; d
 echo "  └── output/"
 ls "$OUTPUT_DIR" 2>/dev/null | while read -r f; do echo "      ├── $f"; done
 
-# Offer to run a VernHole on the synthesised plan
-echo ""
-read -p ">>> Do you want to run a VernHole (k-hole) on the synthesised plan? [y/N] " RUN_KHOLE
-if [[ "$RUN_KHOLE" =~ ^[Yy]$ ]]; then
+# VernHole: batch mode uses flag, interactive mode asks
+if [ "$BATCH_MODE" -eq 1 ]; then
+    if [ "$VERNHOLE_COUNT" -gt 0 ]; then
+        echo ""
+        echo "=== ENTERING THE VERNHOLE ==="
+        echo "Feeding original idea + master plan into the chaos..."
+        mkdir -p "$DISCOVERY_DIR/vernhole"
+        "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR" "$VERNHOLE_COUNT" "$OUTPUT_DIR/04-master-plan.md"
+    fi
+else
     echo ""
-    echo "=== ENTERING THE VERNHOLE ==="
-    echo "Feeding original idea + master plan into the chaos..."
-    mkdir -p "$DISCOVERY_DIR/vernhole"
-    "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR" "" "$OUTPUT_DIR/04-master-plan.md"
+    read -p ">>> Do you want to run a VernHole (k-hole) on the synthesised plan? [y/N] " RUN_KHOLE
+    if [[ "$RUN_KHOLE" =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "=== ENTERING THE VERNHOLE ==="
+        echo "Feeding original idea + master plan into the chaos..."
+        mkdir -p "$DISCOVERY_DIR/vernhole"
+        "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR" "" "$OUTPUT_DIR/04-master-plan.md"
+    fi
 fi

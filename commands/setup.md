@@ -88,7 +88,7 @@ Options:
 > "Who should break down the plan into actionable items?"
 
 Options:
-- **Systems Architect on Claude** (Recommended) - structured breakdown
+- **Architect Vern on Claude** (Recommended) - structured breakdown
 - **Enterprise Vern on Claude** - governance-heavy breakdown
 - **Startup Vern on Claude** - MVP-focused breakdown
 - **Vernile on Claude** - elegant task breakdown
@@ -149,9 +149,9 @@ Write the config to `~/.claude/vern-bot-config.json`:
     {
       "step": 5,
       "name": "Architect Breakdown",
-      "persona": "systems-architect",
+      "persona": "architect-vern",
       "llm": "claude",
-      "description": "Systems Architect on Claude"
+      "description": "Architect Vern on Claude"
     }
   ],
   "vernhole": {
@@ -176,11 +176,11 @@ Discovery Pipeline:
   2. Refinement          → Vernile on Claude
   3. Chaos Check         → YOLO Vern on Claude
   4. Consolidation       → MightyVern on Codex
-  5. Architect Breakdown → Systems Architect on Claude
+  5. Architect Breakdown → Architect Vern on Claude
 
 VernHole: Random (5-12 Verns)
 
-Run /vern setup anytime to reconfigure.
+Run /setup anytime to reconfigure.
 ```
 
 ## Notes
