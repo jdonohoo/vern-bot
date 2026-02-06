@@ -217,6 +217,82 @@
             font-size: 1.2rem;
         }
 
+        /* Examples section */
+        .examples-section {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .example-group {
+            margin-bottom: 48px;
+        }
+        .example-group h3 {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+        .example-group .group-desc {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        .example-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .example-cmd {
+            padding: 16px 20px;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9rem;
+            color: var(--green);
+            border-bottom: 1px solid var(--border);
+            background: rgba(63, 185, 80, 0.04);
+        }
+        .example-cmd .prompt {
+            color: var(--text-muted);
+            user-select: none;
+        }
+        .example-explain {
+            padding: 14px 20px;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .example-explain strong {
+            color: var(--text);
+        }
+        .example-output {
+            padding: 14px 20px;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.2);
+            white-space: pre-line;
+        }
+        .example-output .out-label {
+            color: var(--yellow);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tip-box {
+            background: rgba(88, 166, 255, 0.08);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 8px;
+            padding: 14px 20px;
+            margin-top: 12px;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+        }
+        .tip-box strong {
+            color: var(--accent);
+        }
+
         /* Footer */
         footer {
             text-align: center;
@@ -533,6 +609,232 @@
             <h3>New Idea</h3>
             <div class="cmd">/vern new-idea &lt;name&gt;</div>
             <p>Creates a standardized discovery folder with <code>input/</code> and <code>output/</code>. Drop your reference files in <code>input/</code>, then run <code>/vern discovery {name}</code> when ready.</p>
+        </div>
+
+    </div>
+</div>
+
+<div class="examples-section">
+    <div class="container">
+        <div class="section-header" style="padding-top: 0;">
+            <h2>Commands & Examples</h2>
+            <p>Everything you can do with /vern, from quick tasks to full chaos mode.</p>
+        </div>
+
+        <!-- Single Persona -->
+        <div class="example-group">
+            <h3>Single Persona Tasks</h3>
+            <p class="group-desc">Use any persona directly for one-shot tasks. The format is <code>/vern &lt;persona&gt; &lt;task&gt;</code>. Each persona brings a different perspective.</p>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern great review this authentication module for security issues</div>
+                <div class="example-explain"><strong>Vernile the Great</strong> (Opus) gives a thorough, architectural review. Expects excellence, delivers elegant analysis with actionable recommendations.</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern med fix the broken login redirect</div>
+                <div class="example-explain"><strong>Vern the Mediocre</strong> (Sonnet) ships the fix fast. No over-engineering, no philosophical tangents. Gets it done, moves on.</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern nyquil explain this regex</div>
+                <div class="example-explain"><strong>Nyquil Vern</strong> (Haiku) gives you the answer in as few words as possible. Brilliant, but fading fast. Perfect when you just need the gist.</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern yolo refactor the entire auth system to use JWTs</div>
+                <div class="example-explain"><strong>YOLO Vern</strong> (Gemini) goes full send. No second-guessing, no "are you sure?" prompts. Bold choices, fast execution. Fortune favors the reckless.</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern paranoid review this deployment script</div>
+                <div class="example-explain"><strong>Paranoid Vern</strong> finds every failure mode, race condition, and edge case. The script will survive, even if your confidence won't.</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern startup should we build this feature or buy a SaaS?</div>
+                <div class="example-explain"><strong>Startup Vern</strong> cuts to the MVP. Frames everything in terms of runway, validation, and shipping speed. If you're not embarrassed by v1, you shipped too late.</div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> Use short aliases for speed &mdash; <code>/vern g</code>, <code>/vern m</code>, <code>/vern k</code>, etc. See full alias table in the persona cards above.
+            </div>
+        </div>
+
+        <!-- VernHole -->
+        <div class="example-group">
+            <h3>VernHole (Chaos Mode)</h3>
+            <p class="group-desc">Summon 5&ndash;12 random personas at once. Each gives their independent take on your idea, then a synthesis pass weaves the chaos into something useful.</p>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern hole should we migrate from REST to GraphQL?</div>
+                <div class="example-explain">Launches VernHole. You'll be prompted: <strong>"How many Verns do you want to summon? (5-12)"</strong>. Pick your chaos level and watch the perspectives fly.</div>
+                <div class="example-output"><span class="out-label">Prompt:</span>
+How many Verns do you want to summon? (5-12): <strong style="color: var(--cyan);">7</strong>
+
+Summoning 7 Verns from the roster...
+ Pass 1/7: Paranoid Vern analyzing...
+ Pass 2/7: YOLO Vern analyzing...
+ Pass 3/7: Academic Vern analyzing...
+ Pass 4/7: Startup Vern analyzing...
+ Pass 5/7: Nyquil Vern analyzing...
+ Pass 6/7: Enterprise Vern analyzing...
+ Pass 7/7: Inverse Vern analyzing...
+
+Synthesizing 7 perspectives into final report...</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern khole build a real-time collaborative code editor</div>
+                <div class="example-explain">Same command, different alias. <code>hole</code>, <code>khole</code>, and <code>vh</code> all work. Great for ambitious ideas where you want diverse perspectives before committing to an architecture.</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern vh is microservices the right call for our 3-person team?</div>
+                <div class="example-explain">VernHole shines on decisions with strong tradeoffs. Paranoid Vern will warn about operational complexity, Startup Vern will argue for the monolith, Enterprise Vern will insist on governance, and the synthesis pulls it all together.</div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Depth guide:</strong> 5&ndash;6 Verns gives a focused council of perspectives. 7&ndash;9 gets increasingly chaotic and creative. 10&ndash;12 is the full VernHole experience &mdash; maximum diversity, maximum noise, maximum signal buried in the chaos.
+            </div>
+        </div>
+
+        <!-- Discovery Pipeline -->
+        <div class="example-group">
+            <h3>Discovery Pipeline</h3>
+            <p class="group-desc">A structured multi-LLM chain that evolves your idea through 5 passes. Each pass builds on the previous one, and your original prompt rides along the entire chain.</p>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern discovery build a SaaS platform for freelancer invoicing</div>
+                <div class="example-explain"><strong>Quick discovery</strong> &mdash; no prep needed. You'll be prompted for a project name and output location, then the 5-pass pipeline runs: Analysis &rarr; Refinement &rarr; Chaos Check &rarr; Consolidation &rarr; Breakdown. At the end, you're asked if you want to run a VernHole on the result.</div>
+                <div class="example-output"><span class="out-label">Flow:</span>
+Name this discovery: <strong style="color: var(--cyan);">freelancer-invoicing</strong>
+
+Read input files as context? [Y/n]: <strong style="color: var(--cyan);">n</strong>
+
+Running discovery pipeline...
+ Step 1/5: MightyVern (Codex) - Analysis pass...
+ Step 2/5: Vernile (Claude) - Refinement pass...
+ Step 3/5: YOLO Vern (Gemini) - Chaos check...
+ Step 4/5: MightyVern (Codex) - Consolidation...
+ Step 5/5: Systems Architect - Breakdown...
+
+Run a VernHole on this plan? [y/N]: <strong style="color: var(--cyan);">y</strong>
+How many Verns? (5-12): <strong style="color: var(--cyan);">8</strong></div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern new-idea my-saas-app</div>
+                <div class="example-explain"><strong>Prep step</strong> &mdash; creates a standardized folder structure: <code>discovery/my-saas-app/input/</code> for your reference docs and <code>discovery/my-saas-app/output/</code> for pipeline results. A <code>prompt.md</code> template is generated in <code>input/</code> for you to fill in.</div>
+                <div class="example-output"><span class="out-label">Created:</span>
+discovery/my-saas-app/
+  input/
+    prompt.md      &larr; edit this with your idea
+  output/          &larr; pipeline results go here</div>
+            </div>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern discovery my-saas-app</div>
+                <div class="example-explain"><strong>Prepared discovery</strong> &mdash; detects the existing <code>discovery/my-saas-app/</code> folder, reads all files from <code>input/</code> as context, and lets you add more files before the pipeline runs. Best for complex ideas with existing research or specs.</div>
+                <div class="example-output"><span class="out-label">Flow:</span>
+Found existing discovery folder: discovery/my-saas-app/
+Reading input files...
+ - input/prompt.md (1.2k)
+ - input/competitor-analysis.pdf (4.8k)
+ - input/user-interviews.md (2.1k)
+
+Add any other files as context? [y/N]: <strong style="color: var(--cyan);">y</strong>
+File path: <strong style="color: var(--cyan);">~/notes/market-research.md</strong>
+Add another file? [y/N]: <strong style="color: var(--cyan);">n</strong>
+
+Running discovery pipeline with 4 input files...</div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Tip:</strong> The prepared path (<code>new-idea</code> then <code>discovery</code>) is recommended for complex ideas. Drop competitor analysis, user research, technical specs &mdash; anything relevant &mdash; into the <code>input/</code> folder. The pipeline reads it all.
+            </div>
+        </div>
+
+        <!-- Setup -->
+        <div class="example-group">
+            <h3>Setup & Configuration</h3>
+            <p class="group-desc">Customize which LLMs and personas are used at each pipeline step.</p>
+
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern setup</div>
+                <div class="example-explain">Interactive setup wizard. Walks you through: which LLMs you have installed (Codex, Gemini), which persona and LLM to use for each of the 5 discovery pipeline steps, and VernHole defaults. Saves to <code>~/.claude/vern-bot-config.json</code>.</div>
+                <div class="example-output"><span class="out-label">Prompts:</span>
+Which LLMs do you have available?
+ [x] Codex (OpenAI)
+ [x] Gemini (Google)
+
+Step 1 - Analysis:
+  Persona: MightyVern  |  LLM: codex
+
+Step 2 - Refinement:
+  Persona: Vernile the Great  |  LLM: claude
+
+...
+
+Config saved to ~/.claude/vern-bot-config.json</div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Note:</strong> If you skip setup, the default pipeline runs with Claude for all steps. Codex and Gemini steps fall back to Claude automatically if those LLMs aren't configured.
+            </div>
+        </div>
+
+        <!-- When to Use What -->
+        <div class="example-group">
+            <h3>When to Use What</h3>
+            <p class="group-desc">Quick reference for picking the right tool.</p>
+
+            <div class="example-block" style="border: none; background: transparent; margin-bottom: 0;">
+                <div class="example-explain" style="border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 20px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Quick fix or one-off task</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern med fix the bug</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Thorough code review</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern great review src/auth.ts</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Just the answer, fast</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern nq what does this error mean</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Creative exploration</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern k design a notification system</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Bold, risky moves</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern yolo rewrite it in Rust</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Security/risk audit</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern paranoid review the deploy pipeline</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Architecture decision</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern hole monolith vs microservices?</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>New project planning</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern discovery build a task manager app</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Deep research + prep</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern new-idea my-project</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 12px;"><strong>Challenge assumptions</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern inverse everyone says use React</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
         </div>
 
     </div>
