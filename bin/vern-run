@@ -20,8 +20,13 @@ if [ -z "$LLM" ] || [ -z "$PROMPT" ]; then
     exit 1
 fi
 
+# Wrap prompt to prevent LLMs from creating files instead of outputting text
+TEXT_ONLY="IMPORTANT: Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files. Do NOT use any file-writing tools. Just output your analysis directly as text.
+
+"
+
 run_claude() {
-    NODE_OPTIONS="--max-old-space-size=32768" claude -p "$PROMPT"
+    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "${TEXT_ONLY}${PROMPT}"
 }
 
 run_codex() {
@@ -31,7 +36,7 @@ run_codex() {
         --skip-git-repo-check \
         --cd "$tmpdir" \
         -o "$tmpout" \
-        "$PROMPT" >/dev/null 2>&1
+        "${TEXT_ONLY}${PROMPT}" >/dev/null 2>&1
     if [ -f "$tmpout" ]; then
         cat "$tmpout"
     fi
@@ -39,7 +44,7 @@ run_codex() {
 }
 
 run_gemini() {
-    gemini -p "$PROMPT"
+    gemini --yolo "${TEXT_ONLY}${PROMPT}"
 }
 
 # Execute the appropriate LLM
