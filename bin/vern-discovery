@@ -161,7 +161,7 @@ if [ -z "$PIPELINE_TOTAL" ] || [ "$PIPELINE_TOTAL" -eq 0 ]; then
         STEP_6_NAME="Consolidation";       STEP_6_LLM="codex";   STEP_6_PERSONA="mighty";    STEP_6_CONTEXT_MODE="all_previous"
         STEP_6_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
         STEP_7_NAME="Architect Breakdown";  STEP_7_LLM="claude";  STEP_7_PERSONA="architect"; STEP_7_CONTEXT_MODE="consolidation"
-        STEP_7_PROMPT="You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+        STEP_7_PROMPT="You are Architect Vern. Break down this master plan into actionable tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
     else
         PIPELINE_MODE="default"
         PIPELINE_TOTAL=5
@@ -174,7 +174,7 @@ if [ -z "$PIPELINE_TOTAL" ] || [ "$PIPELINE_TOTAL" -eq 0 ]; then
         STEP_4_NAME="Consolidation";       STEP_4_LLM="codex";   STEP_4_PERSONA="mighty";    STEP_4_CONTEXT_MODE="all_previous"
         STEP_4_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
         STEP_5_NAME="Architect Breakdown";  STEP_5_LLM="claude";  STEP_5_PERSONA="architect"; STEP_5_CONTEXT_MODE="consolidation"
-        STEP_5_PROMPT="You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+        STEP_5_PROMPT="You are Architect Vern. Break down this master plan into actionable tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
     fi
 fi
 
@@ -442,8 +442,8 @@ format_dir = os.environ['FORMAT_DIR']
 with open(architect_file) as f:
     content = f.read()
 
-# Find all task headers: ### TASK N: Title
-task_pattern = re.compile(r'^###\s+TASK\s+(\d+)\s*:\s*(.+)', re.MULTILINE | re.IGNORECASE)
+# Find all task headers: ### TASK N: Title (also matches ## and alternate separators)
+task_pattern = re.compile(r'^#{2,3}\s+Task\s+(\d+)\s*[:\.—]\s*(.+)', re.MULTILINE | re.IGNORECASE)
 matches = list(task_pattern.finditer(content))
 
 if not matches:
