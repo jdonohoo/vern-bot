@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-# vernhole: Summon 5-10 random Vern personas for chaotic discovery
+# vernhole: Summon random Vern personas for chaotic discovery
 #
 # Usage: vernhole "<idea>" [output_dir] [num_verns] [context_file]
 #   idea: The idea to explore
 #   output_dir: Where to save output (default: current dir)
-#   num_verns: Number of Verns to summon, 5-10 (default: random)
+#   num_verns: Number of Verns to summon, min 5 (default: random 5-max)
 #   context_file: Optional path to a context file (e.g. a discovery master plan)
 #                 whose contents will be included in each persona's prompt
 #
@@ -14,15 +14,90 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERN_RUN="$SCRIPT_DIR/vern-run"
+AGENTS_DIR="$SCRIPT_DIR/../agents"
 
 IDEA="$1"
 OUTPUT_DIR="${2:-.}"
-NUM_VERNS="${3:-$(shuf -i 5-12 -n 1)}"
 CONTEXT_FILE="${4:-}"
 
 if [ -z "$IDEA" ]; then
     echo "Usage: vernhole \"<idea>\" [output_dir] [num_verns] [context_file]"
     exit 1
+fi
+
+# ── Dynamically build roster from agents/*.md ────────────────────────────────
+# Parses YAML frontmatter for name, description, model. Skips vernhole-orchestrator.
+# Maps model (opus/sonnet/haiku) to LLM engine for vern-run.
+
+VERNS=()
+
+if command -v python3 &>/dev/null && [ -d "$AGENTS_DIR" ]; then
+    while IFS='|' read -r vern_id llm desc; do
+        VERNS+=("${vern_id}:${llm}:${desc}")
+    done < <(python3 -c "
+import os, re, sys
+
+agents_dir = '$AGENTS_DIR'
+model_to_llm = {'opus': 'claude', 'sonnet': 'claude', 'haiku': 'claude'}
+
+for fname in sorted(os.listdir(agents_dir)):
+    if not fname.endswith('.md') or fname == 'vernhole-orchestrator.md':
+        continue
+    path = os.path.join(agents_dir, fname)
+    with open(path) as f:
+        content = f.read()
+    # Parse YAML frontmatter between --- markers
+    m = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
+    if not m:
+        continue
+    front = m.group(1)
+    name = ''
+    desc = ''
+    model = 'claude'
+    for line in front.split('\n'):
+        if line.startswith('name:'):
+            name = line.split(':', 1)[1].strip()
+        elif line.startswith('description:'):
+            desc = line.split(':', 1)[1].strip()
+            # Take just the short descriptor before the first period or dash explanation
+            desc = desc.split(' - ', 1)[-1].split('. ')[0] if ' - ' in desc else desc.split('. ')[0]
+        elif line.startswith('model:'):
+            model = line.split(':', 1)[1].strip()
+    llm = model_to_llm.get(model, 'claude')
+    if name:
+        print('{}|{}|{}'.format(name, llm, desc))
+" 2>/dev/null)
+fi
+
+# Fallback: if dynamic scan failed or no agents found, use hardcoded roster
+if [ ${#VERNS[@]} -eq 0 ]; then
+    VERNS=(
+        "vern-mediocre:claude:Vern the Mediocre - scrappy speed demon, ship it fast"
+        "vernile-great:claude:Vernile the Great - excellence incarnate, elegant solutions"
+        "nyquil-vern:claude:Nyquil Vern - brilliant but brief, NyQuil kicking in"
+        "ketamine-vern:claude:Ketamine Vern - multi-dimensional vibes, sees patterns"
+        "yolo-vern:claude:YOLO Vern - full send, no guardrails"
+        "mighty-vern:claude:MightyVern - raw power, comprehensive analysis"
+        "inverse-vern:claude:Inverse Vern - contrarian takes only"
+        "paranoid-vern:claude:Paranoid Vern - what could possibly go wrong?"
+        "optimist-vern:claude:Optimist Vern - everything will be fine!"
+        "academic-vern:claude:Academic Vern - needs more research, cites sources"
+        "startup-vern:claude:Startup Vern - MVP or die, move fast"
+        "enterprise-vern:claude:Enterprise Vern - needs 6 meetings and a committee"
+        "architect-vern:claude:Architect Vern - systems design, blueprints before builds"
+    )
+fi
+
+ROSTER_SIZE=${#VERNS[@]}
+MIN_VERNS=5
+NUM_VERNS="${3:-$(shuf -i ${MIN_VERNS}-${ROSTER_SIZE} -n 1)}"
+
+# Clamp to roster size
+if [ "$NUM_VERNS" -gt "$ROSTER_SIZE" ]; then
+    NUM_VERNS="$ROSTER_SIZE"
+fi
+if [ "$NUM_VERNS" -lt "$MIN_VERNS" ]; then
+    NUM_VERNS="$MIN_VERNS"
 fi
 
 # Build context block if a context file was provided
@@ -40,29 +115,13 @@ $(cat "$CONTEXT_FILE")
     echo ""
 fi
 
-# The Vern roster
-VERNS=(
-    "mediocre:sonnet:Vern the Mediocre - scrappy speed demon, ship it fast"
-    "vernile:opus:Vernile the Great - excellence incarnate, elegant solutions"
-    "nyquil:haiku:Nyquil Vern - brilliant but brief, NyQuil kicking in"
-    "ketamine:opus:Ketamine Vern - multi-dimensional vibes, sees patterns"
-    "yolo:gemini:YOLO Vern - full send, no guardrails"
-    "mighty:codex:MightyVern - raw power, comprehensive analysis"
-    "inverse:sonnet:Inverse Vern - contrarian takes only"
-    "paranoid:sonnet:Paranoid Vern - what could possibly go wrong?"
-    "optimist:haiku:Optimist Vern - everything will be fine!"
-    "academic:opus:Academic Vern - needs more research, cites sources"
-    "startup:sonnet:Startup Vern - MVP or die, move fast"
-    "enterprise:opus:Enterprise Vern - needs 6 meetings and a committee"
-    "architect:opus:Architect Vern - systems design, blueprints before builds"
-)
-
 # Create project name from idea
 PROJECT_NAME=$(echo "$IDEA" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | cut -c1-40)
 VERNHOLE_DIR="$OUTPUT_DIR/vernhole/$PROJECT_NAME"
 
 echo "=== WELCOME TO THE VERNHOLE ==="
 echo "Idea: $IDEA"
+echo "Roster: $ROSTER_SIZE Verns available"
 echo "Summoning $NUM_VERNS Verns..."
 echo ""
 
@@ -80,12 +139,7 @@ while IFS= read -r vern_line; do
 
     echo ">>> Vern $VERN_NUM/$NUM_VERNS: $desc"
 
-    # Determine which LLM to use based on model hint
-    case "$model" in
-        codex) LLM="codex" ;;
-        gemini) LLM="gemini" ;;
-        *) LLM="claude" ;;
-    esac
+    LLM="$model"
 
     OUTPUT_FILE="$VERNHOLE_DIR/$(printf '%02d' $VERN_NUM)-$vern_id.md"
 

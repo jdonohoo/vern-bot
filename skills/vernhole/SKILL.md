@@ -1,6 +1,6 @@
 ---
 name: vernhole
-description: VernHole / K-Hole Vern - Be careful what you wish for. 5-12 random Vern personas do discovery on your idea.
+description: VernHole / K-Hole Vern - Be careful what you wish for. Random Vern personas do discovery on your idea. The more the merrier.
 argument-hint: [idea/task]
 ---
 
@@ -14,13 +14,13 @@ You've entered the VernHole. There's no going back. Only through.
 
 Before summoning the council, ask the user using AskUserQuestion:
 
-> "How many Verns do you want to summon?"
+> "How many Verns do you want to summon? (min 5, the more the merrier)"
 
 Options:
-- **Random (5-12)** (Recommended) - Let fate decide
-- **5-6 Verns** - A manageable council. Diverse but focused.
-- **7-9 Verns** - Getting chaotic. More contradictions, more insights.
-- **10-12 Verns** - Full VernHole. ALL the perspectives. Maximum chaos.
+- **All 13** (Recommended) - Summon every Vern. Maximum perspectives, maximum chaos. The more the merrier.
+- **7-9 Verns** - Solid chaos. Plenty of contradictions and insights.
+- **5-6 Verns** - A focused council. Diverse but manageable.
+- **Random** - Let fate decide (5-13)
 
 ## Step 2: Output Location
 
@@ -46,10 +46,10 @@ Arguments:
 - **idea**: The user's idea/task from `$ARGUMENTS`
 - **output_dir**: The directory from step 2
 - **num_verns**: Based on step 1 choice:
-  - Random → leave empty (script picks 5-12)
-  - 5-6 → pick a random number 5-6
+  - All 13 → pass `13`
   - 7-9 → pick a random number 7-9
-  - 10-12 → pick a random number 10-12
+  - 5-6 → pick a random number 5-6
+  - Random → leave empty (script picks 5-13)
 - **context_file** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
 
 ### Important:
@@ -57,21 +57,9 @@ Arguments:
 - The script handles ALL file creation, directory setup, and LLM calls internally
 - Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
 
-## The Vern Roster (13 possible)
+## The Vern Roster (dynamic)
 
-- Vern the Mediocre (scrappy speed demon)
-- Vernile the Great (excellence incarnate)
-- Nyquil Vern (brilliant brevity)
-- Ketamine Vern (multi-dimensional planning)
-- YOLO Vern (full send chaos)
-- MightyVern (Codex power)
-- Architect Vern (systems design, blueprints before builds)
-- Inverse Vern (contrarian takes only)
-- Paranoid Vern (what could go wrong?)
-- Optimist Vern (everything will be fine)
-- Academic Vern (needs more research)
-- Startup Vern (MVP or die)
-- Enterprise Vern (needs 6 meetings first)
+The roster is built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md`). As new personas are added, they join the VernHole automatically. The `bin/vernhole` script scans agent files at runtime.
 
 ## Step 4: Report Results
 
