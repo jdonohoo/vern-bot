@@ -300,6 +300,6 @@ Run /vern:setup anytime to reconfigure.
 - The bin scripts read this config to determine which LLM to invoke
 - Any persona can run on any LLM - the persona prompt is the personality, the LLM is the engine
 - If no config exists, the pipeline falls back to defaults (codex/claude/gemini)
-- Use `--expanded` flag with `/vern:vern-discovery` to override the default pipeline mode for a single run
+- Use `--expanded` flag with `/vern:discovery` to override the default pipeline mode for a single run
 
 Begin setup: $ARGUMENTS
