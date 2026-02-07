@@ -20,31 +20,41 @@ if [ -z "$LLM" ] || [ -z "$PROMPT" ]; then
     exit 1
 fi
 
-# Wrap prompt to prevent LLMs from creating files instead of outputting text
+# Prompt wrapper for claude/gemini: output text only, no file creation
 TEXT_ONLY="IMPORTANT: Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files. Do NOT use any file-writing tools. Just output your analysis directly as text.
 
 "
 
+# Sign-off: every Vern ends with a dad joke
+DAD_JOKE="
+
+---
+SIGN-OFF: You MUST end your response with a dad joke that fits your persona. This is mandatory — it's the law. Format it as a horizontal rule followed by your joke."
+
 run_claude() {
-    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "${TEXT_ONLY}${PROMPT}"
+    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "${TEXT_ONLY}${PROMPT}${DAD_JOKE}"
 }
 
 run_codex() {
+    # Codex exec is an autonomous agent that creates files rather than
+    # outputting text. We embrace this: sandbox it in a temp dir, let it
+    # create whatever it wants, then harvest the content.
     local tmpdir=$(mktemp -d)
-    local tmpout="$tmpdir/output.md"
     codex exec --dangerously-bypass-approvals-and-sandbox \
         --skip-git-repo-check \
         --cd "$tmpdir" \
-        -o "$tmpout" \
-        "${TEXT_ONLY}${PROMPT}" >/dev/null 2>&1
-    if [ -f "$tmpout" ]; then
-        cat "$tmpout"
+        "${PROMPT}${DAD_JOKE}" >/dev/null 2>&1
+    # Harvest: check for AGENT.md first, then any .md files
+    if [ -f "$tmpdir/AGENT.md" ]; then
+        cat "$tmpdir/AGENT.md"
+    elif ls "$tmpdir"/*.md 1>/dev/null 2>&1; then
+        cat "$tmpdir"/*.md
     fi
     rm -rf "$tmpdir"
 }
 
 run_gemini() {
-    gemini --yolo "${TEXT_ONLY}${PROMPT}"
+    gemini --yolo "${TEXT_ONLY}${PROMPT}${DAD_JOKE}"
 }
 
 # Fallback: if requested LLM isn't installed, fall back to claude
