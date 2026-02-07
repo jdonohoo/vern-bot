@@ -2,10 +2,11 @@
 #
 # vern-run: Spawn different LLM subprocesses for Vern-Bot
 #
-# Usage: vern-run <llm> "<prompt>" [output_file]
+# Usage: vern-run <llm> "<prompt>" [output_file] [persona]
 #   llm: claude | codex | gemini
 #   prompt: The prompt to send
 #   output_file: Optional file to save output
+#   persona: Optional persona name (loads agents/{persona}.md for personality context)
 #
 
 set -e
@@ -13,11 +14,31 @@ set -e
 LLM="$1"
 PROMPT="$2"
 OUTPUT_FILE="$3"
+PERSONA="$4"
 
 if [ -z "$LLM" ] || [ -z "$PROMPT" ]; then
-    echo "Usage: vern-run <llm> \"<prompt>\" [output_file]"
+    echo "Usage: vern-run <llm> \"<prompt>\" [output_file] [persona]"
     echo "  llm: claude | codex | gemini"
     exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Load persona context from agent file ─────────────────────────────────────
+# Injects the full personality (behavior, catchphrases, output style, sign-off)
+# so codex/gemini know who they're supposed to be. Claude also benefits since
+# pipeline calls are raw `claude -p`, not plugin agent invocations.
+PERSONA_CONTEXT=""
+if [ -n "$PERSONA" ]; then
+    AGENT_FILE="$SCRIPT_DIR/../agents/${PERSONA}.md"
+    if [ -f "$AGENT_FILE" ]; then
+        # Strip YAML frontmatter (between first two --- lines), keep the rest
+        PERSONA_CONTEXT="=== PERSONA ===
+$(awk 'BEGIN{skip=0} /^---$/{skip++;next} skip>=2{print}' "$AGENT_FILE")
+=== END PERSONA ===
+
+"
+    fi
 fi
 
 # Prompt wrapper for claude/gemini: output text only, no file creation
@@ -25,14 +46,18 @@ TEXT_ONLY="IMPORTANT: Output your complete analysis as plain text to stdout. Do 
 
 "
 
-# Sign-off: every Vern ends with a dad joke
-DAD_JOKE="
+# Generic dad joke fallback (only used when no persona file loaded,
+# since agent files have their own sign-off instructions)
+DAD_JOKE=""
+if [ -z "$PERSONA_CONTEXT" ]; then
+    DAD_JOKE="
 
 ---
-SIGN-OFF: You MUST end your response with a dad joke that fits your persona. This is mandatory — it's the law. Format it as a horizontal rule followed by your joke."
+SIGN-OFF: You MUST end your response with a dad joke. This is mandatory — it's the law. Format it as a horizontal rule followed by your joke."
+fi
 
 run_claude() {
-    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "${TEXT_ONLY}${PROMPT}${DAD_JOKE}"
+    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "${TEXT_ONLY}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}"
 }
 
 run_codex() {
@@ -48,7 +73,7 @@ run_codex() {
         --skip-git-repo-check \
         --cd "$tmpdir" \
         -o "$tmpout" \
-        "${codex_prefix}${PROMPT}${DAD_JOKE}" >/dev/null 2>&1
+        "${codex_prefix}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}" >/dev/null 2>&1
     if [ -f "$tmpout" ]; then
         cat "$tmpout"
     fi
@@ -56,7 +81,7 @@ run_codex() {
 }
 
 run_gemini() {
-    gemini --yolo "${TEXT_ONLY}${PROMPT}${DAD_JOKE}"
+    gemini --yolo "${TEXT_ONLY}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}"
 }
 
 # Fallback: if requested LLM isn't installed, fall back to claude

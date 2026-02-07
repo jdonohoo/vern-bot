@@ -417,7 +417,7 @@ $prev_output"
             ;;
     esac
 
-    "$VERN_RUN" "$step_llm" "$run_prompt" "$output_file"
+    "$VERN_RUN" "$step_llm" "$run_prompt" "$output_file" "$step_persona"
 
     # Store output file path for later steps to reference
     eval "STEP_${i}_OUTPUT_FILE=\"$output_file\""

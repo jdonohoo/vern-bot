@@ -142,9 +142,9 @@ while IFS= read -r vern_line <&3; do
 
     OUTPUT_FILE="$VERNHOLE_DIR/$(printf '%02d' $VERN_NUM)-$vern_id.md"
 
-    "$VERN_RUN" "$LLM" "You are $desc. Analyze this idea from your unique perspective. Be true to your persona.
+    "$VERN_RUN" "$LLM" "Analyze this idea from your unique perspective. Be true to your persona.
 
-Original idea: $IDEA$CONTEXT_BLOCK" "$OUTPUT_FILE"
+Original idea: $IDEA$CONTEXT_BLOCK" "$OUTPUT_FILE" "$vern_id"
 
     ALL_OUTPUTS="$ALL_OUTPUTS
 
@@ -156,12 +156,12 @@ $(cat "$OUTPUT_FILE")"
 done 3<<< "$SELECTED"
 
 echo ">>> Synthesizing the chaos..."
-"$VERN_RUN" claude "You are the VernHole Orchestrator. Synthesize these diverse perspectives into actionable insights. Identify common themes, interesting contradictions, and recommended paths forward.
+"$VERN_RUN" claude "Synthesize these diverse perspectives into actionable insights. Identify common themes, interesting contradictions, and recommended paths forward.
 
 ORIGINAL IDEA: $IDEA
 $CONTEXT_BLOCK
 THE VERNS HAVE SPOKEN:
-$ALL_OUTPUTS" "$VERNHOLE_DIR/synthesis.md"
+$ALL_OUTPUTS" "$VERNHOLE_DIR/synthesis.md" "vernhole-orchestrator"
 
 echo ""
 echo "=== THE VERNHOLE HAS SPOKEN ==="
