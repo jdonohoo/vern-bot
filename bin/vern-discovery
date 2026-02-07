@@ -423,6 +423,104 @@ $prev_output"
     eval "STEP_${i}_OUTPUT_FILE=\"$output_file\""
 done
 
+# ── Post-processing: split architect breakdown into individual task files ─────
+# The last step (architect breakdown) outputs tasks in a single file. Split them
+# into individual files in $OUTPUT_DIR/$OUTPUT_FORMAT/ and rewrite the main file
+# as a summary with a task index + dependency graph + failure modes.
+
+ARCHITECT_FILE=$(get_step_var "$PIPELINE_TOTAL" OUTPUT_FILE)
+
+if [ -f "$ARCHITECT_FILE" ] && [ -s "$ARCHITECT_FILE" ] && command -v python3 &>/dev/null; then
+    echo ""
+    echo ">>> Splitting architect breakdown into individual $OUTPUT_FORMAT files..."
+    ARCHITECT_FILE="$ARCHITECT_FILE" FORMAT_DIR="$OUTPUT_DIR/$OUTPUT_FORMAT" python3 << 'PYEOF'
+import re, os, sys
+
+architect_file = os.environ['ARCHITECT_FILE']
+format_dir = os.environ['FORMAT_DIR']
+
+with open(architect_file) as f:
+    content = f.read()
+
+# Find all task headers: ### TASK N: Title
+task_pattern = re.compile(r'^###\s+TASK\s+(\d+)\s*:\s*(.+)', re.MULTILINE | re.IGNORECASE)
+matches = list(task_pattern.finditer(content))
+
+if not matches:
+    print("  No tasks found in architect breakdown, skipping split")
+    sys.exit(0)
+
+# Header: everything before the first task
+header = content[:matches[0].start()].rstrip('\n- ')
+
+# Footer: first ## header (h2, not h3) after the last task — these are summary
+# sections like "## Dependency Graph", "## Failure Modes", "## Total Estimate"
+footer = ''
+last_task_pos = matches[-1].start()
+remaining = content[last_task_pos:]
+footer_match = re.search(r'^## (?!#)', remaining, re.MULTILINE)
+if footer_match:
+    footer_abs = last_task_pos + footer_match.start()
+    # Strip any trailing --- separator before the footer
+    pre = content[:footer_abs].rstrip()
+    if pre.endswith('---'):
+        footer_abs = len(pre) - 3
+    footer = content[footer_abs:].lstrip('-').strip()
+else:
+    footer_abs = len(content)
+
+# Extract individual tasks
+tasks = []
+for idx, match in enumerate(matches):
+    task_num = int(match.group(1))
+    task_title = match.group(2).strip()
+    start = match.start()
+    end = matches[idx + 1].start() if idx + 1 < len(matches) else footer_abs
+
+    task_body = content[start:end].rstrip()
+    # Remove trailing --- separator between tasks
+    if task_body.endswith('---'):
+        task_body = task_body[:-3].rstrip()
+    tasks.append((task_num, task_title, task_body))
+
+def slugify(s):
+    return re.sub(r'-+', '-', re.sub(r'[^a-z0-9]+', '-', s.lower())).strip('-')
+
+# Write individual task files
+os.makedirs(format_dir, exist_ok=True)
+for task_num, task_title, task_body in tasks:
+    filename = "task-{:02d}-{}.md".format(task_num, slugify(task_title))
+    with open(os.path.join(format_dir, filename), 'w') as f:
+        f.write(task_body + '\n')
+    print("  Created: {}/{}".format(os.path.basename(format_dir), filename))
+
+# Build task index table for the summary
+lines = []
+lines.append("| # | Task | Complexity | Dependencies |")
+lines.append("|---|------|------------|--------------|")
+for task_num, task_title, task_body in tasks:
+    cx = re.search(r'\*\*Complexity:\*\*\s*(\S+)', task_body)
+    dp = re.search(r'\*\*Dependencies:\*\*\s*(.+)', task_body)
+    lines.append("| {} | {} | {} | {} |".format(
+        task_num, task_title,
+        cx.group(1) if cx else '?',
+        dp.group(1).strip() if dp else 'None'))
+task_index = '\n'.join(lines)
+
+# Rewrite the architect file as a summary
+with open(architect_file, 'w') as f:
+    f.write(header + '\n\n')
+    f.write("## Task Index\n\n")
+    f.write("Individual task files: `{}/`\n\n".format(os.path.basename(format_dir)))
+    f.write(task_index + '\n')
+    if footer:
+        f.write('\n' + footer + '\n')
+
+print("  Rewrote {} as summary ({} tasks extracted)".format(
+    os.path.basename(architect_file), len(tasks)))
+PYEOF
+fi
+
 echo ""
 echo "=== DISCOVERY COMPLETE ==="
 echo "Files created in: $DISCOVERY_DIR"
