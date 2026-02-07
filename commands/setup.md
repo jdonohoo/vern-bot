@@ -291,7 +291,7 @@ Expanded Pipeline (use --expanded or select at runtime):
 
 VernHole: Random (5-12 Verns)
 
-Run /setup anytime to reconfigure.
+Run /vern-bot:setup anytime to reconfigure.
 ```
 
 ## Notes
