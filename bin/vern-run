@@ -47,6 +47,23 @@ run_gemini() {
     gemini --yolo "${TEXT_ONLY}${PROMPT}"
 }
 
+# Fallback: if requested LLM isn't installed, fall back to claude
+ORIGINAL_LLM="$LLM"
+case "$LLM" in
+    codex|x)
+        if ! command -v codex &>/dev/null; then
+            echo "[vern-run] Warning: codex CLI not found, falling back to claude" >&2
+            LLM="claude"
+        fi
+        ;;
+    gemini|g)
+        if ! command -v gemini &>/dev/null; then
+            echo "[vern-run] Warning: gemini CLI not found, falling back to claude" >&2
+            LLM="claude"
+        fi
+        ;;
+esac
+
 # Execute the appropriate LLM
 case "$LLM" in
     claude|c)
