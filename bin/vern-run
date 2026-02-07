@@ -25,7 +25,17 @@ run_claude() {
 }
 
 run_codex() {
-    codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
+    local tmpdir=$(mktemp -d)
+    local tmpout="$tmpdir/output.md"
+    codex exec --dangerously-bypass-approvals-and-sandbox \
+        --skip-git-repo-check \
+        --cd "$tmpdir" \
+        -o "$tmpout" \
+        "$PROMPT" >/dev/null 2>&1
+    if [ -f "$tmpout" ]; then
+        cat "$tmpout"
+    fi
+    rm -rf "$tmpdir"
 }
 
 run_gemini() {
