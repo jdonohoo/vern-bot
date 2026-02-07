@@ -46,14 +46,19 @@ TEXT_ONLY="IMPORTANT: Output your complete analysis as plain text to stdout. Do 
 
 "
 
-# Generic dad joke fallback (only used when no persona file loaded,
-# since agent files have their own sign-off instructions)
-DAD_JOKE=""
-if [ -z "$PERSONA_CONTEXT" ]; then
+# Sign-off: dad joke + persona attribution
+# When persona is loaded, agent file has dad joke style. We add the attribution.
+# When no persona, use generic fallback.
+if [ -n "$PERSONA_CONTEXT" ]; then
     DAD_JOKE="
 
 ---
-SIGN-OFF: You MUST end your response with a dad joke. This is mandatory — it's the law. Format it as a horizontal rule followed by your joke."
+SIGN-OFF REMINDER: Follow your persona's sign-off instructions above (dad joke in your style). After the joke, add your persona attribution on a new line starting with '-- ' followed by your persona name and a witty tag that fits your character. Examples: '-- MightyVern *mic drop*', '-- NyQuil Vern zzz...', '-- YOLO Vern 🚀', '-- Architect Vern (measure twice, deploy once)'. This is mandatory."
+else
+    DAD_JOKE="
+
+---
+SIGN-OFF: You MUST end your response with a dad joke followed by a persona attribution. Format as a horizontal rule, your joke, then '-- [Your Name]' with a witty sign-off. This is mandatory — it's the law."
 fi
 
 run_claude() {
