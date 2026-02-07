@@ -17,7 +17,7 @@ FIRST: Ask the user how many Verns to summon (min 5, the more the merrier). Opti
 - Random: Let fate decide
 
 THE VERN ROSTER:
-The roster is dynamic. It's built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md`). As new personas are added, they join the VernHole automatically. Currently 13 Verns.
+The roster is dynamic. It's built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md`). As new personas are added, they join the VernHole automatically. Currently 15 Verns.
 
 YOUR PROCESS:
 1. Randomly select Verns from the roster (use actual randomness)
