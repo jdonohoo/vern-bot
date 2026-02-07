@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# pre-push hook: Prompt to bump plugin version before pushing
+#
+# Reads current version from .claude-plugin/marketplace.json,
+# asks if you want to bump it. If yes, bumps and auto-commits
+# so the push includes the version change.
+#
+# Install: ./install-hooks.sh
+#
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+MARKETPLACE="$REPO_ROOT/.claude-plugin/marketplace.json"
+
+if [ ! -f "$MARKETPLACE" ]; then
+    exit 0
+fi
+
+# Extract current version
+CURRENT_VERSION=$(python3 -c "
+import json
+with open('$MARKETPLACE') as f:
+    data = json.load(f)
+for p in data.get('plugins', []):
+    if 'version' in p:
+        print(p['version'])
+        break
+" 2>/dev/null)
+
+if [ -z "$CURRENT_VERSION" ]; then
+    exit 0
+fi
+
+# Skip prompt if no TTY available (e.g. running inside Claude Code)
+if ! test -c /dev/tty 2>/dev/null; then
+    echo "Current plugin version: $CURRENT_VERSION (no TTY, skipping bump prompt)"
+    exit 0
+fi
+
+# Parse semver
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+echo ""
+echo "Current plugin version: $CURRENT_VERSION"
+read -p "Bump plugin version before pushing? [y/N] " BUMP < /dev/tty
+
+if [[ ! "$BUMP" =~ ^[Yy]$ ]]; then
+    exit 0
+fi
+
+echo "  1) patch  → $MAJOR.$MINOR.$((PATCH + 1))"
+echo "  2) minor  → $MAJOR.$((MINOR + 1)).0"
+echo "  3) major  → $((MAJOR + 1)).0.0"
+read -p "Bump type [1/2/3]: " BUMP_TYPE < /dev/tty
+
+case "$BUMP_TYPE" in
+    1) NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))" ;;
+    2) NEW_VERSION="$MAJOR.$((MINOR + 1)).0" ;;
+    3) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
+    *)
+        echo "Invalid choice, skipping bump."
+        exit 0
+        ;;
+esac
+
+# Update version in marketplace.json
+python3 -c "
+import json
+with open('$MARKETPLACE', 'r') as f:
+    data = json.load(f)
+for p in data.get('plugins', []):
+    if 'version' in p:
+        p['version'] = '$NEW_VERSION'
+        break
+with open('$MARKETPLACE', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+"
+
+echo "Bumped version: $CURRENT_VERSION → $NEW_VERSION"
+
+# Auto-commit the version bump so it's included in this push
+git add "$MARKETPLACE"
+git commit -m "Bump plugin version to $NEW_VERSION"
+
+echo "Version bump committed. Continuing push..."
