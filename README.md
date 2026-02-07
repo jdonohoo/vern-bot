@@ -1,5 +1,7 @@
 # Vern-Bot
 
+https://jdonohoo.github.io/vern-bot/
+
 A Claude Code plugin. 15 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole chaos mode and a full multi-LLM discovery pipeline.
 
 ## The 15 Personas
