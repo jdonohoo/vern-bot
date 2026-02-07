@@ -32,7 +32,7 @@ if [ -z "$CURRENT_VERSION" ]; then
 fi
 
 # Skip prompt if no TTY available (e.g. running inside Claude Code)
-if ! test -c /dev/tty 2>/dev/null; then
+if ! true < /dev/tty 2>/dev/null; then
     echo "Current plugin version: $CURRENT_VERSION (no TTY, skipping bump prompt)"
     exit 0
 fi
