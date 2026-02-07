@@ -90,7 +90,7 @@ fi
 
 ROSTER_SIZE=${#VERNS[@]}
 MIN_VERNS=5
-NUM_VERNS="${3:-$(shuf -i ${MIN_VERNS}-${ROSTER_SIZE} -n 1)}"
+NUM_VERNS="${3:-$(awk "BEGIN{srand(); print int(rand() * ($ROSTER_SIZE - $MIN_VERNS + 1)) + $MIN_VERNS}")}"
 
 # Clamp to roster size
 if [ "$NUM_VERNS" -gt "$ROSTER_SIZE" ]; then
@@ -127,7 +127,7 @@ echo ""
 mkdir -p "$VERNHOLE_DIR"
 
 # Randomly select Verns
-SELECTED=$(printf '%s\n' "${VERNS[@]}" | shuf -n "$NUM_VERNS")
+SELECTED=$(printf '%s\n' "${VERNS[@]}" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2- | head -n "$NUM_VERNS")
 
 # Track all outputs for synthesis
 ALL_OUTPUTS=""

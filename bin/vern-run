@@ -21,7 +21,7 @@ if [ -z "$LLM" ] || [ -z "$PROMPT" ]; then
 fi
 
 run_claude() {
-    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "$PROMPT"
+    NODE_OPTIONS="--max-old-space-size=32768" claude -p "$PROMPT"
 }
 
 run_codex() {
@@ -39,7 +39,7 @@ run_codex() {
 }
 
 run_gemini() {
-    gemini --yolo "$PROMPT"
+    gemini -p "$PROMPT"
 }
 
 # Execute the appropriate LLM
