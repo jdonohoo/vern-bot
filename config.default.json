@@ -11,7 +11,7 @@
       {
         "step": 1,
         "name": "Initial Analysis",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "prompt_only",
         "prompt_prefix": "You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."
@@ -19,7 +19,7 @@
       {
         "step": 2,
         "name": "Refinement",
-        "persona": "vernile-great",
+        "persona": "great",
         "llm": "claude",
         "context_mode": "previous",
         "prompt_prefix": "You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."
@@ -27,7 +27,7 @@
       {
         "step": 3,
         "name": "Chaos Check",
-        "persona": "yolo-vern",
+        "persona": "yolo",
         "llm": "gemini",
         "context_mode": "previous",
         "prompt_prefix": "You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
@@ -35,7 +35,7 @@
       {
         "step": 4,
         "name": "Consolidation",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "all_previous",
         "prompt_prefix": "You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
@@ -43,7 +43,7 @@
       {
         "step": 5,
         "name": "Architect Breakdown",
-        "persona": "architect-vern",
+        "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
         "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
@@ -53,7 +53,7 @@
       {
         "step": 1,
         "name": "Initial Analysis",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "prompt_only",
         "prompt_prefix": "You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."
@@ -61,7 +61,7 @@
       {
         "step": 2,
         "name": "Refinement",
-        "persona": "vernile-great",
+        "persona": "great",
         "llm": "claude",
         "context_mode": "previous",
         "prompt_prefix": "You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."
@@ -69,7 +69,7 @@
       {
         "step": 3,
         "name": "Reality Check",
-        "persona": "vern-mediocre",
+        "persona": "mediocre",
         "llm": "claude",
         "context_mode": "previous",
         "prompt_prefix": "You are Vern the Mediocre. Reality-check this plan. What's over-engineered? What can be simplified? Where is cleverness hiding complexity? Cut the fluff, keep what ships."
@@ -77,7 +77,7 @@
       {
         "step": 4,
         "name": "Chaos Check",
-        "persona": "yolo-vern",
+        "persona": "yolo",
         "llm": "gemini",
         "context_mode": "previous",
         "prompt_prefix": "You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
@@ -85,7 +85,7 @@
       {
         "step": 5,
         "name": "MVP Lens",
-        "persona": "startup-vern",
+        "persona": "startup",
         "llm": "claude",
         "context_mode": "previous",
         "prompt_prefix": "You are Startup Vern. What's the MVP here? Cut scope ruthlessly. What can ship in week one? What's a nice-to-have disguised as a must-have? If you're not embarrassed by v1, you shipped too late."
@@ -93,7 +93,7 @@
       {
         "step": 6,
         "name": "Consolidation",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "all_previous",
         "prompt_prefix": "You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
@@ -101,7 +101,7 @@
       {
         "step": 7,
         "name": "Architect Breakdown",
-        "persona": "architect-vern",
+        "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
         "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."

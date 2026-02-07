@@ -72,19 +72,19 @@ fi
 # Fallback: if dynamic scan failed or no agents found, use hardcoded roster
 if [ ${#VERNS[@]} -eq 0 ]; then
     VERNS=(
-        "vern-mediocre:claude:Vern the Mediocre - scrappy speed demon, ship it fast"
-        "vernile-great:claude:Vernile the Great - excellence incarnate, elegant solutions"
-        "nyquil-vern:claude:Nyquil Vern - brilliant but brief, NyQuil kicking in"
-        "ketamine-vern:claude:Ketamine Vern - multi-dimensional vibes, sees patterns"
-        "yolo-vern:claude:YOLO Vern - full send, no guardrails"
-        "mighty-vern:claude:MightyVern - raw power, comprehensive analysis"
-        "inverse-vern:claude:Inverse Vern - contrarian takes only"
-        "paranoid-vern:claude:Paranoid Vern - what could possibly go wrong?"
-        "optimist-vern:claude:Optimist Vern - everything will be fine!"
-        "academic-vern:claude:Academic Vern - needs more research, cites sources"
-        "startup-vern:claude:Startup Vern - MVP or die, move fast"
-        "enterprise-vern:claude:Enterprise Vern - needs 6 meetings and a committee"
-        "architect-vern:claude:Architect Vern - systems design, blueprints before builds"
+        "mediocre:claude:Vern the Mediocre - scrappy speed demon, ship it fast"
+        "great:claude:Vernile the Great - excellence incarnate, elegant solutions"
+        "nyquil:claude:Nyquil Vern - brilliant but brief, NyQuil kicking in"
+        "ketamine:claude:Ketamine Vern - multi-dimensional vibes, sees patterns"
+        "yolo:claude:YOLO Vern - full send, no guardrails"
+        "mighty:claude:MightyVern - raw power, comprehensive analysis"
+        "inverse:claude:Inverse Vern - contrarian takes only"
+        "paranoid:claude:Paranoid Vern - what could possibly go wrong?"
+        "optimist:claude:Optimist Vern - everything will be fine!"
+        "academic:claude:Academic Vern - needs more research, cites sources"
+        "startup:claude:Startup Vern - MVP or die, move fast"
+        "enterprise:claude:Enterprise Vern - needs 6 meetings and a committee"
+        "architect:claude:Architect Vern - systems design, blueprints before builds"
     )
 fi
 

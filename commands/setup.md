@@ -155,7 +155,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 1,
         "name": "Initial Analysis",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "prompt_only",
         "description": "MightyVern on Codex"
@@ -163,7 +163,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 2,
         "name": "Refinement",
-        "persona": "vernile-great",
+        "persona": "great",
         "llm": "claude",
         "context_mode": "previous",
         "description": "Vernile on Claude"
@@ -171,7 +171,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 3,
         "name": "Chaos Check",
-        "persona": "yolo-vern",
+        "persona": "yolo",
         "llm": "claude",
         "context_mode": "previous",
         "description": "YOLO Vern on Claude"
@@ -179,7 +179,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 4,
         "name": "Consolidation",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "all_previous",
         "description": "MightyVern on Codex"
@@ -187,7 +187,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 5,
         "name": "Architect Breakdown",
-        "persona": "architect-vern",
+        "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
         "description": "Architect Vern on Claude"
@@ -197,7 +197,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 1,
         "name": "Initial Analysis",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "prompt_only",
         "description": "MightyVern on Codex"
@@ -205,7 +205,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 2,
         "name": "Refinement",
-        "persona": "vernile-great",
+        "persona": "great",
         "llm": "claude",
         "context_mode": "previous",
         "description": "Vernile on Claude"
@@ -213,7 +213,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 3,
         "name": "Reality Check",
-        "persona": "vern-mediocre",
+        "persona": "mediocre",
         "llm": "claude",
         "context_mode": "previous",
         "description": "Vern the Mediocre on Claude"
@@ -221,7 +221,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 4,
         "name": "Chaos Check",
-        "persona": "yolo-vern",
+        "persona": "yolo",
         "llm": "gemini",
         "context_mode": "previous",
         "description": "YOLO Vern on Gemini"
@@ -229,7 +229,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 5,
         "name": "MVP Lens",
-        "persona": "startup-vern",
+        "persona": "startup",
         "llm": "claude",
         "context_mode": "previous",
         "description": "Startup Vern on Claude"
@@ -237,7 +237,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 6,
         "name": "Consolidation",
-        "persona": "mighty-vern",
+        "persona": "mighty",
         "llm": "codex",
         "context_mode": "all_previous",
         "description": "MightyVern on Codex"
@@ -245,7 +245,7 @@ Write the config to `~/.claude/vern-bot-config.json`:
       {
         "step": 7,
         "name": "Architect Breakdown",
-        "persona": "architect-vern",
+        "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
         "description": "Architect Vern on Claude"
@@ -291,7 +291,7 @@ Expanded Pipeline (use --expanded or select at runtime):
 
 VernHole: Random (5-12 Verns)
 
-Run /vern-bot:setup anytime to reconfigure.
+Run /vern:setup anytime to reconfigure.
 ```
 
 ## Notes
@@ -300,6 +300,6 @@ Run /vern-bot:setup anytime to reconfigure.
 - The bin scripts read this config to determine which LLM to invoke
 - Any persona can run on any LLM - the persona prompt is the personality, the LLM is the engine
 - If no config exists, the pipeline falls back to defaults (codex/claude/gemini)
-- Use `--expanded` flag with `/vern-bot:vern-discovery` to override the default pipeline mode for a single run
+- Use `--expanded` flag with `/vern:vern-discovery` to override the default pipeline mode for a single run
 
 Begin setup: $ARGUMENTS

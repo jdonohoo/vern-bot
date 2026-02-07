@@ -148,32 +148,32 @@ if [ -z "$PIPELINE_TOTAL" ] || [ "$PIPELINE_TOTAL" -eq 0 ]; then
     if [ "$EXPANDED_FLAG" -eq 1 ]; then
         PIPELINE_MODE="expanded"
         PIPELINE_TOTAL=7
-        STEP_1_NAME="Initial Analysis";    STEP_1_LLM="codex";  STEP_1_PERSONA="mighty-vern";    STEP_1_CONTEXT_MODE="prompt_only"
+        STEP_1_NAME="Initial Analysis";    STEP_1_LLM="codex";  STEP_1_PERSONA="mighty";    STEP_1_CONTEXT_MODE="prompt_only"
         STEP_1_PROMPT="You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."
-        STEP_2_NAME="Refinement";          STEP_2_LLM="claude";  STEP_2_PERSONA="vernile-great";  STEP_2_CONTEXT_MODE="previous"
+        STEP_2_NAME="Refinement";          STEP_2_LLM="claude";  STEP_2_PERSONA="great";  STEP_2_CONTEXT_MODE="previous"
         STEP_2_PROMPT="You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."
-        STEP_3_NAME="Reality Check";       STEP_3_LLM="claude";  STEP_3_PERSONA="vern-mediocre";  STEP_3_CONTEXT_MODE="previous"
+        STEP_3_NAME="Reality Check";       STEP_3_LLM="claude";  STEP_3_PERSONA="mediocre";  STEP_3_CONTEXT_MODE="previous"
         STEP_3_PROMPT="You are Vern the Mediocre. Reality-check this plan. What's over-engineered? What can be simplified? Where is cleverness hiding complexity? Cut the fluff, keep what ships."
-        STEP_4_NAME="Chaos Check";         STEP_4_LLM="gemini";  STEP_4_PERSONA="yolo-vern";      STEP_4_CONTEXT_MODE="previous"
+        STEP_4_NAME="Chaos Check";         STEP_4_LLM="gemini";  STEP_4_PERSONA="yolo";      STEP_4_CONTEXT_MODE="previous"
         STEP_4_PROMPT="You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
-        STEP_5_NAME="MVP Lens";            STEP_5_LLM="claude";  STEP_5_PERSONA="startup-vern";   STEP_5_CONTEXT_MODE="previous"
+        STEP_5_NAME="MVP Lens";            STEP_5_LLM="claude";  STEP_5_PERSONA="startup";   STEP_5_CONTEXT_MODE="previous"
         STEP_5_PROMPT="You are Startup Vern. What's the MVP here? Cut scope ruthlessly. What can ship in week one? What's a nice-to-have disguised as a must-have? If you're not embarrassed by v1, you shipped too late."
-        STEP_6_NAME="Consolidation";       STEP_6_LLM="codex";   STEP_6_PERSONA="mighty-vern";    STEP_6_CONTEXT_MODE="all_previous"
+        STEP_6_NAME="Consolidation";       STEP_6_LLM="codex";   STEP_6_PERSONA="mighty";    STEP_6_CONTEXT_MODE="all_previous"
         STEP_6_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
-        STEP_7_NAME="Architect Breakdown";  STEP_7_LLM="claude";  STEP_7_PERSONA="architect-vern"; STEP_7_CONTEXT_MODE="consolidation"
+        STEP_7_NAME="Architect Breakdown";  STEP_7_LLM="claude";  STEP_7_PERSONA="architect"; STEP_7_CONTEXT_MODE="consolidation"
         STEP_7_PROMPT="You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
     else
         PIPELINE_MODE="default"
         PIPELINE_TOTAL=5
-        STEP_1_NAME="Initial Analysis";    STEP_1_LLM="codex";  STEP_1_PERSONA="mighty-vern";    STEP_1_CONTEXT_MODE="prompt_only"
+        STEP_1_NAME="Initial Analysis";    STEP_1_LLM="codex";  STEP_1_PERSONA="mighty";    STEP_1_CONTEXT_MODE="prompt_only"
         STEP_1_PROMPT="You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."
-        STEP_2_NAME="Refinement";          STEP_2_LLM="claude";  STEP_2_PERSONA="vernile-great";  STEP_2_CONTEXT_MODE="previous"
+        STEP_2_NAME="Refinement";          STEP_2_LLM="claude";  STEP_2_PERSONA="great";  STEP_2_CONTEXT_MODE="previous"
         STEP_2_PROMPT="You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."
-        STEP_3_NAME="Chaos Check";         STEP_3_LLM="gemini";  STEP_3_PERSONA="yolo-vern";      STEP_3_CONTEXT_MODE="previous"
+        STEP_3_NAME="Chaos Check";         STEP_3_LLM="gemini";  STEP_3_PERSONA="yolo";      STEP_3_CONTEXT_MODE="previous"
         STEP_3_PROMPT="You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
-        STEP_4_NAME="Consolidation";       STEP_4_LLM="codex";   STEP_4_PERSONA="mighty-vern";    STEP_4_CONTEXT_MODE="all_previous"
+        STEP_4_NAME="Consolidation";       STEP_4_LLM="codex";   STEP_4_PERSONA="mighty";    STEP_4_CONTEXT_MODE="all_previous"
         STEP_4_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
-        STEP_5_NAME="Architect Breakdown";  STEP_5_LLM="claude";  STEP_5_PERSONA="architect-vern"; STEP_5_CONTEXT_MODE="consolidation"
+        STEP_5_NAME="Architect Breakdown";  STEP_5_LLM="claude";  STEP_5_PERSONA="architect"; STEP_5_CONTEXT_MODE="consolidation"
         STEP_5_PROMPT="You are Architect Vern. Break down this master plan into actionable items with: title, description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
     fi
 fi
@@ -209,7 +209,7 @@ fi
 if [ -f "$CONFIG_FILE" ]; then
     echo "Config: $CONFIG_FILE"
 else
-    echo "Config: defaults (run /vern-bot:setup to customize)"
+    echo "Config: defaults (run /vern:setup to customize)"
 fi
 echo ""
 echo "Pipeline:"

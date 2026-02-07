@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "vern-bot",
+  "name": "vern",
   "description": "50 Shades of Vern. A Claude Code plugin with multiple personalities — and none of them are sorry.",
   "owner": {
     "name": "Justin Donohoo",
@@ -11,7 +11,7 @@
   },
   "plugins": [
     {
-      "name": "vern-bot",
+      "name": "vern",
       "description": "15 AI personas, multi-LLM discovery pipelines, and VernHole chaos mode. One idea in, battle-tested plan out. Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.",
       "version": "1.1.0",
       "author": {
