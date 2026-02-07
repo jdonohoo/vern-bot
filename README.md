@@ -1,8 +1,8 @@
 # Vern-Bot
 
-A Claude Code plugin. 13 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole chaos mode and a full multi-LLM discovery pipeline.
+A Claude Code plugin. 15 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole chaos mode and a full multi-LLM discovery pipeline.
 
-## The 13 Personas
+## The 15 Personas
 
 ### Core Personas
 | Command | Model | Best For |
@@ -24,6 +24,8 @@ A Claude Code plugin. 13 AI personas with different personalities, models, and a
 | `/academic-vern` | Opus | Evidence-based analysis, citing prior art |
 | `/startup-vern` | Sonnet | MVP thinking, lean approach, cut scope |
 | `/enterprise-vern` | Opus | Governance, compliance, process rigor |
+| `/ux-vern` | Opus | User experience, empathy-driven design, journey mapping |
+| `/retro-vern` | Sonnet | Historical perspective, proven tech, cutting through hype |
 
 ### When to Use Each
 
@@ -42,6 +44,8 @@ A Claude Code plugin. 13 AI personas with different personalities, models, and a
 | "What does the research say?" | `/academic-vern` |
 | "What's the MVP?" | `/startup-vern` |
 | "Enterprise-grade analysis" | `/enterprise-vern` |
+| "Can a real person use this?" | `/ux-vern` |
+| "Haven't we solved this before?" | `/retro-vern` |
 | "I want chaos/creativity" | `/vernhole` |
 | "Full project discovery" | `/vern-discovery` |
 
@@ -204,7 +208,7 @@ You choose how many Verns to summon (5-12). Each gives their unique take. Chaos 
 vern-bot/
 ├── .claude-plugin/
 │   └── plugin.json          # Plugin metadata
-├── agents/                   # 14 agent definitions
+├── agents/                   # 16 agent definitions (15 personas + orchestrator)
 │   ├── vern-mediocre.md
 │   ├── vernile-great.md
 │   ├── nyquil-vern.md
@@ -218,10 +222,12 @@ vern-bot/
 │   ├── academic-vern.md
 │   ├── startup-vern.md
 │   ├── enterprise-vern.md
+│   ├── ux-vern.md
+│   ├── retro-vern.md
 │   └── vernhole-orchestrator.md
 ├── commands/
 │   └── vern.md               # /vern slash command (router)
-├── skills/                    # 15 skill definitions
+├── skills/                    # 17 skill definitions
 │   ├── vern-mediocre/SKILL.md
 │   ├── vernile-great/SKILL.md
 │   ├── nyquil-vern/SKILL.md
@@ -235,6 +241,8 @@ vern-bot/
 │   ├── academic-vern/SKILL.md
 │   ├── startup-vern/SKILL.md
 │   ├── enterprise-vern/SKILL.md
+│   ├── ux-vern/SKILL.md
+│   ├── retro-vern/SKILL.md
 │   ├── vernhole/SKILL.md
 │   └── vern-discovery/SKILL.md
 ├── bin/                       # Pipeline orchestration scripts
