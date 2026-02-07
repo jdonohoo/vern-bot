@@ -49,12 +49,11 @@ A Claude Code plugin. 15 AI personas with different personalities, models, and a
 | "I want chaos/creativity" | `/vernhole` |
 | "Full project discovery" | `/vern-discovery` |
 
-## Install as Plugin
+## Install
 
 ```bash
-claude plugin add /path/to/vern-bot
-# or from GitHub:
-claude plugin add jdonohoo/vern-bot
+/plugin marketplace add https://github.com/jdonohoo/vern-bot
+/plugin install vern-bot
 ```
 
 ## Usage

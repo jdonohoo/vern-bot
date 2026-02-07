@@ -1,0 +1,33 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "vern-bot",
+  "description": "50 Shades of Vern. A Claude Code plugin with multiple personalities — and none of them are sorry.",
+  "owner": {
+    "name": "Justin Donohoo",
+    "email": "jdonohoo@gmail.com"
+  },
+  "metadata": {
+    "description": "50 Shades of Vern. A Claude Code plugin with multiple personalities — and none of them are sorry."
+  },
+  "plugins": [
+    {
+      "name": "vern-bot",
+      "description": "15 AI personas, multi-LLM discovery pipelines, and VernHole chaos mode. One idea in, battle-tested plan out. Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Justin Donohoo"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/jdonohoo/vern-bot",
+      "tags": [
+        "multi-persona",
+        "discovery-pipeline",
+        "multi-llm",
+        "brainstorming",
+        "chaos-mode",
+        "dad-jokes"
+      ]
+    }
+  ]
+}
