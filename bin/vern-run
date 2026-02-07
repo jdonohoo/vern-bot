@@ -25,7 +25,7 @@ run_claude() {
 }
 
 run_codex() {
-    codex --dangerously-bypass-approvals-and-sandbox "$PROMPT"
+    codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
 }
 
 run_gemini() {
