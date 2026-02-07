@@ -209,7 +209,7 @@ fi
 if [ -f "$CONFIG_FILE" ]; then
     echo "Config: $CONFIG_FILE"
 else
-    echo "Config: defaults (run /setup to customize)"
+    echo "Config: defaults (run /vern-bot:setup to customize)"
 fi
 echo ""
 echo "Pipeline:"

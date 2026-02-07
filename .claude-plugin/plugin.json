@@ -1,6 +1,6 @@
 {
   "name": "vern-bot",
-  "description": "Chaotic multi-persona AI discovery system. 15 unique Vern personas, VernHole chaos mode, and a full multi-LLM discovery pipeline. Invoke directly: /vern-mediocre, /vernile-great, /vernhole, /vern-discovery, etc.",
+  "description": "Chaotic multi-persona AI discovery system. 15 unique Vern personas, VernHole chaos mode, and a full multi-LLM discovery pipeline.",
   "author": {
     "name": "Justin Donohoo",
     "url": "https://github.com/jdonohoo"
