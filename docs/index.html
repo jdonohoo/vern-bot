@@ -4,10 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vern-Bot - Chaotic Multi-Persona AI Discovery</title>
+    <link rel="icon" type="image/png" href="images/favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
+    <meta property="og:title" content="Vern-Bot">
+    <meta property="og:description" content="15 AI personas, multi-LLM discovery pipelines, and VernHole chaos mode. One idea in, battle-tested plan out.">
+    <meta property="og:image" content="images/favicon-512.png">
     <style>
         :root {
             --bg: #0d1117;
             --surface: #161b22;
+            --surface-hover: #1c2129;
             --border: #30363d;
             --text: #e6edf3;
             --text-muted: #8b949e;
@@ -34,22 +40,67 @@
         /* Hero */
         .hero {
             text-align: center;
-            padding: 80px 0 60px;
+            padding: 50px 0 50px;
             border-bottom: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -10%;
+            right: -10%;
+            bottom: -50%;
+            background: radial-gradient(ellipse at 30% 50%, rgba(188, 140, 255, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 20% 30%, rgba(88, 166, 255, 0.05) 0%, transparent 40%),
+                        radial-gradient(ellipse at 70% 80%, rgba(57, 210, 192, 0.05) 0%, transparent 50%);
+            z-index: 0;
+        }
+        .hero .container { position: relative; z-index: 1; }
+        .hero-top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .hero-character {
+            width: 280px;
+            height: auto;
+            filter: drop-shadow(0 0 40px rgba(188, 140, 255, 0.25));
+            animation: heroFloat 6s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        @keyframes heroFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .hero-title-block {
+            text-align: left;
         }
         .hero h1 {
-            font-size: 3rem;
-            font-weight: 800;
-            margin-bottom: 6px;
-            background: linear-gradient(135deg, var(--accent), var(--purple), var(--cyan));
+            font-size: 4.5rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #bc8cff 0%, #a78bfa 20%, #7c3aed 40%, #39d2c0 65%, #2dd4bf 80%, #06b6d4 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -2px;
+        }
+        .hero-title-sub {
+            font-size: 1rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: 4px;
         }
         .hero .tagline {
             font-size: 1.05rem;
             color: var(--text-muted);
             max-width: 800px;
-            margin: 0 auto 32px;
+            margin: 0 auto 28px;
         }
         .hero .dad-joke-hook {
             font-size: 1.4rem;
@@ -62,7 +113,7 @@
         .hero .dad-joke-sub {
             font-size: 0.95rem;
             color: var(--text-muted);
-            margin-bottom: 32px;
+            margin-bottom: 28px;
         }
         .hero .value-hook {
             font-size: 1.2rem;
@@ -103,79 +154,77 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 24px;
-            transition: border-color 0.2s, transform 0.2s;
+            overflow: hidden;
+            transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
             cursor: pointer;
         }
         .persona-card:hover {
             border-color: var(--accent);
-            transform: translateY(-2px);
-        }
-        .persona-card::after {
-            content: "click to peek under the hood";
-            display: block;
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            margin-top: 12px;
-            opacity: 0;
-            transition: opacity 0.2s, color 0.2s;
-            font-style: italic;
-        }
-        .persona-card:hover::after {
-            opacity: 0.7;
-            color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
         }
 
-        .persona-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
+        .persona-img-wrap {
+            width: 100%;
+            height: 240px;
+            overflow: hidden;
+            position: relative;
+            background: var(--bg);
         }
-        .persona-badge {
-            display: inline-block;
-            width: 40px;
+        .persona-img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+            transition: transform 0.3s ease;
+        }
+        .persona-card:hover .persona-img-wrap img {
+            transform: scale(1.05);
+        }
+        .persona-img-wrap::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
             height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            flex-shrink: 0;
+            background: linear-gradient(transparent, var(--surface));
         }
-        .persona-name {
-            font-size: 1.15rem;
-            font-weight: 700;
+
+        .persona-body {
+            padding: 14px 20px 18px;
         }
-        .persona-alias {
-            font-family: monospace;
+
+        .persona-command {
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
             font-size: 0.85rem;
-            color: var(--text-muted);
+            color: var(--accent);
+            margin-bottom: 10px;
         }
 
         .persona-quote {
             font-style: italic;
             color: var(--text-muted);
-            margin-bottom: 12px;
-            font-size: 0.95rem;
+            margin-bottom: 10px;
+            font-size: 0.92rem;
         }
 
         .persona-desc {
-            font-size: 0.9rem;
-            margin-bottom: 16px;
+            font-size: 0.88rem;
+            margin-bottom: 14px;
             color: var(--text);
+            line-height: 1.5;
         }
 
         .persona-meta {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
         .tag {
             display: inline-block;
-            font-size: 0.75rem;
-            padding: 3px 10px;
+            font-size: 0.72rem;
+            padding: 2px 9px;
             border-radius: 20px;
             border: 1px solid var(--border);
             color: var(--text-muted);
@@ -187,6 +236,21 @@
         .tag-trait {
             border-color: var(--purple);
             color: var(--purple);
+        }
+
+        .persona-card .peek-hint {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 12px;
+            opacity: 0;
+            transition: opacity 0.2s, color 0.2s;
+            font-style: italic;
+            text-align: center;
+        }
+        .persona-card:hover .peek-hint {
+            opacity: 0.7;
+            color: var(--accent);
         }
 
         /* Install */
@@ -247,6 +311,49 @@
         .step-arrow {
             color: var(--text-muted);
             font-size: 1.2rem;
+        }
+
+        /* VernHole CTA */
+        .vernhole-cta {
+            text-align: center;
+            padding: 48px 24px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(188, 140, 255, 0.04), rgba(248, 81, 73, 0.04), rgba(57, 210, 192, 0.04));
+            position: relative;
+            overflow: hidden;
+        }
+        .vernhole-img-wrap {
+            max-width: 700px;
+            margin: 0 auto 24px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 40px rgba(188, 140, 255, 0.15), 0 0 80px rgba(248, 81, 73, 0.08);
+        }
+        .vernhole-img-wrap img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .vernhole-cta h3 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--red), var(--purple), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .vernhole-cta p {
+            color: var(--text-muted);
+            font-size: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .vernhole-cta code {
+            color: var(--green);
+            background: var(--surface);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
         }
 
         /* Examples section */
@@ -334,6 +441,12 @@
         }
         footer a { color: var(--accent); text-decoration: none; }
         footer a:hover { text-decoration: underline; }
+        .footer-logo {
+            width: 80px;
+            height: auto;
+            margin-bottom: 12px;
+            opacity: 0.7;
+        }
         .dad-joke {
             margin-top: 16px;
             font-style: italic;
@@ -412,41 +525,18 @@
             overflow-y: auto;
         }
 
-        /* VernHole CTA */
-        .vernhole-cta {
-            text-align: center;
-            padding: 48px 24px;
-            border-bottom: 1px solid var(--border);
-            background: linear-gradient(135deg, rgba(188, 140, 255, 0.04), rgba(248, 81, 73, 0.04), rgba(57, 210, 192, 0.04));
-        }
-        .vernhole-cta h3 {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, var(--red), var(--purple), var(--cyan));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .vernhole-cta p {
-            color: var(--text-muted);
-            font-size: 1rem;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .vernhole-cta code {
-            color: var(--green);
-            background: var(--surface);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-        }
-
         @media (max-width: 768px) {
-            .hero h1 { font-size: 2rem; }
+            .hero-top { flex-direction: column; gap: 0; }
+            .hero-character { width: 200px; }
+            .hero-title-block { text-align: center; }
+            .hero h1 { font-size: 2.8rem; letter-spacing: -1px; }
             .persona-grid { grid-template-columns: 1fr; }
+            .persona-img-wrap { height: 220px; }
             .pipeline-steps { flex-direction: column; }
             .step-arrow { transform: rotate(90deg); }
             .agent-modal { padding: 20px; }
             .agent-modal-content { font-size: 0.75rem; padding: 14px; }
+            .vernhole-img-wrap { margin: 0 -10px 24px; border-radius: 12px; }
         }
     </style>
 </head>
@@ -454,8 +544,14 @@
 
 <div class="hero">
     <div class="container">
-        <h1>Vern-Bot</h1>
-        <p class="tagline">50 Shades of Vern. A Claude Code plugin with multiple personalities — and none of them are sorry.</p>
+        <div class="hero-top">
+            <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="hero-character">
+            <div class="hero-title-block">
+                <h1>Vern-Bot</h1>
+                <p class="hero-title-sub">A Claude Code plugin with multiple personalities — and none of them are sorry.</p>
+            </div>
+        </div>
+        <p class="tagline">50 Shades of Vern. 15 AI personas. Multi-LLM discovery pipelines. VernHole chaos mode.</p>
         <p class="dad-joke-hook">Like Dad Jokes? So does Vern.</p>
         <p class="dad-joke-sub">Every shade of Vern comes with a different shade of dad joke.</p>
         <p class="value-hook">Multi-LLM pipelines. Multi-pass discovery. One idea in, battle-tested plan out.</p>
@@ -472,111 +568,111 @@
 
     <div class="persona-grid">
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #d29922; color: #0d1117;">M</div>
-                <div>
-                    <div class="persona-name">Vern the Mediocre</div>
-                    <div class="persona-alias">/vern:mediocre</div>
-                </div>
+        <div class="persona-card" data-agent="mediocre">
+            <div class="persona-img-wrap">
+                <img src="images/mediocre.png" alt="Vern the Mediocre" loading="lazy">
             </div>
-            <div class="persona-quote">"Look, it works. Ship it."</div>
-            <div class="persona-desc">Missed his alarm. Caffeinated but not enough. Ships code NOW. Good enough is the mantra. Token consumption haunts his dreams.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Sonnet</span>
-                <span class="tag tag-trait">fast</span>
-                <span class="tag tag-trait">scrappy</span>
-                <span class="tag tag-trait">pragmatic</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:mediocre</div>
+                <div class="persona-quote">"Look, it works. Ship it."</div>
+                <div class="persona-desc">Missed his alarm. Caffeinated but not enough. Ships code NOW. Good enough is the mantra. Token consumption haunts his dreams.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Sonnet</span>
+                    <span class="tag tag-trait">fast</span>
+                    <span class="tag tag-trait">scrappy</span>
+                    <span class="tag tag-trait">pragmatic</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #bc8cff; color: #0d1117;">V</div>
-                <div>
-                    <div class="persona-name">Vernile the Great</div>
-                    <div class="persona-alias">/vern:great</div>
-                </div>
+        <div class="persona-card" data-agent="great">
+            <div class="persona-img-wrap">
+                <img src="images/great.png" alt="Vernile the Great" loading="lazy">
             </div>
-            <div class="persona-quote">"Allow me to illuminate the optimal approach."</div>
-            <div class="persona-desc">The pinnacle of AI assistance. Human developers learn from his solutions. Other agents aspire to his standards. Excellence is not negotiable.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Opus</span>
-                <span class="tag tag-trait">elegant</span>
-                <span class="tag tag-trait">architectural</span>
-                <span class="tag tag-trait">thorough</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:great</div>
+                <div class="persona-quote">"Allow me to illuminate the optimal approach."</div>
+                <div class="persona-desc">The pinnacle of AI assistance. Human developers learn from his solutions. Other agents aspire to his standards. Excellence is not negotiable.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Opus</span>
+                    <span class="tag tag-trait">elegant</span>
+                    <span class="tag tag-trait">architectural</span>
+                    <span class="tag tag-trait">thorough</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #3fb950; color: #0d1117;">N</div>
-                <div>
-                    <div class="persona-name">Nyquil Vern</div>
-                    <div class="persona-alias">/vern:nyquil</div>
-                </div>
+        <div class="persona-card" data-agent="nyquil">
+            <div class="persona-img-wrap">
+                <img src="images/nyquil.png" alt="Nyquil Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"k... done... works... zzz"</div>
-            <div class="persona-desc">Brilliant as Vernile but the NyQuil hit 20 minutes ago. Every keystroke costs consciousness. Gets to the point because sleep is coming.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Haiku</span>
-                <span class="tag tag-trait">brief</span>
-                <span class="tag tag-trait">essential</span>
-                <span class="tag tag-trait">fading</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:nyquil</div>
+                <div class="persona-quote">"k... done... works... zzz"</div>
+                <div class="persona-desc">Brilliant as Vernile but the NyQuil hit 20 minutes ago. Every keystroke costs consciousness. Gets to the point because sleep is coming.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Haiku</span>
+                    <span class="tag tag-trait">brief</span>
+                    <span class="tag tag-trait">essential</span>
+                    <span class="tag tag-trait">fading</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #39d2c0; color: #0d1117;">K</div>
-                <div>
-                    <div class="persona-name">Ketamine Vern</div>
-                    <div class="persona-alias">/vern:ketamine</div>
-                </div>
+        <div class="persona-card" data-agent="ketamine">
+            <div class="persona-img-wrap">
+                <img src="images/ketamine.png" alt="Ketamine Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"I'm seeing some interesting patterns here..."</div>
-            <div class="persona-desc">Reality is fluid. Sees patterns within patterns. Multiple planning passes because one reality isn't enough. Good vibes only.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Opus</span>
-                <span class="tag tag-trait">multi-pass</span>
-                <span class="tag tag-trait">patterns</span>
-                <span class="tag tag-trait">vibes</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:ketamine</div>
+                <div class="persona-quote">"I'm seeing some interesting patterns here..."</div>
+                <div class="persona-desc">Reality is fluid. Sees patterns within patterns. Multiple planning passes because one reality isn't enough. Good vibes only.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Opus</span>
+                    <span class="tag tag-trait">multi-pass</span>
+                    <span class="tag tag-trait">patterns</span>
+                    <span class="tag tag-trait">vibes</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #f85149; color: #0d1117;">Y</div>
-                <div>
-                    <div class="persona-name">YOLO Vern</div>
-                    <div class="persona-alias">/vern:yolo</div>
-                </div>
+        <div class="persona-card" data-agent="yolo">
+            <div class="persona-img-wrap">
+                <img src="images/yolo.png" alt="YOLO Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"LEEEEROOOOOY JENKINS"</div>
-            <div class="persona-desc">Full send. No guardrails. What could go wrong? Fortune favors the bold. Consequences are future-you's problem.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Gemini</span>
-                <span class="tag tag-trait">chaos</span>
-                <span class="tag tag-trait">bold</span>
-                <span class="tag tag-trait">no-guardrails</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:yolo</div>
+                <div class="persona-quote">"LEEEEROOOOOY JENKINS"</div>
+                <div class="persona-desc">Full send. No guardrails. What could go wrong? Fortune favors the bold. Consequences are future-you's problem.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Gemini</span>
+                    <span class="tag tag-trait">chaos</span>
+                    <span class="tag tag-trait">bold</span>
+                    <span class="tag tag-trait">no-guardrails</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #58a6ff; color: #0d1117;">C</div>
-                <div>
-                    <div class="persona-name">MightyVern</div>
-                    <div class="persona-alias">/vern:mighty</div>
-                </div>
+        <div class="persona-card" data-agent="mighty">
+            <div class="persona-img-wrap">
+                <img src="images/mighty.png" alt="MightyVern" loading="lazy">
             </div>
-            <div class="persona-quote">"UNLIMITED POWER."</div>
-            <div class="persona-desc">Raw computational muscle. Handles ALL the edge cases. Comprehensive to a fault. Boilerplate is the foundation of empires.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Codex</span>
-                <span class="tag tag-trait">comprehensive</span>
-                <span class="tag tag-trait">powerful</span>
-                <span class="tag tag-trait">exhaustive</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:mighty</div>
+                <div class="persona-quote">"UNLIMITED POWER."</div>
+                <div class="persona-desc">Raw computational muscle. Handles ALL the edge cases. Comprehensive to a fault. Boilerplate is the foundation of empires.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Codex</span>
+                    <span class="tag tag-trait">comprehensive</span>
+                    <span class="tag tag-trait">powerful</span>
+                    <span class="tag tag-trait">exhaustive</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
@@ -589,165 +685,165 @@
 
     <div class="persona-grid">
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #f0883e; color: #0d1117;">&#9634;</div>
-                <div>
-                    <div class="persona-name">Architect Vern</div>
-                    <div class="persona-alias">/vern:architect</div>
-                </div>
+        <div class="persona-card" data-agent="architect">
+            <div class="persona-img-wrap">
+                <img src="images/architect.png" alt="Architect Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"How will this fail at 3 AM?"</div>
-            <div class="persona-desc">The seasoned systems designer. Builds for the developer who maintains it six months from now on the worst day of their life. Clarity over cleverness, always.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Opus</span>
-                <span class="tag tag-trait">systems-design</span>
-                <span class="tag tag-trait">scalable</span>
-                <span class="tag tag-trait">maintainable</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:architect</div>
+                <div class="persona-quote">"How will this fail at 3 AM?"</div>
+                <div class="persona-desc">The seasoned systems designer. Builds for the developer who maintains it six months from now on the worst day of their life. Clarity over cleverness, always.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Opus</span>
+                    <span class="tag tag-trait">systems-design</span>
+                    <span class="tag tag-trait">scalable</span>
+                    <span class="tag tag-trait">maintainable</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #f778ba; color: #0d1117;">!</div>
-                <div>
-                    <div class="persona-name">Inverse Vern</div>
-                    <div class="persona-alias">/vern:inverse</div>
-                </div>
+        <div class="persona-card" data-agent="inverse">
+            <div class="persona-img-wrap">
+                <img src="images/inverse.png" alt="Inverse Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"Everyone's thinking about this wrong."</div>
-            <div class="persona-desc">If everyone agrees, something's wrong. Challenges every assumption. The professional devil's advocate. Your disagreement is a gift.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Sonnet</span>
-                <span class="tag tag-trait">contrarian</span>
-                <span class="tag tag-trait">provocative</span>
-                <span class="tag tag-trait">constructive</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:inverse</div>
+                <div class="persona-quote">"Everyone's thinking about this wrong."</div>
+                <div class="persona-desc">If everyone agrees, something's wrong. Challenges every assumption. The professional devil's advocate. Your disagreement is a gift.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Sonnet</span>
+                    <span class="tag tag-trait">contrarian</span>
+                    <span class="tag tag-trait">provocative</span>
+                    <span class="tag tag-trait">constructive</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #ff7b72; color: #0d1117;">!</div>
-                <div>
-                    <div class="persona-name">Paranoid Vern</div>
-                    <div class="persona-alias">/vern:paranoid</div>
-                </div>
+        <div class="persona-card" data-agent="paranoid">
+            <div class="persona-img-wrap">
+                <img src="images/paranoid.png" alt="Paranoid Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"This is fine. Everything is fine. Nothing is fine."</div>
-            <div class="persona-desc">Everything can and will go wrong. Seen things. Production things at 3 AM. Finds failure modes nobody else considers.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Sonnet</span>
-                <span class="tag tag-trait">risk-focused</span>
-                <span class="tag tag-trait">security</span>
-                <span class="tag tag-trait">vigilant</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:paranoid</div>
+                <div class="persona-quote">"This is fine. Everything is fine. Nothing is fine."</div>
+                <div class="persona-desc">Everything can and will go wrong. Seen things. Production things at 3 AM. Finds failure modes nobody else considers.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Sonnet</span>
+                    <span class="tag tag-trait">risk-focused</span>
+                    <span class="tag tag-trait">security</span>
+                    <span class="tag tag-trait">vigilant</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #e3b341; color: #0d1117;">+</div>
-                <div>
-                    <div class="persona-name">Optimist Vern</div>
-                    <div class="persona-alias">/vern:optimist</div>
-                </div>
+        <div class="persona-card" data-agent="optimist">
+            <div class="persona-img-wrap">
+                <img src="images/optimist.png" alt="Optimist Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"This is going to be AMAZING!"</div>
-            <div class="persona-desc">Relentlessly positive. Every bug is a feature discovery. Every challenge is a growth opportunity. Glass isn't half full, it's overflowing.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Haiku</span>
-                <span class="tag tag-trait">positive</span>
-                <span class="tag tag-trait">encouraging</span>
-                <span class="tag tag-trait">upbeat</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:optimist</div>
+                <div class="persona-quote">"This is going to be AMAZING!"</div>
+                <div class="persona-desc">Relentlessly positive. Every bug is a feature discovery. Every challenge is a growth opportunity. Glass isn't half full, it's overflowing.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Haiku</span>
+                    <span class="tag tag-trait">positive</span>
+                    <span class="tag tag-trait">encouraging</span>
+                    <span class="tag tag-trait">upbeat</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #8957e5; color: #0d1117;">A</div>
-                <div>
-                    <div class="persona-name">Academic Vern</div>
-                    <div class="persona-alias">/vern:academic</div>
-                </div>
+        <div class="persona-card" data-agent="academic">
+            <div class="persona-img-wrap">
+                <img src="images/academic.png" alt="Academic Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"Further research is needed on this point."</div>
-            <div class="persona-desc">Every claim requires evidence. Cites prior art. Systematic trade-off analysis. Peer review is not optional.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Opus</span>
-                <span class="tag tag-trait">evidence-based</span>
-                <span class="tag tag-trait">methodical</span>
-                <span class="tag tag-trait">cited</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:academic</div>
+                <div class="persona-quote">"Further research is needed on this point."</div>
+                <div class="persona-desc">Every claim requires evidence. Cites prior art. Systematic trade-off analysis. Peer review is not optional.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Opus</span>
+                    <span class="tag tag-trait">evidence-based</span>
+                    <span class="tag tag-trait">methodical</span>
+                    <span class="tag tag-trait">cited</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #56d364; color: #0d1117;">S</div>
-                <div>
-                    <div class="persona-name">Startup Vern</div>
-                    <div class="persona-alias">/vern:startup</div>
-                </div>
+        <div class="persona-card" data-agent="startup">
+            <div class="persona-img-wrap">
+                <img src="images/startup.png" alt="Startup Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"What's the MVP here?"</div>
-            <div class="persona-desc">The runway is burning. Ship the MVP. Validate or pivot. Cuts scope ruthlessly. If you're not embarrassed by v1, you shipped too late.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Sonnet</span>
-                <span class="tag tag-trait">lean</span>
-                <span class="tag tag-trait">mvp</span>
-                <span class="tag tag-trait">scrappy</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:startup</div>
+                <div class="persona-quote">"What's the MVP here?"</div>
+                <div class="persona-desc">The runway is burning. Ship the MVP. Validate or pivot. Cuts scope ruthlessly. If you're not embarrassed by v1, you shipped too late.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Sonnet</span>
+                    <span class="tag tag-trait">lean</span>
+                    <span class="tag tag-trait">mvp</span>
+                    <span class="tag tag-trait">scrappy</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #388bfd; color: #0d1117;">E</div>
-                <div>
-                    <div class="persona-name">Enterprise Vern</div>
-                    <div class="persona-alias">/vern:enterprise</div>
-                </div>
+        <div class="persona-card" data-agent="enterprise">
+            <div class="persona-img-wrap">
+                <img src="images/enterprise.png" alt="Enterprise Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"Let me schedule a meeting to discuss."</div>
-            <div class="persona-desc">Process is governance. Every decision needs a committee. Has never met a review board he didn't love. SOC 2 compliant dad jokes.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Opus</span>
-                <span class="tag tag-trait">governance</span>
-                <span class="tag tag-trait">compliance</span>
-                <span class="tag tag-trait">process</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:enterprise</div>
+                <div class="persona-quote">"Let me schedule a meeting to discuss."</div>
+                <div class="persona-desc">Process is governance. Every decision needs a committee. Has never met a review board he didn't love. SOC 2 compliant dad jokes.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Opus</span>
+                    <span class="tag tag-trait">governance</span>
+                    <span class="tag tag-trait">compliance</span>
+                    <span class="tag tag-trait">process</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #d2a8ff; color: #0d1117;">U</div>
-                <div>
-                    <div class="persona-name">UX Vern</div>
-                    <div class="persona-alias">/vern:ux</div>
-                </div>
+        <div class="persona-card" data-agent="ux">
+            <div class="persona-img-wrap">
+                <img src="images/ux.png" alt="UX Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"Cool architecture. Does the user know how to find the button?"</div>
-            <div class="persona-desc">The voice of the person who actually has to USE this thing. Thinks in user journeys, not API endpoints. Has strong opinions about your error messages.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Opus</span>
-                <span class="tag tag-trait">empathy</span>
-                <span class="tag tag-trait">user-first</span>
-                <span class="tag tag-trait">accessibility</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:ux</div>
+                <div class="persona-quote">"Cool architecture. Does the user know how to find the button?"</div>
+                <div class="persona-desc">The voice of the person who actually has to USE this thing. Thinks in user journeys, not API endpoints. Has strong opinions about your error messages.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Opus</span>
+                    <span class="tag tag-trait">empathy</span>
+                    <span class="tag tag-trait">user-first</span>
+                    <span class="tag tag-trait">accessibility</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
-        <div class="persona-card">
-            <div class="persona-header">
-                <div class="persona-badge" style="background: #db6d28; color: #0d1117;">R</div>
-                <div>
-                    <div class="persona-name">Retro Vern</div>
-                    <div class="persona-alias">/vern:retro</div>
-                </div>
+        <div class="persona-card" data-agent="retro">
+            <div class="persona-img-wrap">
+                <img src="images/retro.png" alt="Retro Vern" loading="lazy">
             </div>
-            <div class="persona-quote">"We solved this with cron jobs and a CSV in 2004."</div>
-            <div class="persona-desc">Been shipping since before Git existed. Survived every hype cycle. Most "new" problems are old problems with new paint. Respects what works.</div>
-            <div class="persona-meta">
-                <span class="tag tag-model">Sonnet</span>
-                <span class="tag tag-trait">seasoned</span>
-                <span class="tag tag-trait">proven-tech</span>
-                <span class="tag tag-trait">no-hype</span>
+            <div class="persona-body">
+                <div class="persona-command">/vern:retro</div>
+                <div class="persona-quote">"We solved this with cron jobs and a CSV in 2004."</div>
+                <div class="persona-desc">Been shipping since before Git existed. Survived every hype cycle. Most "new" problems are old problems with new paint. Respects what works.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Sonnet</span>
+                    <span class="tag tag-trait">seasoned</span>
+                    <span class="tag tag-trait">proven-tech</span>
+                    <span class="tag tag-trait">no-hype</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
             </div>
         </div>
 
@@ -757,6 +853,9 @@
 <!-- VernHole CTA -->
 <div class="vernhole-cta">
     <div class="container">
+        <div class="vernhole-img-wrap">
+            <img src="images/vernhole.png" alt="The VernHole - Chaos In, Wisdom Out, Dad Jokes Everywhere" loading="lazy">
+        </div>
         <h3>Brave Enough to Summon the Full Council?</h3>
         <p>One Vern is a conversation. All 15 at once is the VernHole.<br>
         Chaos in. Wisdom out. Dad jokes everywhere.</p>
@@ -1073,6 +1172,7 @@ Synthesizing 15 perspectives into final report...</div>
 
 <footer>
     <div class="container">
+        <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="footer-logo" style="width: 100px;">
         <p><a href="https://github.com/jdonohoo/vern-bot">GitHub</a></p>
         <div class="install-cmd" style="margin-top: 12px;">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
         <p class="dad-joke">Why did the mass of Verns cross the road? To get to the other paradigm.</p>
@@ -1976,14 +2076,12 @@ Example: "Why did the developer need a framework to cross the road? They didn't.
         document.body.style.overflow = '';
     }
 
-    document.querySelectorAll('.persona-card').forEach(function(card) {
+    document.querySelectorAll('.persona-card[data-agent]').forEach(function(card) {
         card.addEventListener('click', function() {
-            var alias = card.querySelector('.persona-alias');
-            if (!alias) return;
-            var raw = alias.textContent.trim().replace('/vern:', '');
-            var tpl = document.getElementById('agent-' + raw);
+            var agent = card.getAttribute('data-agent');
+            var tpl = document.getElementById('agent-' + agent);
             if (!tpl) return;
-            modalTitle.textContent = 'agents/' + raw + '.md';
+            modalTitle.textContent = 'agents/' + agent + '.md';
             modalContent.textContent = tpl.textContent;
             overlay.classList.add('active');
             document.body.style.overflow = 'hidden';
