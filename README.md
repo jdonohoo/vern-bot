@@ -54,6 +54,8 @@ A Claude Code plugin. 15 AI personas with different personalities, models, and a
 | "Haven't we solved this before?" | `/vern:retro` |
 | "I want chaos/creativity" | `/vern:hole` |
 | "Full project discovery" | `/vern:discovery` |
+| "What commands are there?" | `/vern:help` |
+| "Configure LLMs/pipeline" | `/vern:setup` |
 
 ## Install
 
@@ -131,6 +133,8 @@ Or use the shorthand router:
 | `/vern:new-idea` | Create discovery folder with input/output structure |
 | `/vern:discovery` | Full pipeline: Default (5-step) or Expanded (7-step) multi-LLM discovery |
 | `/vern:hole` | Random Verns brainstorm your idea |
+| `/vern:setup` | Configure LLMs, pipeline personas, preferences |
+| `/vern:help` | Show all available commands and personas |
 
 ## The Discovery Pipeline
 
@@ -244,8 +248,11 @@ vern-bot/
 │   ├── ux.md
 │   ├── retro.md
 │   └── vernhole-orchestrator.md
-├── commands/
-│   └── v.md                  # /vern:v shorthand router
+├── commands/                  # 21 command definitions (15 personas + 6 workflows/utility)
+│   ├── v.md                  # /vern:v shorthand router
+│   ├── help.md               # /vern:help command reference
+│   ├── setup.md              # /vern:setup configuration
+│   └── {persona}.md          # Per-persona command files
 ├── skills/                    # 18 skill definitions
 │   ├── mediocre/SKILL.md
 │   ├── great/SKILL.md
