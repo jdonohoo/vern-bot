@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/vern-bot-logo.png" alt="Vern-Bot Logo" width="300" />
+</p>
+
 # Vern-Bot
 
 https://jdonohoo.github.io/vern-bot/
@@ -205,6 +209,10 @@ discovery/{name}/
 ```
 
 ## The VernHole
+
+<p align="center">
+  <img src="images/vernhole.png" alt="The VernHole" width="400" />
+</p>
 
 ```bash
 /vern:hole "should we use microservices or monolith"

@@ -60,9 +60,10 @@
         .hero .container { position: relative; z-index: 1; }
         .hero-top {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 0;
             margin-bottom: 20px;
         }
         .hero-character {
@@ -70,14 +71,13 @@
             height: auto;
             filter: drop-shadow(0 0 40px rgba(188, 140, 255, 0.25));
             animation: heroFloat 6s ease-in-out infinite;
-            flex-shrink: 0;
         }
         @keyframes heroFloat {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-8px); }
         }
         .hero-title-block {
-            text-align: left;
+            text-align: center;
         }
         .hero h1 {
             font-size: 4.5rem;
@@ -526,9 +526,7 @@
         }
 
         @media (max-width: 768px) {
-            .hero-top { flex-direction: column; gap: 0; }
             .hero-character { width: 200px; }
-            .hero-title-block { text-align: center; }
             .hero h1 { font-size: 2.8rem; letter-spacing: -1px; }
             .persona-grid { grid-template-columns: 1fr; }
             .persona-img-wrap { height: 220px; }
@@ -545,11 +543,11 @@
 <div class="hero">
     <div class="container">
         <div class="hero-top">
-            <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="hero-character">
             <div class="hero-title-block">
                 <h1>Vern-Bot</h1>
                 <p class="hero-title-sub">A Claude Code plugin with multiple personalities — and none of them are sorry.</p>
             </div>
+            <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="hero-character">
         </div>
         <p class="tagline">50 Shades of Vern. 15 AI personas. Multi-LLM discovery pipelines. VernHole chaos mode.</p>
         <p class="dad-joke-hook">Like Dad Jokes? So does Vern.</p>
