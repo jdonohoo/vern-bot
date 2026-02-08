@@ -436,9 +436,19 @@
         /* Footer */
         footer {
             text-align: center;
-            padding: 40px 0;
+            padding: 60px 0;
             border-top: 1px solid var(--border);
             color: var(--text-muted);
+        }
+        footer .container {
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        footer p, footer .install-cmd, footer .dad-joke {
+            margin: 0;
         }
         footer a { color: var(--accent); text-decoration: none; }
         footer a:hover { text-decoration: underline; }
@@ -1201,7 +1211,7 @@ Synthesizing 15 perspectives into final report...</div>
     <div class="container">
         <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="footer-logo">
         <p><a href="https://github.com/jdonohoo/vern-bot">GitHub</a></p>
-        <div class="install-cmd" style="margin-top: 12px;">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
+        <div class="install-cmd">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
         <p class="dad-joke">Why did the mass of Verns cross the road? To get to the other paradigm.</p>
     </div>
 </footer>
