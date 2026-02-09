@@ -2,6 +2,8 @@
 #
 # vern-run: Spawn different LLM subprocesses for Vern-Bot
 #
+# Delegates to the Go vern CLI binary. Auto-downloads if not present.
+#
 # Usage: vern-run <llm> "<prompt>" [output_file] [persona]
 #   llm: claude | codex | gemini
 #   prompt: The prompt to send
@@ -19,8 +21,27 @@
 #   *    LLM CLI failure
 #
 
-set -o pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERN_CLI="$SCRIPT_DIR/../go/bin/vern"
 
+# Auto-download if Go binary doesn't exist
+if [ ! -x "$VERN_CLI" ]; then
+    # Try building from source first if Go is available
+    if command -v go &>/dev/null && [ -f "$SCRIPT_DIR/../go/cmd/vern/main.go" ]; then
+        echo "[vern-run] Building vern CLI from source..." >&2
+        (cd "$SCRIPT_DIR/../go" && go build -o bin/vern ./cmd/vern) 2>/dev/null
+    fi
+    # If still not available, try downloading
+    if [ ! -x "$VERN_CLI" ] && [ -x "$SCRIPT_DIR/install-vern-cli" ]; then
+        "$SCRIPT_DIR/install-vern-cli"
+    fi
+    if [ ! -x "$VERN_CLI" ]; then
+        echo "[vern-run] Error: vern CLI not available. Run: cd go && go build -o bin/vern ./cmd/vern" >&2
+        exit 1
+    fi
+fi
+
+# Map positional args to Go CLI flags
 LLM="$1"
 PROMPT="$2"
 OUTPUT_FILE="$3"
@@ -32,163 +53,8 @@ if [ -z "$LLM" ] || [ -z "$PROMPT" ]; then
     exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARGS=("run" "$LLM" "$PROMPT")
+[ -n "$OUTPUT_FILE" ] && ARGS+=("--output" "$OUTPUT_FILE")
+[ -n "$PERSONA" ] && ARGS+=("--persona" "$PERSONA")
 
-# ── Timeout configuration ────────────────────────────────────────────────────
-VERN_TIMEOUT="${VERN_TIMEOUT:-1200}"
-
-# ── Temp file for capturing LLM output ───────────────────────────────────────
-VERN_TMP=$(mktemp "${TMPDIR:-/tmp}/vern-run.XXXXXX.md")
-trap 'rm -f "$VERN_TMP"' EXIT
-
-# ── Load persona context from agent file ─────────────────────────────────────
-# Injects the full personality (behavior, catchphrases, output style, sign-off)
-# so codex/gemini know who they're supposed to be. Claude also benefits since
-# pipeline calls are raw `claude -p`, not plugin agent invocations.
-PERSONA_CONTEXT=""
-if [ -n "$PERSONA" ]; then
-    AGENT_FILE="$SCRIPT_DIR/../agents/${PERSONA}.md"
-    if [ -f "$AGENT_FILE" ]; then
-        # Strip YAML frontmatter (between first two --- lines), keep the rest
-        PERSONA_CONTEXT="=== PERSONA ===
-$(awk 'BEGIN{skip=0} /^---$/{skip++;next} skip>=2{print}' "$AGENT_FILE")
-=== END PERSONA ===
-
-"
-    fi
-fi
-
-# Prompt wrapper for claude/gemini: output text only, no file creation
-TEXT_ONLY="IMPORTANT: Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files. Do NOT use any file-writing tools. Just output your analysis directly as text.
-
-"
-
-# Sign-off: dad joke + persona attribution
-# When persona is loaded, agent file has dad joke style. We add the attribution.
-# When no persona, use generic fallback.
-if [ -n "$PERSONA_CONTEXT" ]; then
-    DAD_JOKE="
-
----
-SIGN-OFF REMINDER: Follow your persona's sign-off instructions above (dad joke in your style). After the joke, add your persona attribution on a new line starting with '-- ' followed by your persona name and a witty tag that fits your character. Examples: '-- MightyVern *mic drop*', '-- NyQuil Vern zzz...', '-- YOLO Vern 🚀', '-- Architect Vern (measure twice, deploy once)'. This is mandatory."
-else
-    DAD_JOKE="
-
----
-SIGN-OFF: You MUST end your response with a dad joke followed by a persona attribution. Format as a horizontal rule, your joke, then '-- [Your Name]' with a witty sign-off. This is mandatory — it's the law."
-fi
-
-run_claude() {
-    NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions -p "${TEXT_ONLY}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}"
-}
-
-run_codex() {
-    # Codex is a code agent — without explicit instructions it will BUILD
-    # things instead of PLANNING. We tell it to write analysis only, capture
-    # via -o (last message). Uses VERN_WORKING_DIR so codex can read project files.
-    local codex_prefix="IMPORTANT: You are acting as a PLANNING and ANALYSIS agent for a discovery pipeline. Write your complete analysis, implementation plan, and recommendations as a detailed markdown document. Do NOT create any code files, project scaffolding, or application code. Do NOT build anything. Your entire output should be a thorough written analysis — problem space, architecture, risks, recommendations — not a built project.
-
-"
-    local codex_cd="${VERN_WORKING_DIR:-.}"
-    local tmpout=$(mktemp "${TMPDIR:-/tmp}/vern-codex.XXXXXX.md")
-
-    codex exec --dangerously-bypass-approvals-and-sandbox \
-        --skip-git-repo-check \
-        --cd "$codex_cd" \
-        -o "$tmpout" \
-        "${codex_prefix}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}" >/dev/null 2>&1
-    local rc=$?
-
-    if [ -f "$tmpout" ]; then
-        cat "$tmpout"
-    fi
-    rm -f "$tmpout"
-    return $rc
-}
-
-run_gemini() {
-    gemini --yolo "${TEXT_ONLY}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}"
-}
-
-# ── run_with_timeout: background watchdog for macOS bash 3.2 ─────────────────
-# Runs an LLM function with a timeout. Captures output to VERN_TMP.
-# Returns: 0 on success, 124 on timeout, or the LLM's exit code on failure.
-run_with_timeout() {
-    local llm_func="$1"
-
-    # Run LLM in background, capturing output
-    $llm_func > "$VERN_TMP" 2>&1 &
-    local llm_pid=$!
-
-    # Spawn watchdog: kill LLM after timeout
-    ( sleep "$VERN_TIMEOUT" && kill "$llm_pid" 2>/dev/null ) &
-    local watchdog_pid=$!
-
-    # Wait for LLM to finish (or be killed)
-    wait "$llm_pid" 2>/dev/null
-    local exit_code=$?
-
-    # Cancel watchdog if LLM finished first
-    kill "$watchdog_pid" 2>/dev/null
-    wait "$watchdog_pid" 2>/dev/null
-
-    # Normalize SIGTERM (128+15=143) to exit 124 (GNU timeout convention)
-    if [ "$exit_code" -eq 143 ]; then
-        echo "[vern-run] Timeout: $llm_func exceeded ${VERN_TIMEOUT}s limit" >&2
-        exit_code=124
-    fi
-
-    return $exit_code
-}
-
-# Fallback: if requested LLM isn't installed, fall back to claude
-ORIGINAL_LLM="$LLM"
-case "$LLM" in
-    codex|x)
-        if ! command -v codex &>/dev/null; then
-            echo "[vern-run] Warning: codex CLI not found, falling back to claude" >&2
-            LLM="claude"
-        fi
-        ;;
-    gemini|g)
-        if ! command -v gemini &>/dev/null; then
-            echo "[vern-run] Warning: gemini CLI not found, falling back to claude" >&2
-            LLM="claude"
-        fi
-        ;;
-esac
-
-# ── Execute the appropriate LLM with timeout ────────────────────────────────
-LLM_FUNC=""
-case "$LLM" in
-    claude|c)  LLM_FUNC="run_claude" ;;
-    codex|x)   LLM_FUNC="run_codex" ;;
-    gemini|g)  LLM_FUNC="run_gemini" ;;
-    *)
-        echo "Unknown LLM: $LLM"
-        echo "Valid options: claude, codex, gemini"
-        exit 1
-        ;;
-esac
-
-run_with_timeout "$LLM_FUNC"
-EXIT_CODE=$?
-
-# ── Output validation ────────────────────────────────────────────────────────
-if [ ! -s "$VERN_TMP" ]; then
-    echo "[vern-run] Warning: LLM produced empty output (exit code: $EXIT_CODE)" >&2
-fi
-
-# ── Emit output ──────────────────────────────────────────────────────────────
-if [ -s "$VERN_TMP" ]; then
-    if [ -n "$OUTPUT_FILE" ]; then
-        cat "$VERN_TMP" | tee "$OUTPUT_FILE"
-    else
-        cat "$VERN_TMP"
-    fi
-elif [ -n "$OUTPUT_FILE" ]; then
-    # Write empty file so downstream knows the step ran
-    : > "$OUTPUT_FILE"
-fi
-
-exit $EXIT_CODE
+exec "$VERN_CLI" "${ARGS[@]}"

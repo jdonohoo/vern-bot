@@ -2,31 +2,46 @@
 #
 # vernhole: Summon random Vern personas for chaotic discovery
 #
+# Delegates to the Go vern CLI binary. Auto-downloads if not present.
+#
 # Usage: vernhole "<idea>" [output_dir] [num_verns_or_council] [context_file]
 #   idea: The idea to explore
 #   output_dir: Where to save output (default: current dir)
-#   num_verns_or_council: Number of Verns to summon (min 3), or a council name:
-#     hammers  - Council of the Three Hammers (great, mediocre, ketamine)
-#     conflict - Max Conflict (startup, enterprise, yolo, paranoid, optimist, inverse)
-#     inner    - The Inner Circle (architect, inverse, paranoid + random fill to 3-5)
-#     round    - The Round Table (mighty, yolo, startup, academic, enterprise + random fill to 6-9)
-#     war      - The War Room (round table core + ux, retro, optimist, nyquil + random fill to 10-13)
-#     full     - The Full Vern Experience (all summonable personas)
-#     random   - Fate's Hand (random count 3 to all, random selection)
-#   context_file: Optional path to a context file (e.g. a discovery master plan)
-#                 whose contents will be included in each persona's prompt
+#   num_verns_or_council: Number of Verns to summon (min 3), or a council name
+#   context_file: Optional path to a context file
 #
 # Council flag (alternative to positional arg):
 #   --council <name>   Use a named council tier
 #
-
-set -o pipefail
+# Council tiers:
+#   hammers  - Council of the Three Hammers (great, mediocre, ketamine)
+#   conflict - Max Conflict (startup, enterprise, yolo, paranoid, optimist, inverse)
+#   inner    - The Inner Circle (architect, inverse, paranoid + random fill)
+#   round    - The Round Table (mighty, yolo, startup, academic, enterprise + random fill)
+#   war      - The War Room (all round table + ux, retro, optimist, nyquil + random fill)
+#   full     - The Full Vern Experience (all summonable personas)
+#   random   - Fate's Hand (random count, random selection)
+#
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERN_RUN="$SCRIPT_DIR/vern-run"
-AGENTS_DIR="$SCRIPT_DIR/../agents"
+VERN_CLI="$SCRIPT_DIR/../go/bin/vern"
 
-# Parse flags
+# Auto-download if Go binary doesn't exist
+if [ ! -x "$VERN_CLI" ]; then
+    if command -v go &>/dev/null && [ -f "$SCRIPT_DIR/../go/cmd/vern/main.go" ]; then
+        echo "[vernhole] Building vern CLI from source..." >&2
+        (cd "$SCRIPT_DIR/../go" && go build -o bin/vern ./cmd/vern) 2>/dev/null
+    fi
+    if [ ! -x "$VERN_CLI" ] && [ -x "$SCRIPT_DIR/install-vern-cli" ]; then
+        "$SCRIPT_DIR/install-vern-cli"
+    fi
+    if [ ! -x "$VERN_CLI" ]; then
+        echo "[vernhole] Error: vern CLI not available. Run: cd go && go build -o bin/vern ./cmd/vern" >&2
+        exit 1
+    fi
+fi
+
+# Parse flags and positional args, mapping to Go CLI flags
 COUNCIL_FLAG=""
 POSITIONAL_ARGS=()
 
@@ -70,349 +85,20 @@ if [ -z "$IDEA" ]; then
     exit 1
 fi
 
-# ── Dynamically build roster from agents/*.md ────────────────────────────────
-# Parses YAML frontmatter for name, description, model.
-# Skips vernhole-orchestrator and oracle (pipeline-only personas).
-# Maps model (opus/sonnet/haiku) to LLM engine for vern-run.
+# Build Go CLI args
+ARGS=("hole" "$IDEA" "--output-dir" "$OUTPUT_DIR")
 
-VERNS=()
-
-if command -v python3 &>/dev/null && [ -d "$AGENTS_DIR" ]; then
-    while IFS='|' read -r vern_id llm desc; do
-        VERNS+=("${vern_id}:${llm}:${desc}")
-    done < <(python3 -c "
-import os, re, sys
-
-agents_dir = '$AGENTS_DIR'
-model_to_llm = {'opus': 'claude', 'sonnet': 'claude', 'haiku': 'claude'}
-skip = {'vernhole-orchestrator.md', 'oracle.md'}
-
-for fname in sorted(os.listdir(agents_dir)):
-    if not fname.endswith('.md') or fname in skip:
-        continue
-    path = os.path.join(agents_dir, fname)
-    with open(path) as f:
-        content = f.read()
-    # Parse YAML frontmatter between --- markers
-    m = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
-    if not m:
-        continue
-    front = m.group(1)
-    name = ''
-    desc = ''
-    model = 'claude'
-    for line in front.split('\n'):
-        if line.startswith('name:'):
-            name = line.split(':', 1)[1].strip()
-        elif line.startswith('description:'):
-            desc = line.split(':', 1)[1].strip()
-            # Take just the short descriptor before the first period or dash explanation
-            desc = desc.split(' - ', 1)[-1].split('. ')[0] if ' - ' in desc else desc.split('. ')[0]
-        elif line.startswith('model:'):
-            model = line.split(':', 1)[1].strip()
-    llm = model_to_llm.get(model, 'claude')
-    if name:
-        print('{}|{}|{}'.format(name, llm, desc))
-" 2>/dev/null)
-fi
-
-# Fallback: if dynamic scan failed or no agents found, use hardcoded roster
-if [ ${#VERNS[@]} -eq 0 ]; then
-    VERNS=(
-        "mediocre:claude:Vern the Mediocre - scrappy speed demon, ship it fast"
-        "great:claude:Vernile the Great - excellence incarnate, elegant solutions"
-        "nyquil:claude:Nyquil Vern - brilliant but brief, NyQuil kicking in"
-        "ketamine:claude:Ketamine Vern - multi-dimensional vibes, sees patterns"
-        "yolo:claude:YOLO Vern - full send, no guardrails"
-        "mighty:claude:MightyVern - raw power, comprehensive analysis"
-        "inverse:claude:Inverse Vern - contrarian takes only"
-        "paranoid:claude:Paranoid Vern - what could possibly go wrong?"
-        "optimist:claude:Optimist Vern - everything will be fine!"
-        "academic:claude:Academic Vern - needs more research, cites sources"
-        "startup:claude:Startup Vern - MVP or die, move fast"
-        "enterprise:claude:Enterprise Vern - needs 6 meetings and a committee"
-        "architect:claude:Architect Vern - systems design, blueprints before builds"
-        "ux:claude:UX Vern - can the user find the button?"
-        "retro:claude:Retro Vern - we solved this with cron in 2004"
-    )
-fi
-
-ROSTER_SIZE=${#VERNS[@]}
-MIN_VERNS=3
-
-# ── Helper: find a vern entry by persona name ────────────────────────────────
-find_vern() {
-    local target="$1"
-    for entry in "${VERNS[@]}"; do
-        local vid="${entry%%:*}"
-        if [ "$vid" = "$target" ]; then
-            echo "$entry"
-            return 0
-        fi
-    done
-    return 1
-}
-
-# ── Helper: get remaining verns not in a list ────────────────────────────────
-# Args: space-separated list of already-selected persona names
-get_remaining() {
-    local used="$1"
-    for entry in "${VERNS[@]}"; do
-        local vid="${entry%%:*}"
-        if ! echo " $used " | grep -q " $vid "; then
-            echo "$entry"
-        fi
-    done
-}
-
-# ── Council tier selection ───────────────────────────────────────────────────
-# Determines SELECTED (newline-separated list of vern entries) and COUNCIL_NAME
-
-COUNCIL_NAME=""
-SELECTED=""
-
-resolve_council() {
-    local tier="$1"
-
-    case "$tier" in
-        hammers)
-            COUNCIL_NAME="Council of the Three Hammers"
-            local core_names="great mediocre ketamine"
-            SELECTED=""
-            for name in $core_names; do
-                local entry
-                entry=$(find_vern "$name") && SELECTED="$SELECTED
-$entry"
-            done
-            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
-            NUM_VERNS=3
-            ;;
-        conflict)
-            COUNCIL_NAME="Max Conflict"
-            local core_names="startup enterprise yolo paranoid optimist inverse"
-            SELECTED=""
-            for name in $core_names; do
-                local entry
-                entry=$(find_vern "$name") && SELECTED="$SELECTED
-$entry"
-            done
-            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
-            NUM_VERNS=6
-            ;;
-        inner)
-            COUNCIL_NAME="The Inner Circle"
-            local core_names="architect inverse paranoid"
-            local target
-            target=$(awk "BEGIN{srand(); print int(rand() * 3) + 3}")  # 3-5
-            SELECTED=""
-            for name in $core_names; do
-                local entry
-                entry=$(find_vern "$name") && SELECTED="$SELECTED
-$entry"
-            done
-            # Fill remaining slots randomly
-            local remaining
-            remaining=$(get_remaining "$core_names" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2-)
-            local core_count
-            core_count=$(echo "$SELECTED" | sed '/^$/d' | wc -l | tr -d ' ')
-            local fill_count=$((target - core_count))
-            if [ "$fill_count" -gt 0 ]; then
-                SELECTED="$SELECTED
-$(echo "$remaining" | head -n "$fill_count")"
-            fi
-            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
-            NUM_VERNS=$(echo "$SELECTED" | wc -l | tr -d ' ')
-            ;;
-        round)
-            COUNCIL_NAME="The Round Table"
-            local core_names="mighty yolo startup academic enterprise"
-            local target
-            target=$(awk "BEGIN{srand(); print int(rand() * 4) + 6}")  # 6-9
-            SELECTED=""
-            for name in $core_names; do
-                local entry
-                entry=$(find_vern "$name") && SELECTED="$SELECTED
-$entry"
-            done
-            local remaining
-            remaining=$(get_remaining "$core_names" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2-)
-            local core_count
-            core_count=$(echo "$SELECTED" | sed '/^$/d' | wc -l | tr -d ' ')
-            local fill_count=$((target - core_count))
-            if [ "$fill_count" -gt 0 ]; then
-                SELECTED="$SELECTED
-$(echo "$remaining" | head -n "$fill_count")"
-            fi
-            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
-            NUM_VERNS=$(echo "$SELECTED" | wc -l | tr -d ' ')
-            ;;
-        war)
-            COUNCIL_NAME="The War Room"
-            local core_names="mighty yolo startup academic enterprise ux retro optimist nyquil"
-            local target
-            target=$(awk "BEGIN{srand(); print int(rand() * 4) + 10}")  # 10-13
-            SELECTED=""
-            for name in $core_names; do
-                local entry
-                entry=$(find_vern "$name") && SELECTED="$SELECTED
-$entry"
-            done
-            local remaining
-            remaining=$(get_remaining "$core_names" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2-)
-            local core_count
-            core_count=$(echo "$SELECTED" | sed '/^$/d' | wc -l | tr -d ' ')
-            local fill_count=$((target - core_count))
-            if [ "$fill_count" -gt 0 ]; then
-                SELECTED="$SELECTED
-$(echo "$remaining" | head -n "$fill_count")"
-            fi
-            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
-            NUM_VERNS=$(echo "$SELECTED" | wc -l | tr -d ' ')
-            ;;
-        full)
-            COUNCIL_NAME="The Full Vern Experience"
-            SELECTED=$(printf '%s\n' "${VERNS[@]}")
-            NUM_VERNS="$ROSTER_SIZE"
-            ;;
-        random|"")
-            COUNCIL_NAME="Fate's Hand"
-            NUM_VERNS=$(awk "BEGIN{srand(); print int(rand() * ($ROSTER_SIZE - $MIN_VERNS + 1)) + $MIN_VERNS}")
-            SELECTED=$(printf '%s\n' "${VERNS[@]}" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2- | head -n "$NUM_VERNS")
-            ;;
-        *)
-            # Bare number — legacy behavior
-            if [[ "$tier" =~ ^[0-9]+$ ]]; then
-                COUNCIL_NAME=""
-                NUM_VERNS="$tier"
-                # Clamp to roster size
-                if [ "$NUM_VERNS" -gt "$ROSTER_SIZE" ]; then
-                    NUM_VERNS="$ROSTER_SIZE"
-                fi
-                if [ "$NUM_VERNS" -lt "$MIN_VERNS" ]; then
-                    NUM_VERNS="$MIN_VERNS"
-                fi
-                SELECTED=$(printf '%s\n' "${VERNS[@]}" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2- | head -n "$NUM_VERNS")
-            else
-                echo "Unknown council: $tier"
-                echo "Valid councils: hammers, conflict, inner, round, war, full, random"
-                exit 1
-            fi
-            ;;
-    esac
-}
-
-resolve_council "$NUM_OR_COUNCIL"
-
-# Build context block if a context file was provided
-CONTEXT_BLOCK=""
-if [ -n "$CONTEXT_FILE" ] && [ -f "$CONTEXT_FILE" ]; then
-    CONTEXT_BLOCK="
-
-=== PRIOR DISCOVERY PLAN ===
-The following plan was synthesised from a full Vern Discovery Pipeline run on this idea. Use it as context, but bring your own unique perspective. Challenge it, build on it, tear it apart — whatever your persona demands.
-
-$(cat "$CONTEXT_FILE")
-
-=== END PRIOR DISCOVERY PLAN ==="
-    echo "Context loaded from: $CONTEXT_FILE"
-    echo ""
-fi
-
-# Use the output dir as-is — caller sets the right path
-VERNHOLE_DIR="$OUTPUT_DIR"
-
-echo "=== WELCOME TO THE VERNHOLE ==="
-echo "Idea: $IDEA"
-echo "Roster: $ROSTER_SIZE Verns available"
-if [ -n "$COUNCIL_NAME" ]; then
-    echo "Council: $COUNCIL_NAME"
-fi
-echo "Summoning $NUM_VERNS Verns..."
-echo ""
-
-mkdir -p "$VERNHOLE_DIR"
-
-# Track all outputs for synthesis
-ALL_OUTPUTS=""
-VERN_NUM=1
-SUCCEEDED_COUNT=0
-FAILED_VERNS=""
-
-while IFS= read -r vern_line <&3; do
-    IFS=':' read -r vern_id model desc <<< "$vern_line"
-
-    echo ">>> Vern $VERN_NUM/$NUM_VERNS: $desc"
-
-    LLM="$model"
-
-    OUTPUT_FILE="$VERNHOLE_DIR/$(printf '%02d' $VERN_NUM)-$vern_id.md"
-
-    "$VERN_RUN" "$LLM" "Analyze this idea from your unique perspective. Be true to your persona.
-
-Original idea: $IDEA$CONTEXT_BLOCK" "$OUTPUT_FILE" "$vern_id"
-    vern_exit=$?
-
-    if [ $vern_exit -eq 0 ] && [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
-        ALL_OUTPUTS="$ALL_OUTPUTS
-
-=== $desc ===
-$(cat "$OUTPUT_FILE")"
-        SUCCEEDED_COUNT=$((SUCCEEDED_COUNT + 1))
+if [ -n "$NUM_OR_COUNCIL" ]; then
+    # Check if it's a number or a council name
+    if [[ "$NUM_OR_COUNCIL" =~ ^[0-9]+$ ]]; then
+        ARGS+=("--count" "$NUM_OR_COUNCIL")
     else
-        echo "    WARNING: $vern_id failed (exit $vern_exit) — excluding from synthesis"
-        FAILED_VERNS="$FAILED_VERNS $vern_id"
+        ARGS+=("--council" "$NUM_OR_COUNCIL")
     fi
-
-    ((VERN_NUM++))
-    echo ""
-done 3<<< "$SELECTED"
-
-# Report failed Verns
-if [ -n "$FAILED_VERNS" ]; then
-    echo ">>> Failed Verns:$FAILED_VERNS"
-    echo ""
 fi
 
-# Only run synthesis if at least 1 Vern succeeded
-if [ $SUCCEEDED_COUNT -gt 0 ]; then
-    echo ">>> Synthesizing the chaos ($SUCCEEDED_COUNT/$NUM_VERNS Verns succeeded)..."
-
-    # Note missing perspectives in the synthesis prompt
-    MISSING_NOTE=""
-    if [ -n "$FAILED_VERNS" ]; then
-        MISSING_NOTE="
-
-NOTE: The following Verns failed and their perspectives are missing from this synthesis:$FAILED_VERNS
-Consider what perspectives might be absent and note any gaps."
-    fi
-
-    "$VERN_RUN" claude "Synthesize these diverse perspectives into actionable insights. Identify common themes, interesting contradictions, and recommended paths forward.
-
-ORIGINAL IDEA: $IDEA
-$CONTEXT_BLOCK
-THE VERNS HAVE SPOKEN:
-$ALL_OUTPUTS$MISSING_NOTE" "$VERNHOLE_DIR/synthesis.md" "vernhole-orchestrator"
-    synthesis_exit=$?
-
-    if [ $synthesis_exit -ne 0 ]; then
-        echo ""
-        echo "WARNING: Synthesis step failed (exit $synthesis_exit)"
-    fi
-else
-    echo ">>> All Verns failed — skipping synthesis"
-    echo "No perspectives to synthesize."
+if [ -n "$CONTEXT_FILE" ]; then
+    ARGS+=("--context" "$CONTEXT_FILE")
 fi
 
-echo ""
-echo "=== THE VERNHOLE HAS SPOKEN ==="
-echo "Files created in: $VERNHOLE_DIR"
-echo "Succeeded: $SUCCEEDED_COUNT/$NUM_VERNS"
-if [ -n "$FAILED_VERNS" ]; then
-    echo "Failed:$FAILED_VERNS"
-fi
-ls -la "$VERNHOLE_DIR"
-
-# Exit with failure if all Verns failed
-if [ $SUCCEEDED_COUNT -eq 0 ]; then
-    exit 1
-fi
+exec "$VERN_CLI" "${ARGS[@]}"

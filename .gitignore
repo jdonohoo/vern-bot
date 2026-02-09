@@ -3,3 +3,6 @@
 *.swo
 *~
 .claude/settings.local.json
+
+# Go build artifacts
+go/bin/
