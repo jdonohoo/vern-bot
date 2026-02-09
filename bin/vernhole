@@ -2,12 +2,22 @@
 #
 # vernhole: Summon random Vern personas for chaotic discovery
 #
-# Usage: vernhole "<idea>" [output_dir] [num_verns] [context_file]
+# Usage: vernhole "<idea>" [output_dir] [num_verns_or_council] [context_file]
 #   idea: The idea to explore
 #   output_dir: Where to save output (default: current dir)
-#   num_verns: Number of Verns to summon, min 5 (default: random 5-max)
+#   num_verns_or_council: Number of Verns to summon (min 3), or a council name:
+#     hammers  - Council of the Three Hammers (great, mediocre, ketamine)
+#     conflict - Max Conflict (startup, enterprise, yolo, paranoid, optimist, inverse)
+#     inner    - The Inner Circle (architect, inverse, paranoid + random fill to 3-5)
+#     round    - The Round Table (mighty, yolo, startup, academic, enterprise + random fill to 6-9)
+#     war      - The War Room (round table core + ux, retro, optimist, nyquil + random fill to 10-13)
+#     full     - The Full Vern Experience (all summonable personas)
+#     random   - Fate's Hand (random count 3 to all, random selection)
 #   context_file: Optional path to a context file (e.g. a discovery master plan)
 #                 whose contents will be included in each persona's prompt
+#
+# Council flag (alternative to positional arg):
+#   --council <name>   Use a named council tier
 #
 
 set -e
@@ -16,17 +26,53 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERN_RUN="$SCRIPT_DIR/vern-run"
 AGENTS_DIR="$SCRIPT_DIR/../agents"
 
-IDEA="$1"
-OUTPUT_DIR="${2:-.}"
-CONTEXT_FILE="${4:-}"
+# Parse flags
+COUNCIL_FLAG=""
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --council)
+            COUNCIL_FLAG="$2"
+            shift 2
+            ;;
+        *)
+            POSITIONAL_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+IDEA="${POSITIONAL_ARGS[0]:-}"
+OUTPUT_DIR="${POSITIONAL_ARGS[1]:-.}"
+NUM_OR_COUNCIL="${POSITIONAL_ARGS[2]:-}"
+CONTEXT_FILE="${POSITIONAL_ARGS[3]:-}"
+
+# --council flag overrides positional arg
+if [ -n "$COUNCIL_FLAG" ]; then
+    NUM_OR_COUNCIL="$COUNCIL_FLAG"
+fi
 
 if [ -z "$IDEA" ]; then
-    echo "Usage: vernhole \"<idea>\" [output_dir] [num_verns] [context_file]"
+    echo "Usage: vernhole \"<idea>\" [output_dir] [num_verns_or_council] [context_file]"
+    echo ""
+    echo "Council tiers:"
+    echo "  hammers  - Council of the Three Hammers (great, mediocre, ketamine)"
+    echo "  conflict - Max Conflict (startup, enterprise, yolo, paranoid, optimist, inverse)"
+    echo "  inner    - The Inner Circle (architect, inverse, paranoid + random fill)"
+    echo "  round    - The Round Table (mighty, yolo, startup, academic, enterprise + random fill)"
+    echo "  war      - The War Room (all round table + ux, retro, optimist, nyquil + random fill)"
+    echo "  full     - The Full Vern Experience (all summonable personas)"
+    echo "  random   - Fate's Hand (random count, random selection)"
+    echo ""
+    echo "Flags:"
+    echo "  --council <name>   Use a named council tier"
     exit 1
 fi
 
 # ── Dynamically build roster from agents/*.md ────────────────────────────────
-# Parses YAML frontmatter for name, description, model. Skips vernhole-orchestrator.
+# Parses YAML frontmatter for name, description, model.
+# Skips vernhole-orchestrator and oracle (pipeline-only personas).
 # Maps model (opus/sonnet/haiku) to LLM engine for vern-run.
 
 VERNS=()
@@ -39,9 +85,10 @@ import os, re, sys
 
 agents_dir = '$AGENTS_DIR'
 model_to_llm = {'opus': 'claude', 'sonnet': 'claude', 'haiku': 'claude'}
+skip = {'vernhole-orchestrator.md', 'oracle.md'}
 
 for fname in sorted(os.listdir(agents_dir)):
-    if not fname.endswith('.md') or fname == 'vernhole-orchestrator.md':
+    if not fname.endswith('.md') or fname in skip:
         continue
     path = os.path.join(agents_dir, fname)
     with open(path) as f:
@@ -85,20 +132,176 @@ if [ ${#VERNS[@]} -eq 0 ]; then
         "startup:claude:Startup Vern - MVP or die, move fast"
         "enterprise:claude:Enterprise Vern - needs 6 meetings and a committee"
         "architect:claude:Architect Vern - systems design, blueprints before builds"
+        "ux:claude:UX Vern - can the user find the button?"
+        "retro:claude:Retro Vern - we solved this with cron in 2004"
     )
 fi
 
 ROSTER_SIZE=${#VERNS[@]}
-MIN_VERNS=5
-NUM_VERNS="${3:-$(awk "BEGIN{srand(); print int(rand() * ($ROSTER_SIZE - $MIN_VERNS + 1)) + $MIN_VERNS}")}"
+MIN_VERNS=3
 
-# Clamp to roster size
-if [ "$NUM_VERNS" -gt "$ROSTER_SIZE" ]; then
-    NUM_VERNS="$ROSTER_SIZE"
-fi
-if [ "$NUM_VERNS" -lt "$MIN_VERNS" ]; then
-    NUM_VERNS="$MIN_VERNS"
-fi
+# ── Helper: find a vern entry by persona name ────────────────────────────────
+find_vern() {
+    local target="$1"
+    for entry in "${VERNS[@]}"; do
+        local vid="${entry%%:*}"
+        if [ "$vid" = "$target" ]; then
+            echo "$entry"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# ── Helper: get remaining verns not in a list ────────────────────────────────
+# Args: space-separated list of already-selected persona names
+get_remaining() {
+    local used="$1"
+    for entry in "${VERNS[@]}"; do
+        local vid="${entry%%:*}"
+        if ! echo " $used " | grep -q " $vid "; then
+            echo "$entry"
+        fi
+    done
+}
+
+# ── Council tier selection ───────────────────────────────────────────────────
+# Determines SELECTED (newline-separated list of vern entries) and COUNCIL_NAME
+
+COUNCIL_NAME=""
+SELECTED=""
+
+resolve_council() {
+    local tier="$1"
+
+    case "$tier" in
+        hammers)
+            COUNCIL_NAME="Council of the Three Hammers"
+            local core_names="great mediocre ketamine"
+            SELECTED=""
+            for name in $core_names; do
+                local entry
+                entry=$(find_vern "$name") && SELECTED="$SELECTED
+$entry"
+            done
+            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
+            NUM_VERNS=3
+            ;;
+        conflict)
+            COUNCIL_NAME="Max Conflict"
+            local core_names="startup enterprise yolo paranoid optimist inverse"
+            SELECTED=""
+            for name in $core_names; do
+                local entry
+                entry=$(find_vern "$name") && SELECTED="$SELECTED
+$entry"
+            done
+            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
+            NUM_VERNS=6
+            ;;
+        inner)
+            COUNCIL_NAME="The Inner Circle"
+            local core_names="architect inverse paranoid"
+            local target
+            target=$(awk "BEGIN{srand(); print int(rand() * 3) + 3}")  # 3-5
+            SELECTED=""
+            for name in $core_names; do
+                local entry
+                entry=$(find_vern "$name") && SELECTED="$SELECTED
+$entry"
+            done
+            # Fill remaining slots randomly
+            local remaining
+            remaining=$(get_remaining "$core_names" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2-)
+            local core_count
+            core_count=$(echo "$SELECTED" | sed '/^$/d' | wc -l | tr -d ' ')
+            local fill_count=$((target - core_count))
+            if [ "$fill_count" -gt 0 ]; then
+                SELECTED="$SELECTED
+$(echo "$remaining" | head -n "$fill_count")"
+            fi
+            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
+            NUM_VERNS=$(echo "$SELECTED" | wc -l | tr -d ' ')
+            ;;
+        round)
+            COUNCIL_NAME="The Round Table"
+            local core_names="mighty yolo startup academic enterprise"
+            local target
+            target=$(awk "BEGIN{srand(); print int(rand() * 4) + 6}")  # 6-9
+            SELECTED=""
+            for name in $core_names; do
+                local entry
+                entry=$(find_vern "$name") && SELECTED="$SELECTED
+$entry"
+            done
+            local remaining
+            remaining=$(get_remaining "$core_names" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2-)
+            local core_count
+            core_count=$(echo "$SELECTED" | sed '/^$/d' | wc -l | tr -d ' ')
+            local fill_count=$((target - core_count))
+            if [ "$fill_count" -gt 0 ]; then
+                SELECTED="$SELECTED
+$(echo "$remaining" | head -n "$fill_count")"
+            fi
+            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
+            NUM_VERNS=$(echo "$SELECTED" | wc -l | tr -d ' ')
+            ;;
+        war)
+            COUNCIL_NAME="The War Room"
+            local core_names="mighty yolo startup academic enterprise ux retro optimist nyquil"
+            local target
+            target=$(awk "BEGIN{srand(); print int(rand() * 4) + 10}")  # 10-13
+            SELECTED=""
+            for name in $core_names; do
+                local entry
+                entry=$(find_vern "$name") && SELECTED="$SELECTED
+$entry"
+            done
+            local remaining
+            remaining=$(get_remaining "$core_names" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2-)
+            local core_count
+            core_count=$(echo "$SELECTED" | sed '/^$/d' | wc -l | tr -d ' ')
+            local fill_count=$((target - core_count))
+            if [ "$fill_count" -gt 0 ]; then
+                SELECTED="$SELECTED
+$(echo "$remaining" | head -n "$fill_count")"
+            fi
+            SELECTED=$(echo "$SELECTED" | sed '/^$/d')
+            NUM_VERNS=$(echo "$SELECTED" | wc -l | tr -d ' ')
+            ;;
+        full)
+            COUNCIL_NAME="The Full Vern Experience"
+            SELECTED=$(printf '%s\n' "${VERNS[@]}")
+            NUM_VERNS="$ROSTER_SIZE"
+            ;;
+        random|"")
+            COUNCIL_NAME="Fate's Hand"
+            NUM_VERNS=$(awk "BEGIN{srand(); print int(rand() * ($ROSTER_SIZE - $MIN_VERNS + 1)) + $MIN_VERNS}")
+            SELECTED=$(printf '%s\n' "${VERNS[@]}" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2- | head -n "$NUM_VERNS")
+            ;;
+        *)
+            # Bare number — legacy behavior
+            if [[ "$tier" =~ ^[0-9]+$ ]]; then
+                COUNCIL_NAME=""
+                NUM_VERNS="$tier"
+                # Clamp to roster size
+                if [ "$NUM_VERNS" -gt "$ROSTER_SIZE" ]; then
+                    NUM_VERNS="$ROSTER_SIZE"
+                fi
+                if [ "$NUM_VERNS" -lt "$MIN_VERNS" ]; then
+                    NUM_VERNS="$MIN_VERNS"
+                fi
+                SELECTED=$(printf '%s\n' "${VERNS[@]}" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2- | head -n "$NUM_VERNS")
+            else
+                echo "Unknown council: $tier"
+                echo "Valid councils: hammers, conflict, inner, round, war, full, random"
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+resolve_council "$NUM_OR_COUNCIL"
 
 # Build context block if a context file was provided
 CONTEXT_BLOCK=""
@@ -121,13 +324,13 @@ VERNHOLE_DIR="$OUTPUT_DIR"
 echo "=== WELCOME TO THE VERNHOLE ==="
 echo "Idea: $IDEA"
 echo "Roster: $ROSTER_SIZE Verns available"
+if [ -n "$COUNCIL_NAME" ]; then
+    echo "Council: $COUNCIL_NAME"
+fi
 echo "Summoning $NUM_VERNS Verns..."
 echo ""
 
 mkdir -p "$VERNHOLE_DIR"
-
-# Randomly select Verns
-SELECTED=$(printf '%s\n' "${VERNS[@]}" | awk 'BEGIN{srand()} {print rand() "\t" $0}' | sort -n | cut -f2- | head -n "$NUM_VERNS")
 
 # Track all outputs for synthesis
 ALL_OUTPUTS=""

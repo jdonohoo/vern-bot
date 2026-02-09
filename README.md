@@ -6,9 +6,9 @@
 
 https://jdonohoo.github.io/vern-bot/
 
-A Claude Code plugin. 15 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole chaos mode and a full multi-LLM discovery pipeline.
+A Claude Code plugin. 16 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole council tiers, Oracle vision, and a full multi-LLM discovery pipeline.
 
-## The 15 Personas
+## The 16 Personas
 
 ### Core Personas
 | Command | Model | Best For |
@@ -32,6 +32,7 @@ A Claude Code plugin. 15 AI personas with different personalities, models, and a
 | `/vern:enterprise` | Opus | Governance, compliance, process rigor |
 | `/vern:ux` | Opus | User experience, empathy-driven design, journey mapping |
 | `/vern:retro` | Sonnet | Historical perspective, proven tech, cutting through hype |
+| `/vern:oracle` | Opus | Reads the council's wisdom, recommends VTS task changes |
 
 ### When to Use Each
 
@@ -52,6 +53,7 @@ A Claude Code plugin. 15 AI personas with different personalities, models, and a
 | "Enterprise-grade analysis" | `/vern:enterprise` |
 | "Can a real person use this?" | `/vern:ux` |
 | "Haven't we solved this before?" | `/vern:retro` |
+| "What did the council actually say?" | `/vern:oracle` |
 | "I want chaos/creativity" | `/vern:hole` |
 | "Full project discovery" | `/vern:discovery` |
 | "What commands are there?" | `/vern:help` |
@@ -115,6 +117,9 @@ Or use the shorthand router:
 # Full chaos
 /vern:hole should we use GraphQL or REST
 
+# Oracle vision (after VernHole)
+/vern:oracle review the council's synthesis against the VTS tasks
+
 # Prepared discovery (recommended for complex ideas)
 /vern:new-idea my-saas-app
 # -> drop reference files into discovery/my-saas-app/input/
@@ -131,8 +136,9 @@ Or use the shorthand router:
 | Command | Description |
 |---------|-------------|
 | `/vern:new-idea` | Create discovery folder with input/output structure |
-| `/vern:discovery` | Full pipeline: Default (5-step) or Expanded (7-step) multi-LLM discovery |
-| `/vern:hole` | Random Verns brainstorm your idea |
+| `/vern:discovery` | Full pipeline: Default (5-step) or Expanded (7-step) multi-LLM discovery + council + Oracle |
+| `/vern:hole` | Summon a VernHole council tier to brainstorm your idea |
+| `/vern:oracle` | Consult Oracle Vern — synthesize council wisdom into VTS modifications |
 | `/vern:setup` | Configure LLMs, pipeline personas, preferences |
 | `/vern:help` | Show all available commands and personas |
 
@@ -165,35 +171,52 @@ Two ways to use it:
 #### Default Pipeline (5 steps)
 
 ```
-Codex (Analysis) -> Claude (Refinement) -> Gemini (Chaos Check)
-                          |
-                          v
+Codex (Analysis) → Claude (Refinement) → Gemini (Chaos Check)
+                          │
+                          ▼
                   Codex (Consolidation)
-                          |
-                          v
-                  Architect Vern (Breakdown)
+                          │
+                          ▼
+                  Architect Vern (Breakdown) → VTS Tasks
 ```
 
 #### Expanded Pipeline (7 steps) — use `--expanded` flag
 
 ```
-Codex (Analysis) -> Claude (Refinement) -> Claude (Reality Check)
-                                                  |
-                                                  v
-                  Gemini (Chaos Check) -> Claude (MVP Lens)
-                          |
-                          v
+Codex (Analysis) → Claude (Refinement) → Claude (Reality Check)
+                                                  │
+                                                  ▼
+                  Gemini (Chaos Check) → Claude (MVP Lens)
+                          │
+                          ▼
                   Codex (Consolidation)
-                          |
-                          v
-                  Architect Vern (Breakdown)
+                          │
+                          ▼
+                  Architect Vern (Breakdown) → VTS Tasks
 ```
 
 The expanded pipeline inserts **Vern the Mediocre** (Reality Check) and **Startup Vern** (MVP Lens) before consolidation for more thorough analysis.
 
 Every pass receives the **original prompt + all input context** alongside the chain outputs, so nothing gets lost.
 
-After discovery completes, you're prompted: *"Do you want to run a VernHole on the synthesised plan?"*
+6. After the pipeline, choose a **VernHole council tier** to brainstorm the plan:
+
+| Tier | Count | Name |
+|------|-------|------|
+| 1 | 3 | **Council of the Three Hammers** — great, mediocre, ketamine |
+| 2 | 6 | **Max Conflict** — startup, enterprise, yolo, paranoid, optimist, inverse |
+| 3 | 3–5 | **The Inner Circle** — architect, inverse, paranoid + random fill |
+| 4 | 6–9 | **The Round Table** — mighty, yolo, startup, academic, enterprise + random fill |
+| 5 | 10–13 | **The War Room** — round table core + ux, retro, optimist, nyquil + random fill |
+| 6 | 15 | **The Full Vern Experience** — every summonable persona |
+| 7 | ? | **Fate's Hand** — random count, random selection |
+
+7. Optionally consult **Oracle Vern** to review VernHole synthesis against VTS tasks, producing `oracle-vision.md` with recommended modifications
+8. Choose to **auto-apply** the Oracle's vision (Architect Vern rewrites VTS) or **manually review**
+
+```
+Pipeline → VTS Tasks → VernHole Council → Oracle Vision → Auto-Apply (optional)
+```
 
 ### Standardized Folder Structure
 
@@ -209,7 +232,8 @@ discovery/{name}/
 │   ├── 04-mighty-consolidation.md   # (or 06-... in expanded)
 │   ├── 05-architect-architect-breakdown.md  # (or 07-... in expanded)
 │   └── vts/                   # Vern Task Spec files
-└── vernhole/                  # Only if you opted in
+├── vernhole/                  # Only if you opted in
+└── oracle-vision.md           # Only if Oracle ran
 ```
 
 ## The VernHole
@@ -222,7 +246,21 @@ discovery/{name}/
 /vern:hole "should we use microservices or monolith"
 ```
 
-You choose how many Verns to summon. Each gives their unique take. Chaos synthesizes into clarity. Maybe.
+Choose a council tier — from the focused **Council of the Three Hammers** (3 Verns) to **The Full Vern Experience** (all 15). Each Vern gives their unique take. Chaos synthesizes into clarity. Maybe.
+
+### Council Tiers
+
+| Tier | Name | Count | Personas |
+|------|------|-------|----------|
+| **Council of the Three Hammers** | Fixed | 3 | great, mediocre, ketamine |
+| **Max Conflict** | Fixed | 6 | startup, enterprise, yolo, paranoid, optimist, inverse |
+| **The Inner Circle** | Core + random | 3–5 | architect, inverse, paranoid + random fill |
+| **The Round Table** | Core + random | 6–9 | mighty, yolo, startup, academic, enterprise + random fill |
+| **The War Room** | Core + random | 10–13 | round table + ux, retro, optimist, nyquil + random fill |
+| **The Full Vern Experience** | All | 15 | every summonable persona |
+| **Fate's Hand** | Random | 3–15 | random count, random selection |
+
+Oracle is excluded from all council rosters (15 summonable personas).
 
 ## Plugin Structure
 
@@ -231,7 +269,7 @@ vern-bot/
 ├── .claude-plugin/
 │   ├── plugin.json          # Plugin metadata
 │   └── marketplace.json     # Marketplace manifest
-├── agents/                   # 16 agent definitions (15 personas + orchestrator)
+├── agents/                   # 17 agent definitions (16 personas + orchestrator)
 │   ├── mediocre.md
 │   ├── great.md
 │   ├── nyquil.md
@@ -247,13 +285,14 @@ vern-bot/
 │   ├── enterprise.md
 │   ├── ux.md
 │   ├── retro.md
+│   ├── oracle.md
 │   └── vernhole-orchestrator.md
-├── commands/                  # 21 command definitions (15 personas + 6 workflows/utility)
+├── commands/                  # 22 command definitions (16 personas + 6 workflows/utility)
 │   ├── v.md                  # /vern:v shorthand router
 │   ├── help.md               # /vern:help command reference
 │   ├── setup.md              # /vern:setup configuration
 │   └── {persona}.md          # Per-persona command files
-├── skills/                    # 18 skill definitions
+├── skills/                    # 19 skill definitions
 │   ├── mediocre/SKILL.md
 │   ├── great/SKILL.md
 │   ├── nyquil/SKILL.md
@@ -269,6 +308,7 @@ vern-bot/
 │   ├── enterprise/SKILL.md
 │   ├── ux/SKILL.md
 │   ├── retro/SKILL.md
+│   ├── oracle/SKILL.md
 │   ├── hole/SKILL.md
 │   ├── discovery/SKILL.md
 │   └── new-idea/SKILL.md

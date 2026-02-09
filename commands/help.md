@@ -8,7 +8,7 @@ Display the following help text to the user:
 
 ```
 === VERN-BOT ===
-15 AI personas. Multi-LLM discovery pipelines. VernHole chaos mode.
+16 AI personas. Multi-LLM discovery pipelines. VernHole chaos mode.
 
 CORE PERSONAS
   /vern:mediocre <task>    Sonnet  - Quick fixes, "just make it work"
@@ -28,6 +28,7 @@ SPECIALIST PERSONAS
   /vern:enterprise <task>  Opus    - Governance, compliance, process
   /vern:ux <task>          Opus    - User experience, empathy-driven design
   /vern:retro <task>       Sonnet  - Historical perspective, proven tech
+  /vern:oracle <task>      Opus    - Reads the council's wisdom, recommends VTS changes
 
 WORKFLOWS & PIPELINES
   /vern:discovery <prompt> Full multi-LLM discovery pipeline (5 or 7 steps)
@@ -41,7 +42,7 @@ SHORTHAND ROUTER
   /vern:v <alias> <task>   Route to any persona by short alias
 
   Aliases: med, great, nq, ket, yolo, mighty, arch, inv, para, opt,
-           acad, su, ent, ux, ret, hole, disco, new, setup
+           acad, su, ent, ux, ret, orc, hole, disco, new, setup
 
 EXAMPLES
   /vern:mediocre fix the broken login redirect

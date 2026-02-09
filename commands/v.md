@@ -34,6 +34,7 @@ Parse the first argument to determine which Vern persona to invoke:
 | `enterprise` / `ent` / `e` | `/vern:enterprise` | Needs 6 meetings first |
 | `ux` / `u` | `/vern:ux` | Cool architecture, but can the user find the button? |
 | `retro` / `ret` / `r` | `/vern:retro` | We solved this with cron in 2004 |
+| `oracle` / `orc` / `ora` | `/vern:oracle` | Reads the council's wisdom, recommends VTS changes |
 
 ### Workflows & Pipelines
 | Alias | Skill | Description |
@@ -64,6 +65,7 @@ Route the alias to the matching skill and pass the remaining arguments as the ta
 - `enterprise` / `ent` / `e` → invoke `/vern:enterprise`
 - `ux` / `u` → invoke `/vern:ux`
 - `retro` / `ret` / `r` → invoke `/vern:retro`
+- `oracle` / `orc` / `ora` → invoke `/vern:oracle`
 - `hole` / `khole` / `vh` → invoke `/vern:hole`
 - `new-idea` / `new` / `ni` → invoke `/vern:new-idea`
 - `discovery` / `disco` / `d` → invoke `/vern:discovery`

@@ -12,8 +12,8 @@
   "plugins": [
     {
       "name": "vern",
-      "description": "15 AI personas, multi-LLM discovery pipelines, and VernHole chaos mode. One idea in, battle-tested plan out. Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.",
-      "version": "1.4.0",
+      "description": "16 AI personas, multi-LLM discovery pipelines, VernHole council tiers, and Oracle vision. One idea in, battle-tested plan out. Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.",
+      "version": "1.5.0",
       "author": {
         "name": "Justin Donohoo"
       },

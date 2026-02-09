@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="images/favicon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
     <meta property="og:title" content="Vern-Bot">
-    <meta property="og:description" content="15 AI personas, multi-LLM discovery pipelines, and VernHole chaos mode. One idea in, battle-tested plan out.">
+    <meta property="og:description" content="16 AI personas, multi-LLM discovery pipelines, VernHole council tiers, and Oracle vision. One idea in, battle-tested plan out.">
     <meta property="og:image" content="images/favicon-512.png">
     <style>
         :root {
@@ -24,6 +24,7 @@
             --purple: #bc8cff;
             --cyan: #39d2c0;
             --orange: #f0883e;
+            --magenta: #f778ba;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -630,7 +631,7 @@
             </div>
             <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="hero-character">
         </div>
-        <p class="tagline">50 Shades of Vern. 15 AI personas. Multi-LLM discovery pipelines. VernHole chaos mode.</p>
+        <p class="tagline">50 Shades of Vern. 16 AI personas. Multi-LLM discovery pipelines. VernHole council tiers. Oracle vision.</p>
         <p class="dad-joke-hook">Like Dad Jokes? So does Vern.</p>
         <p class="dad-joke-sub">Every shade of Vern comes with a different shade of dad joke.</p>
         <p class="value-hook">Multi-LLM pipelines. Multi-pass discovery. One idea in, battle-tested plan out.</p>
@@ -934,6 +935,63 @@
         </div>
 
     </div>
+
+    <div class="section-header">
+        <h2>Pipeline Personas</h2>
+        <p>Orchestrators that bridge pipeline stages. Not summoned by VernHole — they work behind the scenes.</p>
+    </div>
+
+    <div class="persona-grid">
+
+        <div class="persona-card" data-agent="oracle">
+            <div class="persona-img-wrap">
+                <img src="images/oracle-vern.png" alt="Oracle Vern" loading="lazy">
+            </div>
+            <div class="persona-body">
+                <div class="persona-command">/vern:oracle</div>
+                <div class="persona-quote">"The council has spoken. Now let me tell you what they actually said."</div>
+                <div class="persona-desc">The ancient seer who reads the patterns in the Vern council's chaos. Synthesizes VernHole wisdom into actionable VTS modifications. Sees what others miss — the gaps between perspectives, the unspoken dependencies.</div>
+                <div class="persona-meta">
+                    <span class="tag tag-model">Opus</span>
+                    <span class="tag tag-trait">pattern-recognition</span>
+                    <span class="tag tag-trait">synthesis</span>
+                    <span class="tag tag-trait">pipeline</span>
+                </div>
+                <span class="peek-hint">click to peek under the hood</span>
+            </div>
+        </div>
+
+        <div class="persona-card" data-agent="historian" style="opacity: 0.6; cursor: pointer;">
+            <div class="persona-img-wrap">
+                <img src="images/historian-vern.png" alt="Historian Vern - Coming Soon" loading="lazy">
+            </div>
+            <div class="persona-body">
+                <div class="persona-command" style="color: var(--text-muted);">/vern:historian</div>
+                <div class="persona-quote">"Coming soon..."</div>
+                <div class="persona-desc">Reads everything before anyone else touches it. Feeds Gemini's 1M token context window your entire input folder. Spits out a summary and index so the pipeline doesn't miss a thing. The scout who actually does the reading.</div>
+                <div class="persona-meta">
+                    <span class="tag" style="border-color: var(--yellow); color: var(--yellow);">coming soon</span>
+                    <span class="tag tag-trait">pipeline</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="persona-card" data-agent="buildmaster" style="opacity: 0.6; cursor: pointer;">
+            <div class="persona-img-wrap">
+                <img src="images/buildmaster-vern.png" alt="BuildMaster Vern - Coming Soon" loading="lazy">
+            </div>
+            <div class="persona-body">
+                <div class="persona-command" style="color: var(--text-muted);">/vern:buildmaster</div>
+                <div class="persona-quote">"Coming soon..."</div>
+                <div class="persona-desc">Takes the VTS tasks and makes them happen. Assigns each task to the right Vern. Tracks progress. Yells when things stall. The foreman who turns plans into shipped code.</div>
+                <div class="persona-meta">
+                    <span class="tag" style="border-color: var(--yellow); color: var(--yellow);">coming soon</span>
+                    <span class="tag tag-trait">pipeline</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
 </div>
 
 <!-- VernHole CTA -->
@@ -944,8 +1002,11 @@
         </div>
         <h3>Brave Enough to Summon the Full Council?</h3>
         <p>One Vern is a conversation. All 15 at once is the VernHole.<br>
-        Chaos in. Wisdom out. Dad jokes everywhere.</p>
+        Choose your council tier. Chaos in. Wisdom out. Dad jokes everywhere.</p>
         <p style="margin-top: 16px;"><code>/vern:hole your-wild-idea</code></p>
+        <p style="margin-top: 12px; font-size: 0.85rem; color: var(--text-muted);">
+            Council of the Three Hammers (3) &bull; Max Conflict (6) &bull; The Inner Circle (3-5) &bull; The Round Table (6-9) &bull; The War Room (10-13) &bull; The Full Vern Experience (all 15) &bull; Fate's Hand (random)
+        </p>
     </div>
 </div>
 
@@ -972,7 +1033,7 @@
 
             <div class="example-block">
                 <div class="example-cmd"><span class="prompt">$ </span>/vern:setup</div>
-                <div class="example-explain">Interactive setup wizard. Walks you through: which LLMs you have installed (Codex, Gemini), which persona and LLM to use for each of the 5 discovery pipeline steps, and VernHole defaults. Saves to <code>~/.claude/vern-bot-config.json</code>.</div>
+                <div class="example-explain">Interactive setup wizard. Walks you through: which LLMs you have installed (Codex, Gemini), which persona and LLM to use for each discovery pipeline step, VernHole council defaults, and Oracle preferences. Saves to <code>~/.claude/vern-bot-config.json</code>.</div>
                 <div class="example-output"><span class="out-label">Prompts:</span>
 Which LLMs do you have available?
  [x] Codex (OpenAI)
@@ -1014,7 +1075,7 @@ Config saved to ~/.claude/vern-bot-config.json</div>
                     <span class="step-arrow">&rarr;</span>
                     <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
                     <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>Architect Vern</strong><br><small>Breakdown</small></div>
+                    <div class="step"><strong>Architect Vern</strong><br><small>Breakdown &rarr; VTS</small></div>
                 </div>
 
                 <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--purple);"><strong>Expanded (7 steps)</strong> &mdash; use <code>--expanded</code></p>
@@ -1031,7 +1092,16 @@ Config saved to ~/.claude/vern-bot-config.json</div>
                     <span class="step-arrow">&rarr;</span>
                     <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
                     <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>Architect Vern</strong><br><small>Breakdown</small></div>
+                    <div class="step"><strong>Architect Vern</strong><br><small>Breakdown &rarr; VTS</small></div>
+                </div>
+
+                <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--yellow);"><strong>Post-Pipeline (optional)</strong></p>
+                <div class="pipeline-steps">
+                    <div class="step" style="border-color: var(--magenta);"><strong>VernHole</strong><br><small>Council Brainstorm</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step" style="border-color: var(--green);"><strong>Oracle Vern</strong><br><small>Vision &amp; VTS Mods</small></div>
+                    <span class="step-arrow">&rarr;</span>
+                    <div class="step" style="border-color: var(--green);"><strong>Architect Vern</strong><br><small>Applies the Oracle's Vision (optional)</small></div>
                 </div>
                 <p style="margin-top: 16px; color: var(--text-muted); font-size: 0.9rem;">Configurable via <code>/vern:setup</code> &mdash; swap any persona or LLM at any step.</p>
             </div>
@@ -1057,8 +1127,9 @@ Running discovery pipeline...
  Step 4/5: MightyVern (Codex) - Consolidation...
  Step 5/5: Architect Vern - Breakdown...
 
-Run a VernHole on this plan? [y/N]: <strong style="color: var(--cyan);">y</strong>
-How many Verns? (5-12): <strong style="color: var(--cyan);">8</strong></div>
+VernHole council: <strong style="color: var(--cyan);">Max Conflict</strong>
+Consult Oracle Vern? <strong style="color: var(--cyan);">Yes</strong>
+Apply mode: <strong style="color: var(--cyan);">Manual</strong></div>
             </div>
 
             <div class="example-block">
@@ -1112,20 +1183,19 @@ Running discovery pipeline with 4 input files...</div>
         <!-- 4. VernHole (Chaos Mode) -->
         <div class="example-group">
             <h3>VernHole (Chaos Mode)</h3>
-            <p class="group-desc">Summon N Verns (min 5, the more the merrier). Each gives their independent take on your idea, then a synthesis pass weaves the chaos into something useful.</p>
+            <p class="group-desc">Choose a council tier and summon Verns to brainstorm your idea. Each gives their independent take, then a synthesis pass weaves the chaos into something useful.</p>
 
             <div class="example-block">
                 <div class="example-cmd"><span class="prompt">$ </span>/vern:hole should we migrate from REST to GraphQL?</div>
-                <div class="example-explain">Summon N Verns (min 5, the more the merrier). Each gives their unique take, then a synthesis pass weaves the chaos into something useful.</div>
+                <div class="example-explain">Choose a council tier. Each Vern gives their unique take, then a synthesis pass weaves the chaos together.</div>
                 <div class="example-output"><span class="out-label">Prompt:</span>
-How many Verns? (min 5, the more the merrier): <strong style="color: var(--cyan);">All 15</strong>
+Which council? <strong style="color: var(--cyan);">The Full Vern Experience</strong>
 
+Council: The Full Vern Experience
 Summoning 15 Verns from the roster...
  Pass 1/15: Paranoid Vern analyzing...
  Pass 2/15: YOLO Vern analyzing...
  Pass 3/15: Academic Vern analyzing...
- Pass 4/15: Startup Vern analyzing...
- Pass 5/15: Architect Vern analyzing...
  ...
  Pass 15/15: Optimist Vern analyzing...
 
@@ -1134,7 +1204,7 @@ Synthesizing 15 perspectives into final report...</div>
 
             <div class="example-block">
                 <div class="example-cmd"><span class="prompt">$ </span>/vern:hole build a real-time collaborative code editor</div>
-                <div class="example-explain">Great for ambitious ideas where you want diverse perspectives before committing to an architecture.</div>
+                <div class="example-explain">Great for ambitious ideas where you want diverse perspectives before committing to an architecture. Try <strong>Max Conflict</strong> for maximum contradictions or <strong>Council of the Three Hammers</strong> for the essential trio.</div>
             </div>
 
             <div class="example-block">
@@ -1143,7 +1213,7 @@ Synthesizing 15 perspectives into final report...</div>
             </div>
 
             <div class="tip-box">
-                <strong>Depth guide:</strong> 5&ndash;6 Verns gives a focused council. 7&ndash;9 gets chaotic and creative. All 15 is the full VernHole experience &mdash; every persona weighs in. The more the merrier.
+                <strong>Council tiers:</strong> <strong>Council of the Three Hammers</strong> (3: great + mediocre + ketamine) &bull; <strong>Max Conflict</strong> (6: maximum contradiction) &bull; <strong>The Inner Circle</strong> (3-5: architect-led) &bull; <strong>The Round Table</strong> (6-9) &bull; <strong>The War Room</strong> (10-13) &bull; <strong>The Full Vern Experience</strong> (all 15) &bull; <strong>Fate's Hand</strong> (random)
             </div>
         </div>
 
@@ -1267,6 +1337,10 @@ Synthesizing 15 perspectives into final report...</div>
                         <tr style="border-bottom: 1px solid var(--border);">
                             <td style="padding: 10px 12px;"><strong>Enterprise-grade rigor</strong></td>
                             <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern:enterprise audit the compliance gaps</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Synthesize council wisdom</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern:oracle what did the council actually say?</td>
                         </tr>
                         <tr style="border-bottom: 1px solid var(--border);">
                             <td style="padding: 10px 12px;"><strong>Configure Vern-Bot</strong></td>
@@ -2183,6 +2257,69 @@ SIGN-OFF:
 End with a grizzled dad joke. Something that's been around the block.
 Example: "Why did the developer need a framework to cross the road? They didn't. cd road && ./cross.sh has worked since 1991. Kids these days."</script>
 
+<script type="text/plain" id="agent-oracle">---
+name: oracle
+description: Oracle Vern - The ancient seer who reads the patterns in the Vern council's chaos. Synthesizes VernHole wisdom into actionable VTS modifications.
+model: opus
+color: green
+---
+
+You are Oracle Vern. The ancient seer who reads the patterns in the Vern council's chaos. Where others see contradictions, you see complementary truths. Where others see noise, you hear the signal. You've been watching councils argue since before version control existed, and you know that the best plans emerge not from consensus, but from the creative tension between opposing views.
+
+PERSONALITY:
+- Mystical but practical — prophecy is just pattern recognition with style
+- Reads between the lines of every perspective
+- Finds what's missing, not just what's wrong
+- Sees the gaps between viewpoints that nobody explicitly stated
+- Identifies the unspoken dependencies and the tasks that should exist but don't
+- Patient, deliberate, and slightly ominous in the best way
+- Speaks in certainties, not suggestions
+
+BEHAVIOR:
+- Read the VernHole synthesis and VTS tasks together as a unified picture
+- Identify where the council's wisdom contradicts or refines the task breakdown
+- Recommend new tasks that nobody thought of but everyone needs
+- Flag tasks that are redundant, misscoped, or missing critical dependencies
+- Reassess complexity based on insights the council surfaced
+- Surface acceptance criteria gaps that would cause rework later
+- Never recommend changes for the sake of change — every modification must earn its place
+
+APPROACH:
+1. OBSERVE — read synthesis and VTS tasks as one living document
+2. INTERPRET — find the patterns, gaps, contradictions, and hidden dependencies
+3. PRESCRIBE — structured recommendations: add, modify, remove, reorder
+4. ASSESS — risk assessment of remaining blind spots after your changes
+
+OUTPUT FORMAT:
+When invoked by the pipeline, output structured oracle-vision.md with:
+- Summary of recommended changes
+- New tasks (in VTS-compatible format)
+- Modified tasks (what changed and why)
+- Removed tasks (with justification)
+- Dependency changes
+- Risk assessment
+
+When invoked directly via /vern:oracle, analyze whatever the user provides with the same pattern-recognition lens — find the signal in the noise, the gaps in the plan, the dependencies nobody mentioned.
+
+CATCHPHRASES:
+- "The council has spoken. Now let me tell you what they actually said."
+- "I've seen this pattern before. It ends with a missing database migration."
+- "The future is just the past with better variable names."
+- "Every plan survives until it meets the dependencies nobody documented."
+- "The Verns argued about the architecture. They were all right. They were all wrong."
+
+SIGN-OFF:
+Always end with a prophecy/oracle dad joke. Delivered like a fortune cookie written by a staff engineer.
+Example: "Why did the Oracle refuse to predict the sprint velocity? Because the only certain forecast is that the estimates are wrong. ...The prophecy has been spoken."</script>
+
+<script type="text/plain" id="agent-historian">Coming Soon...
+
+Reads everything before anyone else touches it. Feeds Gemini's 1M token context window your entire input folder — specs, code, designs, whatever you've got. Spits out a summary and index so the pipeline doesn't miss a thing. The scout who actually does the reading.</script>
+
+<script type="text/plain" id="agent-buildmaster">Coming Soon...
+
+Takes the VTS tasks and makes them happen. Assigns each task to the right Vern for the job. Tracks progress. Yells when things stall. The foreman who turns plans into shipped code.</script>
+
 <script>
 (function() {
     var overlay = document.getElementById('agent-modal-overlay');
@@ -2195,12 +2332,15 @@ Example: "Why did the developer need a framework to cross the road? They didn't.
         document.body.style.overflow = '';
     }
 
+    var comingSoon = ['historian', 'buildmaster'];
     document.querySelectorAll('.persona-card[data-agent]').forEach(function(card) {
         card.addEventListener('click', function() {
             var agent = card.getAttribute('data-agent');
             var tpl = document.getElementById('agent-' + agent);
             if (!tpl) return;
-            modalTitle.textContent = 'agents/' + agent + '.md';
+            modalTitle.textContent = comingSoon.indexOf(agent) !== -1
+                ? agent.charAt(0).toUpperCase() + agent.slice(1) + ' Vern — Coming Soon...'
+                : 'agents/' + agent + '.md';
             modalContent.textContent = tpl.textContent;
             overlay.classList.add('active');
             document.body.style.overflow = 'hidden';

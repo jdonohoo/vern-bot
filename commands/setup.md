@@ -253,9 +253,8 @@ Write the config to `~/.claude/vern-bot-config.json`:
     ]
   },
   "vernhole": {
-    "default_count": "random",
-    "min": 5,
-    "max": 12
+    "default_council": "random",
+    "min": 3
   }
 }
 ```

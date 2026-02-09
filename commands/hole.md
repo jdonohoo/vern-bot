@@ -9,17 +9,19 @@ You've entered the VernHole. There's no going back. Only through.
 
 **WARNING:** You asked for this.
 
-## Step 1: How Deep Do You Want to Go?
+## Step 1: Which Council Do You Want to Summon?
 
 Before summoning the council, ask the user using AskUserQuestion:
 
-> "How many Verns do you want to summon? (min 5, the more the merrier)"
+> "Which council do you want to summon?"
 
 Options:
-- **All 13** (Recommended) - Summon every Vern. Maximum perspectives, maximum chaos. The more the merrier.
-- **7-9 Verns** - Solid chaos. Plenty of contradictions and insights.
-- **5-6 Verns** - A focused council. Diverse but manageable.
-- **Random** - Let fate decide (5-13)
+- **Fate's Hand** (Recommended) - Random count, random selection. Let chaos decide.
+- **Council of the Three Hammers** (3) - great, mediocre, ketamine. The essential trio.
+- **Max Conflict** (6) - startup, enterprise, yolo, paranoid, optimist, inverse. Maximum contradictions.
+- **The Full Vern Experience** (all 15) - Every summonable persona speaks.
+
+Finer control (if user asks): inner (3-5), round (6-9), war (10-13).
 
 ## Step 2: Output Location
 
@@ -38,17 +40,20 @@ Options:
 The script is located at `bin/vernhole` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
 
 ```bash
-{plugin_root}/bin/vernhole "<idea>" "<output_dir>" "<num_verns>" ["<context_file>"]
+{plugin_root}/bin/vernhole --council "<council_name>" "<idea>" "<output_dir>" "" ["<context_file>"]
 ```
 
 Arguments:
 - **idea**: The user's idea/task from `$ARGUMENTS`
 - **output_dir**: The directory from step 2
-- **num_verns**: Based on step 1 choice:
-  - All 13 → pass `13`
-  - 7-9 → pick a random number 7-9
-  - 5-6 → pick a random number 5-6
-  - Random → leave empty (script picks 5-13)
+- **council_name**: Based on step 1 choice:
+  - Fate's Hand → `random`
+  - Council of the Three Hammers → `hammers`
+  - Max Conflict → `conflict`
+  - The Full Vern Experience → `full`
+  - The Inner Circle → `inner`
+  - The Round Table → `round`
+  - The War Room → `war`
 - **context_file** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
 
 ### Important:
@@ -58,7 +63,7 @@ Arguments:
 
 ## The Vern Roster (dynamic)
 
-The roster is built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md`). As new personas are added, they join the VernHole automatically. The `bin/vernhole` script scans agent files at runtime.
+The roster is built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md` and `oracle.md` — pipeline-only personas). Currently 15 summonable Verns. As new personas are added, they join the VernHole automatically. The `bin/vernhole` script scans agent files at runtime.
 
 ## Step 4: Report Results
 

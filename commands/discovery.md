@@ -61,9 +61,17 @@ Ask the user using AskUserQuestion:
 
 2. **VernHole**: Run VernHole on the result after pipeline completes?
    - **No, just the pipeline** (Recommended)
-   - **Yes, 5-6 Verns** (focused council)
-   - **Yes, 7-9 Verns** (getting chaotic)
-   - **Yes, 10-12 Verns** (full VernHole)
+   - **Fate's Hand (random)** — random count, random selection
+   - **Council of the Three Hammers** — great + mediocre + ketamine (3)
+   - **Max Conflict** — startup, enterprise, yolo, paranoid, optimist, inverse (6)
+
+3. **Oracle** (only ask if VernHole = yes): After VernHole, consult Oracle Vern?
+   - **No, skip the Oracle** (Recommended)
+   - **Yes, get the Oracle's vision**
+
+4. **Oracle apply mode** (only if Oracle = yes):
+   - **Manual** — review oracle-vision.md yourself (Recommended)
+   - **Auto-apply** — Architect Vern executes the Oracle's vision
 
 ## Step 4: Execute Pipeline via Bash Script
 
@@ -77,7 +85,10 @@ Build the command:
 {plugin_root}/bin/vern-discovery --batch \
   [--expanded]                            # if user chose expanded pipeline mode
   [--skip-input]                          # if user said no to reading input files
-  [--vernhole N]                          # if user wants VernHole (pick random N in their range)
+  [--vernhole N]                          # if user wants VernHole with a specific count
+  [--vernhole-council NAME]              # if user chose a named council
+  [--oracle]                              # if user wants Oracle Vern
+  [--oracle-apply]                        # if user wants auto-apply (implies --oracle)
   [--extra-context /path/to/file ...]     # for each extra context file the user provided
   "<idea prompt>" \
   "<discovery_dir>"
@@ -86,7 +97,13 @@ Build the command:
 ### Flag mapping:
 - User chose **Expanded** pipeline → add `--expanded`
 - User said **no** to reading input files → add `--skip-input`
-- User said **yes** to VernHole → add `--vernhole N` where N is a random number in their chosen range (5-6, 7-9, or 10-12)
+- User said **yes** to VernHole:
+  - Fate's Hand → add `--vernhole-council random`
+  - Council of the Three Hammers → add `--vernhole-council hammers`
+  - Max Conflict → add `--vernhole-council conflict`
+  - Or any other council name → add `--vernhole-council <name>`
+- User said **yes** to Oracle → add `--oracle`
+- User said **auto-apply** → add `--oracle-apply` (replaces `--oracle`)
 - User provided extra files → add `--extra-context /path/to/file` for each one
 
 ### Important:
@@ -101,6 +118,8 @@ After the script completes, tell the user:
 - Pipeline mode used (default or expanded) and number of steps
 - Summary of the pipeline output
 - Read and briefly summarize the master plan from the consolidation output file
+- If Oracle ran, summarize the oracle-vision.md
+- If auto-apply ran, note that VTS files were updated
 - The folder structure for reference
 
 ## The Pipelines
@@ -180,9 +199,10 @@ discovery/{name}/
 │   └── vts/                               # Vern Task Spec files
 │       ├── vts-001-{slug}.md
 │       └── ...
-└── vernhole/                              # Only if user opted in
-    ├── 01-{persona}.md
-    └── synthesis.md
+├── vernhole/                              # Only if user opted in
+│   ├── 01-{persona}.md
+│   └── synthesis.md
+└── oracle-vision.md                       # Only if Oracle ran
 ```
 
 ### Expanded mode
@@ -200,7 +220,8 @@ discovery/{name}/
 │   ├── 06-mighty-consolidation.md
 │   ├── 07-architect-architect-breakdown.md
 │   └── vts/
-└── vernhole/
+├── vernhole/
+└── oracle-vision.md
 ```
 
 Begin discovery on: $ARGUMENTS

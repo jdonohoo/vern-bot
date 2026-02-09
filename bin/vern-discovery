@@ -9,11 +9,15 @@
 #   Batch (non-interactive, for skill/plugin use):
 #     vern-discovery --batch "<idea>" [discovery_dir]
 #     vern-discovery --batch --skip-input --vernhole 8 "<idea>" [discovery_dir]
+#     vern-discovery --batch --vernhole-council hammers --oracle --oracle-apply "<idea>"
 #
 # Flags:
 #   --batch          Non-interactive mode. Auto-reads input files, skips prompts.
 #   --skip-input     In batch mode, don't read input/ files as context.
 #   --vernhole N     After pipeline, run VernHole with N verns (0 to skip, default: skip).
+#   --vernhole-council NAME  Use a named VernHole council tier (hammers, conflict, inner, round, war, full, random).
+#   --oracle         After VernHole, run Oracle Vern on synthesis + VTS tasks.
+#   --oracle-apply   Auto-apply Oracle's vision via Architect Vern (implies --oracle).
 #   --expanded       Use 7-step expanded pipeline (overrides config pipeline_mode).
 #   --extra-context FILE  Add an extra context file (can be used multiple times).
 #
@@ -32,7 +36,10 @@ DEFAULT_CONFIG="$SCRIPT_DIR/../config.default.json"
 BATCH_MODE=0
 READ_INPUT=1
 VERNHOLE_COUNT=0
+VERNHOLE_COUNCIL=""
 EXPANDED_FLAG=0
+ORACLE_FLAG=0
+ORACLE_APPLY_FLAG=0
 EXTRA_CONTEXT_FILES=()
 
 while [[ "$1" == --* ]]; do
@@ -48,6 +55,19 @@ while [[ "$1" == --* ]]; do
         --vernhole)
             VERNHOLE_COUNT="$2"
             shift 2
+            ;;
+        --vernhole-council)
+            VERNHOLE_COUNCIL="$2"
+            shift 2
+            ;;
+        --oracle)
+            ORACLE_FLAG=1
+            shift
+            ;;
+        --oracle-apply)
+            ORACLE_FLAG=1
+            ORACLE_APPLY_FLAG=1
+            shift
             ;;
         --expanded)
             EXPANDED_FLAG=1
@@ -74,6 +94,9 @@ if [ -z "$IDEA" ]; then
     echo "  --batch              Non-interactive mode (for skill/plugin use)"
     echo "  --skip-input         Don't read input/ files as context"
     echo "  --vernhole N         Run VernHole with N verns after pipeline"
+    echo "  --vernhole-council NAME  Use a named council tier (hammers, conflict, inner, round, war, full, random)"
+    echo "  --oracle             Run Oracle Vern after VernHole"
+    echo "  --oracle-apply       Auto-apply Oracle's vision via Architect Vern"
     echo "  --expanded           Use 7-step expanded pipeline"
     echo "  --extra-context FILE Add extra context file (repeatable)"
     exit 1
@@ -632,13 +655,20 @@ if [ -z "$CONSOLIDATION_FILE" ]; then
     CONSOLIDATION_FILE=$(ls "$OUTPUT_DIR"/*consolidation*.md 2>/dev/null | head -1)
 fi
 
+RAN_VERNHOLE=0
+
 if [ "$BATCH_MODE" -eq 1 ]; then
-    if [ "$VERNHOLE_COUNT" -gt 0 ]; then
+    if [ "$VERNHOLE_COUNT" -gt 0 ] || [ -n "$VERNHOLE_COUNCIL" ]; then
         echo ""
         echo "=== ENTERING THE VERNHOLE ==="
         echo "Feeding original idea + master plan into the chaos..."
         mkdir -p "$DISCOVERY_DIR/vernhole"
-        "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR/vernhole" "$VERNHOLE_COUNT" "$CONSOLIDATION_FILE"
+        if [ -n "$VERNHOLE_COUNCIL" ]; then
+            "$SCRIPT_DIR/vernhole" --council "$VERNHOLE_COUNCIL" "$IDEA" "$DISCOVERY_DIR/vernhole" "" "$CONSOLIDATION_FILE"
+        else
+            "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR/vernhole" "$VERNHOLE_COUNT" "$CONSOLIDATION_FILE"
+        fi
+        RAN_VERNHOLE=1
     fi
 else
     echo ""
@@ -649,5 +679,312 @@ else
         echo "Feeding original idea + master plan into the chaos..."
         mkdir -p "$DISCOVERY_DIR/vernhole"
         "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR/vernhole" "" "$CONSOLIDATION_FILE"
+        RAN_VERNHOLE=1
+    fi
+fi
+
+# ── Oracle Vern: bridge VernHole synthesis + VTS → oracle-vision.md ──────────
+# Only runs if VernHole was run (synthesis.md must exist)
+
+SYNTHESIS_FILE="$DISCOVERY_DIR/vernhole/synthesis.md"
+
+if [ "$RAN_VERNHOLE" -eq 1 ] && [ -f "$SYNTHESIS_FILE" ]; then
+    RUN_ORACLE=0
+    APPLY_MODE=""
+
+    if [ "$BATCH_MODE" -eq 1 ]; then
+        if [ "$ORACLE_FLAG" -eq 1 ]; then
+            RUN_ORACLE=1
+            if [ "$ORACLE_APPLY_FLAG" -eq 1 ]; then
+                APPLY_MODE="auto"
+            else
+                APPLY_MODE="manual"
+            fi
+        fi
+    else
+        echo ""
+        read -p ">>> Consult Oracle Vern on the VernHole synthesis + VTS tasks? [y/N] " RUN_ORACLE_ANSWER
+        if [[ "$RUN_ORACLE_ANSWER" =~ ^[Yy]$ ]]; then
+            RUN_ORACLE=1
+            echo ""
+            echo "How should the Oracle's vision be applied?"
+            echo "  1. manual  - Review oracle-vision.md yourself (recommended)"
+            echo "  2. auto    - Architect Vern rewrites VTS based on Oracle's vision"
+            echo "  3. skip    - Create oracle-vision.md but don't apply"
+            read -p ">>> Choose [manual/auto/skip]: " APPLY_MODE
+            case "$APPLY_MODE" in
+                auto|a|2) APPLY_MODE="auto" ;;
+                skip|s|3) APPLY_MODE="skip" ;;
+                *) APPLY_MODE="manual" ;;
+            esac
+        fi
+    fi
+
+    if [ "$RUN_ORACLE" -eq 1 ]; then
+        echo ""
+        echo "=== CONSULTING THE ORACLE ==="
+        echo "Reading the VernHole synthesis and VTS tasks..."
+
+        # Build VTS task contents
+        VTS_CONTENTS=""
+        VTS_INDEX=""
+        if [ -d "$OUTPUT_DIR/vts" ]; then
+            for vts_file in "$OUTPUT_DIR"/vts/vts-*.md; do
+                if [ -f "$vts_file" ]; then
+                    VTS_INDEX="$VTS_INDEX
+- $(basename "$vts_file")"
+                    VTS_CONTENTS="$VTS_CONTENTS
+
+=== $(basename "$vts_file") ===
+$(cat "$vts_file")"
+                fi
+            done
+        fi
+
+        SYNTHESIS_CONTENTS=$(cat "$SYNTHESIS_FILE")
+
+        ORACLE_PROMPT="You are Oracle Vern. The ancient seer who reads the patterns in the Vern council's chaos.
+
+Review these VTS tasks in light of the Vern council's synthesis. Recommend modifications: new tasks to add, tasks to modify, tasks to remove, dependency changes, complexity reassessments, and missing acceptance criteria.
+
+Output as a structured vision document with these sections:
+# Oracle Vision
+
+## Summary
+Brief overview of recommended changes.
+
+## New Tasks
+(Use ### TASK N+1: Title format — same format as the architect breakdown so it can be parsed by the VTS post-processor)
+
+## Modified Tasks
+### VTS-NNN: New Title (was: Old Title)
+**Changes:** What changed and why
+**Description:** ...
+**Acceptance Criteria:** ...
+**Complexity:** ...
+**Dependencies:** ...
+
+## Removed Tasks
+- VTS-NNN: Reason for removal
+
+## Dependency Changes
+- Describe any dependency modifications
+
+## Risk Assessment
+Remaining risks after your recommended modifications.
+
+ORIGINAL IDEA:
+$FULL_PROMPT
+
+VTS TASK INDEX:
+$VTS_INDEX
+
+VTS TASK FILES:
+$VTS_CONTENTS
+
+VERNHOLE SYNTHESIS:
+$SYNTHESIS_CONTENTS"
+
+        ORACLE_VISION_FILE="$DISCOVERY_DIR/oracle-vision.md"
+        "$VERN_RUN" claude "$ORACLE_PROMPT" "$ORACLE_VISION_FILE" "oracle"
+
+        echo ""
+        echo "Oracle vision written to: $ORACLE_VISION_FILE"
+
+        # Auto-apply: Architect Vern rewrites VTS based on Oracle's vision
+        if [ "$APPLY_MODE" = "auto" ]; then
+            echo ""
+            echo "=== APPLYING THE ORACLE'S VISION ==="
+            echo "Architect Vern is rewriting VTS tasks..."
+
+            ORACLE_VISION_CONTENTS=$(cat "$ORACLE_VISION_FILE")
+
+            ARCHITECT_APPLY_PROMPT="You are Architect Vern. The Oracle has spoken. Apply the Oracle's vision to produce an updated task breakdown.
+
+Read the Oracle's vision and the existing VTS tasks. Produce a complete, updated task breakdown incorporating the Oracle's recommendations (new tasks, modified tasks, removed tasks, dependency changes).
+
+Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched.
+
+ORACLE'S VISION:
+$ORACLE_VISION_CONTENTS
+
+EXISTING VTS TASKS:
+$VTS_CONTENTS
+
+Produce the complete updated task breakdown. Include ALL tasks (not just changed ones)."
+
+            UPDATED_ARCHITECT_FILE="$OUTPUT_DIR/oracle-architect-breakdown.md"
+            "$VERN_RUN" claude "$ARCHITECT_APPLY_PROMPT" "$UPDATED_ARCHITECT_FILE" "architect"
+
+            # Re-run VTS post-processor on the updated architect file
+            if [ -f "$UPDATED_ARCHITECT_FILE" ] && [ -s "$UPDATED_ARCHITECT_FILE" ] && command -v python3 &>/dev/null; then
+                echo ""
+                echo ">>> Re-splitting updated architect breakdown into VTS task files..."
+                # Clear old VTS files
+                rm -f "$OUTPUT_DIR"/vts/vts-*.md
+                ARCHITECT_FILE="$UPDATED_ARCHITECT_FILE" FORMAT_DIR="$OUTPUT_DIR/vts" python3 << 'PYEOF'
+import re, os, sys
+
+architect_file = os.environ['ARCHITECT_FILE']
+format_dir = os.environ['FORMAT_DIR']
+
+with open(architect_file) as f:
+    content = f.read()
+
+task_pattern = re.compile(r'^#{2,3}\s+Task\s+(\d+)\s*[:\.—]\s*(.+)', re.MULTILINE | re.IGNORECASE)
+matches = list(task_pattern.finditer(content))
+
+if not matches:
+    print("  No tasks found in updated architect breakdown, skipping split")
+    sys.exit(0)
+
+header = content[:matches[0].start()].rstrip('\n- ')
+
+footer = ''
+last_task_pos = matches[-1].start()
+remaining = content[last_task_pos:]
+footer_match = re.search(r'^## (?!#)', remaining, re.MULTILINE)
+if footer_match:
+    footer_abs = last_task_pos + footer_match.start()
+    pre = content[:footer_abs].rstrip()
+    if pre.endswith('---'):
+        footer_abs = len(pre) - 3
+    footer = content[footer_abs:].lstrip('-').strip()
+else:
+    footer_abs = len(content)
+
+tasks = []
+for idx, match in enumerate(matches):
+    task_num = int(match.group(1))
+    task_title = match.group(2).strip()
+    start = match.start()
+    end = matches[idx + 1].start() if idx + 1 < len(matches) else footer_abs
+    task_body = content[start:end].rstrip()
+    if task_body.endswith('---'):
+        task_body = task_body[:-3].rstrip()
+    tasks.append((task_num, task_title, task_body))
+
+def slugify(s):
+    return re.sub(r'-+', '-', re.sub(r'[^a-z0-9]+', '-', s.lower())).strip('-')
+
+def extract_field(body, field):
+    m = re.search(r'\*\*' + field + r':\*\*\s*(.+)', body)
+    return m.group(1).strip() if m else ''
+
+def extract_list(body, field):
+    m = re.search(r'\*\*' + field + r':\*\*\s*(.+)', body)
+    if m:
+        val = m.group(1).strip()
+        if val.lower() not in ('none', 'n/a', '-', ''):
+            return [v.strip().lstrip('- ') for v in re.split(r'[,;]', val) if v.strip()]
+    m = re.search(r'\*\*' + field + r':\*\*\s*\n((?:\s*[-*]\s+.+\n?)+)', body)
+    if m:
+        return [line.strip().lstrip('-* ') for line in m.group(1).strip().split('\n') if line.strip()]
+    return []
+
+def extract_dependencies(body):
+    deps_raw = extract_field(body, 'Dependencies')
+    if not deps_raw or deps_raw.lower() in ('none', 'n/a', '-'):
+        return []
+    nums = re.findall(r'(?:Task\s+|#)(\d+)', deps_raw, re.IGNORECASE)
+    return ['VTS-{:03d}'.format(int(n)) for n in nums]
+
+def extract_files(body):
+    files_raw = extract_list(body, 'Files')
+    if files_raw:
+        return files_raw
+    for variant in ('Files Touched', 'Files Affected', 'Key Files'):
+        files_raw = extract_list(body, variant)
+        if files_raw:
+            return files_raw
+    return []
+
+os.makedirs(format_dir, exist_ok=True)
+for task_num, task_title, task_body in tasks:
+    task_id = 'VTS-{:03d}'.format(task_num)
+    complexity = extract_field(task_body, 'Complexity') or '?'
+    cx_upper = complexity.upper().strip('*').strip()
+    if cx_upper in ('S', 'M', 'L', 'XL'):
+        complexity = cx_upper
+    deps = extract_dependencies(task_body)
+    criteria = extract_list(task_body, 'Acceptance Criteria')
+    files = extract_files(task_body)
+
+    desc_match = re.search(r'^#{2,3}\s+Task\s+\d+.*\n+(.*?)(?=\n\*\*|\Z)', task_body, re.DOTALL | re.IGNORECASE)
+    description = ''
+    if desc_match:
+        description = desc_match.group(1).strip()
+    desc_field = extract_field(task_body, 'Description')
+    if desc_field:
+        description = desc_field
+
+    vts_lines = ['---']
+    vts_lines.append('id: {}'.format(task_id))
+    vts_lines.append('title: "{}"'.format(task_title.replace('"', '\\"')))
+    vts_lines.append('complexity: {}'.format(complexity))
+    vts_lines.append('status: pending')
+    vts_lines.append('owner: ""')
+    vts_lines.append('source: oracle')
+    vts_lines.append('source_ref: "{}"'.format(os.path.basename(architect_file)))
+    if deps:
+        vts_lines.append('dependencies:')
+        for d in deps:
+            vts_lines.append('  - {}'.format(d))
+    else:
+        vts_lines.append('dependencies: []')
+    if files:
+        vts_lines.append('files:')
+        for fp in files:
+            vts_lines.append('  - "{}"'.format(fp))
+    else:
+        vts_lines.append('files: []')
+    vts_lines.append('---')
+    vts_lines.append('')
+    vts_lines.append('# {}'.format(task_title))
+    vts_lines.append('')
+    if description:
+        vts_lines.append(description)
+        vts_lines.append('')
+    if criteria:
+        vts_lines.append('## Criteria')
+        vts_lines.append('')
+        for c in criteria:
+            vts_lines.append('- {}'.format(c))
+        vts_lines.append('')
+
+    filename = "vts-{:03d}-{}.md".format(task_num, slugify(task_title))
+    with open(os.path.join(format_dir, filename), 'w') as f:
+        f.write('\n'.join(vts_lines))
+    print("  Created: vts/{}".format(filename))
+
+lines = []
+lines.append("| ID | Task | Complexity | Dependencies |")
+lines.append("|----|------|------------|--------------|")
+for task_num, task_title, task_body in tasks:
+    task_id = 'VTS-{:03d}'.format(task_num)
+    cx = extract_field(task_body, 'Complexity') or '?'
+    deps = extract_dependencies(task_body)
+    dep_str = ', '.join(deps) if deps else 'None'
+    lines.append("| {} | {} | {} | {} |".format(task_id, task_title, cx, dep_str))
+task_index = '\n'.join(lines)
+
+with open(architect_file, 'w') as f:
+    f.write(header + '\n\n')
+    f.write("## VTS Task Index (Oracle-Updated)\n\n")
+    f.write("Individual VTS files: `vts/`\n\n")
+    f.write(task_index + '\n')
+    if footer:
+        f.write('\n' + footer + '\n')
+
+print("  Rewrote {} as summary ({} VTS tasks extracted)".format(
+    os.path.basename(architect_file), len(tasks)))
+PYEOF
+            fi
+
+            echo ""
+            echo "Oracle's vision applied. Updated VTS files in: $OUTPUT_DIR/vts/"
+        elif [ "$APPLY_MODE" = "manual" ]; then
+            echo "Review oracle-vision.md and update VTS files manually."
+        fi
     fi
 fi

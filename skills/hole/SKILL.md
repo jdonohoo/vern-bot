@@ -10,17 +10,28 @@ You've entered the VernHole. There's no going back. Only through.
 
 **WARNING:** You asked for this.
 
-## Step 1: How Deep Do You Want to Go?
+## Step 1: Choose Your Council
 
 Before summoning the council, ask the user using AskUserQuestion:
 
-> "How many Verns do you want to summon? (min 5, the more the merrier)"
+> "Which council do you want to summon?"
 
 Options:
-- **All 13** (Recommended) - Summon every Vern. Maximum perspectives, maximum chaos. The more the merrier.
-- **7-9 Verns** - Solid chaos. Plenty of contradictions and insights.
-- **5-6 Verns** - A focused council. Diverse but manageable.
-- **Random** - Let fate decide (5-13)
+- **Fate's Hand (random)** (Recommended) - Random count (3 to all), random selection. Let fate decide.
+- **Council of the Three Hammers** - Always great + mediocre + ketamine. The essential trio.
+- **Max Conflict** - startup, enterprise, yolo, paranoid, optimist, inverse. Maximum contradiction.
+- **The Full Vern Experience** - Every summonable persona speaks. All 15.
+
+If the user wants finer control, they can also specify: `inner` (3-5, architect-led), `round` (6-9, round table), or `war` (10-13, war room).
+
+Map their choice to a council name:
+- Fate's Hand / random → `random`
+- Council of the Three Hammers → `hammers`
+- Max Conflict → `conflict`
+- The Full Vern Experience → `full`
+- The Inner Circle → `inner`
+- The Round Table → `round`
+- The War Room → `war`
 
 ## Step 2: Output Location
 
@@ -39,32 +50,42 @@ Options:
 The script is located at `bin/vernhole` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
 
 ```bash
-{plugin_root}/bin/vernhole "<idea>" "<output_dir>" "<num_verns>" ["<context_file>"]
+{plugin_root}/bin/vernhole --council "<council_name>" "<idea>" "<output_dir>" "" ["<context_file>"]
 ```
 
 Arguments:
 - **idea**: The user's idea/task from `$ARGUMENTS`
 - **output_dir**: The directory from step 2
-- **num_verns**: Based on step 1 choice:
-  - All 13 → pass `13`
-  - 7-9 → pick a random number 7-9
-  - 5-6 → pick a random number 5-6
-  - Random → leave empty (script picks 5-13)
+- **council_name**: From step 1 (hammers, conflict, inner, round, war, full, random)
 - **context_file** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
+
+For backward compat, you can also pass a bare number as the third positional arg instead of using --council.
 
 ### Important:
 - Use a long timeout (at least 600000ms / 10 minutes) for the Bash call — the script spawns multiple LLM subprocesses (one per Vern plus synthesis)
 - The script handles ALL file creation, directory setup, and LLM calls internally
 - Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
 
+## The Councils
+
+| Council | Count | Personas |
+|---------|-------|----------|
+| Council of the Three Hammers | 3 (fixed) | great, mediocre, ketamine |
+| Max Conflict | 6 (fixed) | startup, enterprise, yolo, paranoid, optimist, inverse |
+| The Inner Circle | 3-5 | architect, inverse, paranoid + random fill |
+| The Round Table | 6-9 | mighty, yolo, startup, academic, enterprise + random fill |
+| The War Room | 10-13 | all round table + ux, retro, optimist, nyquil + random fill |
+| The Full Vern Experience | all (15) | Every summonable persona |
+| Fate's Hand | random | Random count (3 to all), random selection |
+
 ## The Vern Roster (dynamic)
 
-The roster is built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md`). As new personas are added, they join the VernHole automatically. The `bin/vernhole` script scans agent files at runtime.
+The roster is built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md` and `oracle.md`). As new personas are added, they join the VernHole automatically. The `bin/vernhole` script scans agent files at runtime.
 
 ## Step 4: Report Results
 
 After the script completes, tell the user:
-- Which Verns were summoned
+- Which council was summoned and which Verns were selected
 - Read and briefly summarize the synthesis from the `synthesis.md` file
 - Where all output files are located
 - Key themes and contradictions that emerged
