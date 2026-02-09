@@ -59,13 +59,7 @@ Ask the user using AskUserQuestion:
    - `Default (5-step)` — Analysis → Refinement → Chaos Check → Consolidation → Architect (Recommended)
    - `Expanded (7-step)` — Adds Reality Check (Vern the Mediocre) and MVP Lens (Startup Vern) before consolidation
 
-2. **Output format**: What deliverable format?
-   - `tasks` - Simple task list (Recommended)
-   - `issues` - GitHub Issues
-   - `tickets` - Jira-style tickets
-   - `beads` - Beads format
-
-3. **VernHole**: Run VernHole on the result after pipeline completes?
+2. **VernHole**: Run VernHole on the result after pipeline completes?
    - **No, just the pipeline** (Recommended)
    - **Yes, 5-6 Verns** (focused council)
    - **Yes, 7-9 Verns** (getting chaotic)
@@ -86,8 +80,7 @@ Build the command:
   [--vernhole N]                          # if user wants VernHole (pick random N in their range)
   [--extra-context /path/to/file ...]     # for each extra context file the user provided
   "<idea prompt>" \
-  "<discovery_dir>" \
-  "<output_format>"
+  "<discovery_dir>"
 ```
 
 ### Flag mapping:
@@ -95,7 +88,6 @@ Build the command:
 - User said **no** to reading input files → add `--skip-input`
 - User said **yes** to VernHole → add `--vernhole N` where N is a random number in their chosen range (5-6, 7-9, or 10-12)
 - User provided extra files → add `--extra-context /path/to/file` for each one
-- Output format from step 3 → last positional argument
 
 ### Important:
 - Use a long timeout (at least 600000ms / 10 minutes) for the Bash call — the pipeline spawns multiple LLM subprocesses
@@ -185,8 +177,8 @@ discovery/{name}/
 │   ├── 03-yolo-chaos-check.md
 │   ├── 04-mighty-consolidation.md
 │   ├── 05-architect-architect-breakdown.md
-│   └── {format}/                          # tasks/ or issues/ or tickets/
-│       ├── 001-item.md
+│   └── vts/                               # Vern Task Spec files
+│       ├── vts-001-{slug}.md
 │       └── ...
 └── vernhole/                              # Only if user opted in
     ├── 01-{persona}.md
@@ -207,7 +199,7 @@ discovery/{name}/
 │   ├── 05-startup-mvp-lens.md
 │   ├── 06-mighty-consolidation.md
 │   ├── 07-architect-architect-breakdown.md
-│   └── {format}/
+│   └── vts/
 └── vernhole/
 ```
 

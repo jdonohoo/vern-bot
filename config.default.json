@@ -46,7 +46,7 @@
         "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
-        "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+        "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable Vern Task Spec (VTS) tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched. Think in systems. Consider failure modes. Make it maintainable."
       }
     ],
     "expanded": [
@@ -104,7 +104,7 @@
         "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
-        "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+        "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable Vern Task Spec (VTS) tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched. Think in systems. Consider failure modes. Make it maintainable."
       }
     ]
   },

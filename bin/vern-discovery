@@ -4,11 +4,11 @@
 #
 # Usage:
 #   Interactive:
-#     vern-discovery "<idea>" [discovery_dir] [output_format]
+#     vern-discovery "<idea>" [discovery_dir]
 #
 #   Batch (non-interactive, for skill/plugin use):
-#     vern-discovery --batch "<idea>" [discovery_dir] [output_format]
-#     vern-discovery --batch --skip-input --vernhole 8 "<idea>" [discovery_dir] [output_format]
+#     vern-discovery --batch "<idea>" [discovery_dir]
+#     vern-discovery --batch --skip-input --vernhole 8 "<idea>" [discovery_dir]
 #
 # Flags:
 #   --batch          Non-interactive mode. Auto-reads input files, skips prompts.
@@ -66,10 +66,9 @@ done
 
 IDEA="$1"
 DISCOVERY_DIR="$2"
-OUTPUT_FORMAT="${3:-tasks}"
 
 if [ -z "$IDEA" ]; then
-    echo "Usage: vern-discovery [flags] \"<idea>\" [discovery_dir] [output_format]"
+    echo "Usage: vern-discovery [flags] \"<idea>\" [discovery_dir]"
     echo ""
     echo "Flags:"
     echo "  --batch              Non-interactive mode (for skill/plugin use)"
@@ -161,7 +160,7 @@ if [ -z "$PIPELINE_TOTAL" ] || [ "$PIPELINE_TOTAL" -eq 0 ]; then
         STEP_6_NAME="Consolidation";       STEP_6_LLM="codex";   STEP_6_PERSONA="mighty";    STEP_6_CONTEXT_MODE="all_previous"
         STEP_6_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
         STEP_7_NAME="Architect Breakdown";  STEP_7_LLM="claude";  STEP_7_PERSONA="architect"; STEP_7_CONTEXT_MODE="consolidation"
-        STEP_7_PROMPT="You are Architect Vern. Break down this master plan into actionable tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+        STEP_7_PROMPT="You are Architect Vern. Break down this master plan into actionable Vern Task Spec (VTS) tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched. Think in systems. Consider failure modes. Make it maintainable."
     else
         PIPELINE_MODE="default"
         PIPELINE_TOTAL=5
@@ -174,7 +173,7 @@ if [ -z "$PIPELINE_TOTAL" ] || [ "$PIPELINE_TOTAL" -eq 0 ]; then
         STEP_4_NAME="Consolidation";       STEP_4_LLM="codex";   STEP_4_PERSONA="mighty";    STEP_4_CONTEXT_MODE="all_previous"
         STEP_4_PROMPT="You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."
         STEP_5_NAME="Architect Breakdown";  STEP_5_LLM="claude";  STEP_5_PERSONA="architect"; STEP_5_CONTEXT_MODE="consolidation"
-        STEP_5_PROMPT="You are Architect Vern. Break down this master plan into actionable tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: description, acceptance criteria, complexity (S/M/L/XL), dependencies. Think in systems. Consider failure modes. Make it maintainable."
+        STEP_5_PROMPT="You are Architect Vern. Break down this master plan into actionable Vern Task Spec (VTS) tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched. Think in systems. Consider failure modes. Make it maintainable."
     fi
 fi
 
@@ -201,7 +200,7 @@ OUTPUT_DIR="$DISCOVERY_DIR/output"
 echo "=== VERN DISCOVERY PIPELINE ==="
 echo "Idea: $IDEA"
 echo "Discovery folder: $DISCOVERY_DIR"
-echo "Format: $OUTPUT_FORMAT"
+echo "Output: Vern Task Spec (VTS)"
 echo "Pipeline mode: $PIPELINE_MODE ($PIPELINE_TOTAL steps)"
 if [ "$BATCH_MODE" -eq 1 ]; then
     echo "Mode: batch (non-interactive)"
@@ -222,7 +221,7 @@ echo ""
 
 # Create directory structure
 mkdir -p "$INPUT_DIR"
-mkdir -p "$OUTPUT_DIR/$OUTPUT_FORMAT"
+mkdir -p "$OUTPUT_DIR/vts"
 
 # Save prompt if prompt.md doesn't already exist
 if [ ! -f "$INPUT_DIR/prompt.md" ]; then
@@ -391,8 +390,6 @@ $all_context"
             fi
             run_prompt="$step_prompt
 
-Format: $OUTPUT_FORMAT
-
 ORIGINAL REQUEST:
 $FULL_PROMPT
 
@@ -423,17 +420,17 @@ $prev_output"
     eval "STEP_${i}_OUTPUT_FILE=\"$output_file\""
 done
 
-# ── Post-processing: split architect breakdown into individual task files ─────
+# ── Post-processing: split architect breakdown into VTS task files ────────────
 # The last step (architect breakdown) outputs tasks in a single file. Split them
-# into individual files in $OUTPUT_DIR/$OUTPUT_FORMAT/ and rewrite the main file
-# as a summary with a task index + dependency graph + failure modes.
+# into individual Vern Task Spec (VTS) files in $OUTPUT_DIR/vts/ and rewrite
+# the main file as a summary with a task index.
 
 ARCHITECT_FILE=$(get_step_var "$PIPELINE_TOTAL" OUTPUT_FILE)
 
 if [ -f "$ARCHITECT_FILE" ] && [ -s "$ARCHITECT_FILE" ] && command -v python3 &>/dev/null; then
     echo ""
-    echo ">>> Splitting architect breakdown into individual $OUTPUT_FORMAT files..."
-    ARCHITECT_FILE="$ARCHITECT_FILE" FORMAT_DIR="$OUTPUT_DIR/$OUTPUT_FORMAT" python3 << 'PYEOF'
+    echo ">>> Splitting architect breakdown into VTS task files..."
+    ARCHITECT_FILE="$ARCHITECT_FILE" FORMAT_DIR="$OUTPUT_DIR/vts" python3 << 'PYEOF'
 import re, os, sys
 
 architect_file = os.environ['ARCHITECT_FILE']
@@ -486,37 +483,133 @@ for idx, match in enumerate(matches):
 def slugify(s):
     return re.sub(r'-+', '-', re.sub(r'[^a-z0-9]+', '-', s.lower())).strip('-')
 
-# Write individual task files
+def extract_field(body, field):
+    """Extract a markdown bold field value from task body."""
+    m = re.search(r'\*\*' + field + r':\*\*\s*(.+)', body)
+    return m.group(1).strip() if m else ''
+
+def extract_list(body, field):
+    """Extract a markdown bold field followed by a bullet list."""
+    # Try inline list first (comma-separated)
+    m = re.search(r'\*\*' + field + r':\*\*\s*(.+)', body)
+    if m:
+        val = m.group(1).strip()
+        if val.lower() not in ('none', 'n/a', '-', ''):
+            return [v.strip().lstrip('- ') for v in re.split(r'[,;]', val) if v.strip()]
+    # Try bullet list after the header
+    m = re.search(r'\*\*' + field + r':\*\*\s*\n((?:\s*[-*]\s+.+\n?)+)', body)
+    if m:
+        return [line.strip().lstrip('-* ') for line in m.group(1).strip().split('\n') if line.strip()]
+    return []
+
+def extract_dependencies(body):
+    """Extract dependency task IDs from body."""
+    deps_raw = extract_field(body, 'Dependencies')
+    if not deps_raw or deps_raw.lower() in ('none', 'n/a', '-'):
+        return []
+    # Extract task numbers like "Task 1", "Task 2, Task 3", "#1, #2"
+    nums = re.findall(r'(?:Task\s+|#)(\d+)', deps_raw, re.IGNORECASE)
+    return ['VTS-{:03d}'.format(int(n)) for n in nums]
+
+def extract_files(body):
+    """Extract file paths mentioned in the task body."""
+    files_raw = extract_list(body, 'Files')
+    if files_raw:
+        return files_raw
+    # Also try "Files Touched" or "Files Affected"
+    for variant in ('Files Touched', 'Files Affected', 'Key Files'):
+        files_raw = extract_list(body, variant)
+        if files_raw:
+            return files_raw
+    return []
+
+# Write individual VTS task files
 os.makedirs(format_dir, exist_ok=True)
 for task_num, task_title, task_body in tasks:
-    filename = "task-{:02d}-{}.md".format(task_num, slugify(task_title))
+    task_id = 'VTS-{:03d}'.format(task_num)
+    complexity = extract_field(task_body, 'Complexity') or '?'
+    # Normalize complexity to valid values
+    cx_upper = complexity.upper().strip('*').strip()
+    if cx_upper in ('S', 'M', 'L', 'XL'):
+        complexity = cx_upper
+    deps = extract_dependencies(task_body)
+    criteria = extract_list(task_body, 'Acceptance Criteria')
+    files = extract_files(task_body)
+
+    # Extract description (text after title, before first bold field)
+    desc_match = re.search(r'^#{2,3}\s+Task\s+\d+.*\n+(.*?)(?=\n\*\*|\Z)', task_body, re.DOTALL | re.IGNORECASE)
+    description = ''
+    if desc_match:
+        description = desc_match.group(1).strip()
+    # Also try **Description:** field
+    desc_field = extract_field(task_body, 'Description')
+    if desc_field:
+        description = desc_field
+
+    # Build VTS frontmatter
+    vts_lines = ['---']
+    vts_lines.append('id: {}'.format(task_id))
+    vts_lines.append('title: "{}"'.format(task_title.replace('"', '\\"')))
+    vts_lines.append('complexity: {}'.format(complexity))
+    vts_lines.append('status: pending')
+    vts_lines.append('owner: ""')
+    vts_lines.append('source: discovery')
+    vts_lines.append('source_ref: "{}"'.format(os.path.basename(architect_file)))
+    if deps:
+        vts_lines.append('dependencies:')
+        for d in deps:
+            vts_lines.append('  - {}'.format(d))
+    else:
+        vts_lines.append('dependencies: []')
+    if files:
+        vts_lines.append('files:')
+        for fp in files:
+            vts_lines.append('  - "{}"'.format(fp))
+    else:
+        vts_lines.append('files: []')
+    vts_lines.append('---')
+    vts_lines.append('')
+
+    # Body: description + criteria
+    vts_lines.append('# {}'.format(task_title))
+    vts_lines.append('')
+    if description:
+        vts_lines.append(description)
+        vts_lines.append('')
+    if criteria:
+        vts_lines.append('## Criteria')
+        vts_lines.append('')
+        for c in criteria:
+            vts_lines.append('- {}'.format(c))
+        vts_lines.append('')
+
+    filename = "vts-{:03d}-{}.md".format(task_num, slugify(task_title))
     with open(os.path.join(format_dir, filename), 'w') as f:
-        f.write(task_body + '\n')
-    print("  Created: {}/{}".format(os.path.basename(format_dir), filename))
+        f.write('\n'.join(vts_lines))
+    print("  Created: vts/{}".format(filename))
 
 # Build task index table for the summary
 lines = []
-lines.append("| # | Task | Complexity | Dependencies |")
-lines.append("|---|------|------------|--------------|")
+lines.append("| ID | Task | Complexity | Dependencies |")
+lines.append("|----|------|------------|--------------|")
 for task_num, task_title, task_body in tasks:
-    cx = re.search(r'\*\*Complexity:\*\*\s*(\S+)', task_body)
-    dp = re.search(r'\*\*Dependencies:\*\*\s*(.+)', task_body)
-    lines.append("| {} | {} | {} | {} |".format(
-        task_num, task_title,
-        cx.group(1) if cx else '?',
-        dp.group(1).strip() if dp else 'None'))
+    task_id = 'VTS-{:03d}'.format(task_num)
+    cx = extract_field(task_body, 'Complexity') or '?'
+    deps = extract_dependencies(task_body)
+    dep_str = ', '.join(deps) if deps else 'None'
+    lines.append("| {} | {} | {} | {} |".format(task_id, task_title, cx, dep_str))
 task_index = '\n'.join(lines)
 
 # Rewrite the architect file as a summary
 with open(architect_file, 'w') as f:
     f.write(header + '\n\n')
-    f.write("## Task Index\n\n")
-    f.write("Individual task files: `{}/`\n\n".format(os.path.basename(format_dir)))
+    f.write("## VTS Task Index\n\n")
+    f.write("Individual VTS files: `vts/`\n\n")
     f.write(task_index + '\n')
     if footer:
         f.write('\n' + footer + '\n')
 
-print("  Rewrote {} as summary ({} tasks extracted)".format(
+print("  Rewrote {} as summary ({} VTS tasks extracted)".format(
     os.path.basename(architect_file), len(tasks)))
 PYEOF
 fi

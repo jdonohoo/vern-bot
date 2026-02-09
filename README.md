@@ -208,7 +208,7 @@ discovery/{name}/
 │   ├── 03-yolo-chaos-check.md       # (or 03-mediocre-reality-check.md in expanded)
 │   ├── 04-mighty-consolidation.md   # (or 06-... in expanded)
 │   ├── 05-architect-architect-breakdown.md  # (or 07-... in expanded)
-│   └── tasks/                 # (or issues/ tickets/ beads/)
+│   └── vts/                   # Vern Task Spec files
 └── vernhole/                  # Only if you opted in
 ```
 
