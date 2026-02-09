@@ -1108,7 +1108,7 @@ Config saved to ~/.claude/vern-bot-config.json</div>
                 <ul style="color: var(--text-muted); font-size: 0.85rem; margin-left: 20px; line-height: 1.8;">
                     <li><strong style="color: var(--text);">20-min timeout</strong> per step &mdash; configurable via config or <code>VERN_TIMEOUT</code> env var</li>
                     <li><strong style="color: var(--text);"><code>--resume-from N</code></strong> &mdash; restart from step N after a failure</li>
-                    <li><strong style="color: var(--text);"><code>--max-retries N</code></strong> &mdash; retry failed steps with automatic claude fallback on timeout</li>
+                    <li><strong style="color: var(--text);"><code>--max-retries N</code></strong> &mdash; retry failed steps (default: 2). Non-claude LLMs fall back to claude after exhausting retries</li>
                     <li><strong style="color: var(--text);">Pipeline log</strong> &mdash; <code>output/pipeline.log</code> with per-step status, timestamps, exit codes</li>
                     <li><strong style="color: var(--text);">Status file</strong> &mdash; <code>output/pipeline-status.md</code> with human-readable progress summary, step results table, and resume hints</li>
                     <li><strong style="color: var(--text);">Downstream guards</strong> &mdash; VTS, VernHole, Oracle auto-skip when upstream fails</li>
@@ -1209,7 +1209,7 @@ Resuming from: step 3
             </div>
 
             <div class="tip-box">
-                <strong>Recovery:</strong> Every run writes <code>output/pipeline.log</code> and <code>output/pipeline-status.md</code> with per-step status. Failed steps print a <code>--resume-from</code> hint. Use <code>--max-retries 2</code> for extra resilience &mdash; on timeout, non-claude LLMs automatically fall back to claude.
+                <strong>Recovery:</strong> Every run writes <code>output/pipeline.log</code> and <code>output/pipeline-status.md</code> with per-step status. If gemini or codex fails after retries, the step automatically falls back to claude. Failed steps that can't recover print a <code>--resume-from</code> hint.
             </div>
         </div>
 

@@ -207,7 +207,7 @@ Pipelines are **failure-tolerant**. A single LLM step failure won't kill your en
 |---------|-------------|
 | **20-min timeout** | Each step has a 20-minute watchdog. Configurable via `timeout_seconds` in config or `VERN_TIMEOUT` env var. |
 | **`--resume-from N`** | Resume a pipeline from step N after a failure. Skips completed steps, preserves context chaining. |
-| **`--max-retries N`** | Retry failed steps (default: 1 retry). On timeout, non-claude LLMs automatically fall back to claude. |
+| **`--max-retries N`** | Retry failed steps (default: 2 retries). Non-claude LLMs (gemini, codex) automatically fall back to claude after exhausting retries. |
 | **Pipeline log** | `output/pipeline.log` tracks per-step status (OK/FAILED/SKIPPED), timestamps, exit codes, and retry counts. |
 | **Pipeline status** | `output/pipeline-status.md` provides a human-readable progress summary with step results table, durations, output sizes, and resume hints. |
 | **Failure markers** | Failed steps write a `# STEP FAILED` marker instead of halting. Downstream steps continue. |
@@ -217,8 +217,8 @@ Pipelines are **failure-tolerant**. A single LLM step failure won't kill your en
 # Resume from step 3 after fixing an issue
 /vern:discovery --batch --resume-from 3 "my idea" ./discovery/my-project
 
-# Set max retries to 2
-/vern:discovery --batch --max-retries 2 "my idea"
+# Set max retries to 3
+/vern:discovery --batch --max-retries 3 "my idea"
 
 # Override timeout (in seconds) via environment
 VERN_TIMEOUT=600 bin/vern-run claude "say hello"

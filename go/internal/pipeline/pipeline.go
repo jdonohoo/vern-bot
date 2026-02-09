@@ -208,10 +208,12 @@ func (p *Pipeline) execute(mode string) error {
 			p.consolidation = outputFile
 		}
 
-		// Retry loop
+		// Retry loop with claude fallback
 		succeeded := false
+		originalLLM := step.LLM
 		retryLLM := step.LLM
 		retryPersona := step.Persona
+		fellBack := false
 		totalAttempts := opts.MaxRetries + 1
 		var lastExitCode int
 		var attemptCount int
@@ -219,7 +221,7 @@ func (p *Pipeline) execute(mode string) error {
 
 		for attempt := 1; attempt <= totalAttempts; attempt++ {
 			if attempt > 1 {
-				fmt.Printf("    Retry %d/%d for step %d (%s)...\n", attempt-1, opts.MaxRetries, stepNum, step.Name)
+				fmt.Printf("    Retry %d/%d for step %d (%s) with %s...\n", attempt-1, opts.MaxRetries, stepNum, step.Name, retryLLM)
 				p.log("Step %d (%s): retry %d/%d with %s", stepNum, step.Name, attempt-1, opts.MaxRetries, retryLLM)
 			}
 
@@ -241,18 +243,55 @@ func (p *Pipeline) execute(mode string) error {
 				break
 			}
 
-			// On timeout with non-claude LLM, fall back to claude
+			// On timeout with non-claude LLM, fall back to claude immediately (don't waste more timeout cycles)
 			if result.ExitCode == llm.ExitTimeout && retryLLM != "claude" {
-				fmt.Printf("    Timeout on %s — falling back to claude for retry\n", retryLLM)
-				p.log("Step %d (%s): timeout on %s, falling back to claude", stepNum, step.Name, retryLLM)
+				fmt.Printf("    Timeout on %s — falling back to claude\n", retryLLM)
+				p.log("Step %d (%s): timeout on %s after %s, falling back to claude", stepNum, step.Name, retryLLM, result.Duration.Truncate(time.Second))
 				retryLLM = "claude"
+				fellBack = true
+			}
+		}
+
+		// Claude fallback: if all retries failed with a non-claude LLM, try claude as final safety net
+		if !succeeded && retryLLM != "claude" {
+			fmt.Printf("    %s failed after %d attempt(s) — falling back to claude\n", originalLLM, totalAttempts)
+			p.log("Step %d (%s): %s FAILED after %d attempt(s) (last exit %d), falling back to claude",
+				stepNum, step.Name, originalLLM, totalAttempts, lastExitCode)
+
+			retryLLM = "claude"
+			fellBack = true
+
+			result, _ := llm.Run(llm.RunOptions{
+				LLM:        "claude",
+				Prompt:     runPrompt,
+				OutputFile:  outputFile,
+				Persona:    retryPersona,
+				Timeout:    time.Duration(opts.Timeout) * time.Second,
+				AgentsDir:  opts.AgentsDir,
+			})
+
+			attemptCount++
+			lastExitCode = result.ExitCode
+			duration = result.Duration
+
+			if result.ExitCode == 0 && !IsFailedOutput(outputFile) {
+				succeeded = true
+				fmt.Printf("    Claude fallback succeeded\n")
+				p.log("Step %d (%s): claude fallback OK after %s failed", stepNum, step.Name, originalLLM)
+			} else {
+				p.log("Step %d (%s): claude fallback also FAILED (exit %d)", stepNum, step.Name, result.ExitCode)
 			}
 		}
 
 		if succeeded {
 			outputBytes := fileSize(outputFile)
-			fmt.Printf("    OK (%s, %d bytes, %s)\n", retryLLM, outputBytes, duration.Truncate(time.Second))
-			p.log("Step %d (%s): OK (exit %d, attempt %d, llm=%s, %d bytes)", stepNum, step.Name, lastExitCode, attemptCount, retryLLM, outputBytes)
+			if fellBack {
+				fmt.Printf("    OK (%s→claude fallback, %d bytes, %s)\n", originalLLM, outputBytes, duration.Truncate(time.Second))
+				p.log("Step %d (%s): OK via claude fallback (original=%s, attempt %d, %d bytes)", stepNum, step.Name, originalLLM, attemptCount, outputBytes)
+			} else {
+				fmt.Printf("    OK (%s, %d bytes, %s)\n", retryLLM, outputBytes, duration.Truncate(time.Second))
+				p.log("Step %d (%s): OK (exit %d, attempt %d, llm=%s, %d bytes)", stepNum, step.Name, lastExitCode, attemptCount, retryLLM, outputBytes)
+			}
 			p.results[idx] = StepResult{
 				StepNum:     stepNum,
 				Name:        step.Name,
@@ -261,16 +300,18 @@ func (p *Pipeline) execute(mode string) error {
 				ExitCode:    lastExitCode,
 				Attempts:    attemptCount,
 				LLMUsed:     retryLLM,
+				OriginalLLM: originalLLM,
+				FellBack:    fellBack,
 				DurationMS:  duration.Milliseconds(),
 				OutputBytes: outputBytes,
 			}
 		} else {
-			fmt.Printf("    FAILED after %d attempts (last exit: %d)\n", totalAttempts, lastExitCode)
-			p.log("Step %d (%s): FAILED (exit %d, %d attempts)", stepNum, step.Name, lastExitCode, totalAttempts)
+			fmt.Printf("    FAILED after %d attempts including claude fallback (last exit: %d)\n", attemptCount, lastExitCode)
+			p.log("Step %d (%s): FAILED (exit %d, %d attempts, original=%s, final=%s)", stepNum, step.Name, lastExitCode, attemptCount, originalLLM, retryLLM)
 
 			// Write failure marker
-			failureContent := fmt.Sprintf("# STEP FAILED\n\nStep %d (%s) failed after %d attempt(s).\nLast exit code: %d\nLLM: %s\n\nRe-run with: --resume-from %d\n",
-				stepNum, step.Name, totalAttempts, lastExitCode, retryLLM, stepNum)
+			failureContent := fmt.Sprintf("# STEP FAILED\n\nStep %d (%s) failed after %d attempt(s).\nOriginal LLM: %s\nFinal LLM: %s (fallback)\nLast exit code: %d\n\nRe-run with: --resume-from %d\n",
+				stepNum, step.Name, attemptCount, originalLLM, retryLLM, lastExitCode, stepNum)
 			os.WriteFile(outputFile, []byte(failureContent), 0644)
 
 			failedSteps = append(failedSteps, stepNum)
@@ -282,6 +323,8 @@ func (p *Pipeline) execute(mode string) error {
 				ExitCode:    lastExitCode,
 				Attempts:    attemptCount,
 				LLMUsed:     retryLLM,
+				OriginalLLM: originalLLM,
+				FellBack:    fellBack,
 				DurationMS:  duration.Milliseconds(),
 				OutputBytes: 0,
 			}
@@ -744,6 +787,9 @@ func (p *Pipeline) writeStatus(phase string, failedSteps []int) {
 		switch status {
 		case "ok":
 			completedSteps++
+			if r.FellBack {
+				status = fmt.Sprintf("ok (fallback: %s→claude)", r.OriginalLLM)
+			}
 		case "failed":
 			status = fmt.Sprintf("FAILED (exit %d, %d attempts)", r.ExitCode, r.Attempts)
 		}
@@ -762,13 +808,16 @@ func (p *Pipeline) writeStatus(phase string, failedSteps []int) {
 			}
 		}
 
-		llm := r.LLMUsed
-		if llm == "" {
-			llm = "-"
+		llmCol := r.LLMUsed
+		if llmCol == "" {
+			llmCol = "-"
+		}
+		if r.FellBack {
+			llmCol = fmt.Sprintf("~~%s~~ → claude", r.OriginalLLM)
 		}
 
 		b.WriteString(fmt.Sprintf("| %d | %s | %s | %s | %s | %s |\n",
-			r.StepNum, r.Name, llm, status, dur, size))
+			r.StepNum, r.Name, llmCol, status, dur, size))
 	}
 
 	b.WriteString(fmt.Sprintf("\n**Progress:** %d/%d steps complete\n", completedSteps, len(p.steps)))

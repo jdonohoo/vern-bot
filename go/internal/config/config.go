@@ -82,7 +82,7 @@ func loadFile(path string) (*Config, error) {
 		cfg.TimeoutSeconds = 1200
 	}
 	if cfg.MaxRetries == 0 {
-		cfg.MaxRetries = 1
+		cfg.MaxRetries = 2
 	}
 	if cfg.PipelineMode == "" {
 		cfg.PipelineMode = "default"
@@ -116,7 +116,7 @@ func hardcodedDefaults() *Config {
 	return &Config{
 		Version:        "1.6.0",
 		TimeoutSeconds: 1200,
-		MaxRetries:     1,
+		MaxRetries:     2,
 		PipelineMode:   "default",
 		VernHole: VernHoleConfig{
 			DefaultCouncil: "random",

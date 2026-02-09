@@ -14,6 +14,8 @@ type StepResult struct {
 	ExitCode    int    `json:"exit_code"`
 	Attempts    int    `json:"attempts"`
 	LLMUsed     string `json:"llm_used"`
+	OriginalLLM string `json:"original_llm,omitempty"` // configured LLM before fallback
+	FellBack    bool   `json:"fell_back,omitempty"`     // true if fell back to claude
 	DurationMS  int64  `json:"duration_ms"`
 	OutputBytes int64  `json:"output_bytes"`
 }
