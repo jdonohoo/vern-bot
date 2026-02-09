@@ -1,4 +1,4 @@
-# Discovery: go-test
+# Discovery: simple-swag-shop
 
 ## Prompt
 I want a plan to build a basic nextjs site that looks like a swag store front.
