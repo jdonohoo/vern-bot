@@ -20,12 +20,14 @@
 #   --oracle-apply   Auto-apply Oracle's vision via Architect Vern (implies --oracle).
 #   --expanded       Use 7-step expanded pipeline (overrides config pipeline_mode).
 #   --extra-context FILE  Add an extra context file (can be used multiple times).
+#   --resume-from N  Resume pipeline from step N (skip earlier steps if output exists).
+#   --max-retries N  Max retry attempts per step (default: 1). On timeout, retries fall back to claude.
 #
 # Reads pipeline config from ~/.claude/vern-bot-config.json if it exists,
 # otherwise falls back to defaults (codex/claude/gemini).
 #
 
-set -e
+set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERN_RUN="$SCRIPT_DIR/vern-run"
@@ -41,6 +43,8 @@ EXPANDED_FLAG=0
 ORACLE_FLAG=0
 ORACLE_APPLY_FLAG=0
 EXTRA_CONTEXT_FILES=()
+RESUME_FROM=0
+MAX_RETRIES=1
 
 while [[ "$1" == --* ]]; do
     case "$1" in
@@ -77,6 +81,14 @@ while [[ "$1" == --* ]]; do
             EXTRA_CONTEXT_FILES+=("$2")
             shift 2
             ;;
+        --resume-from)
+            RESUME_FROM="$2"
+            shift 2
+            ;;
+        --max-retries)
+            MAX_RETRIES="$2"
+            shift 2
+            ;;
         *)
             echo "Unknown flag: $1"
             shift
@@ -99,6 +111,8 @@ if [ -z "$IDEA" ]; then
     echo "  --oracle-apply       Auto-apply Oracle's vision via Architect Vern"
     echo "  --expanded           Use 7-step expanded pipeline"
     echo "  --extra-context FILE Add extra context file (repeatable)"
+    echo "  --resume-from N      Resume pipeline from step N"
+    echo "  --max-retries N      Max retry attempts per step (default: 1)"
     exit 1
 fi
 
@@ -150,6 +164,14 @@ else:
 print('PIPELINE_MODE=\"{}\"'.format(mode))
 print('PIPELINE_TOTAL={}'.format(len(pipeline)))
 
+# Export timeout and retry settings from config
+timeout_s = cfg.get('timeout_seconds', '')
+max_retries = cfg.get('max_retries', '')
+if timeout_s:
+    print('CONFIG_TIMEOUT={}'.format(timeout_s))
+if max_retries:
+    print('CONFIG_MAX_RETRIES={}'.format(max_retries))
+
 for step in pipeline:
     n = step.get('step', 0)
     def shell_escape(s):
@@ -160,6 +182,14 @@ for step in pipeline:
     print(\"STEP_{}_PERSONA='{}'\".format(n, shell_escape(step.get('persona', ''))))
     print(\"STEP_{}_CONTEXT_MODE='{}'\".format(n, shell_escape(step.get('context_mode', 'previous'))))
 " 2>/dev/null)" || true
+    fi
+
+    # Apply config timeout/retries if not overridden by env/flags
+    if [ -n "${CONFIG_TIMEOUT:-}" ] && [ "${VERN_TIMEOUT:-}" = "" ]; then
+        export VERN_TIMEOUT="$CONFIG_TIMEOUT"
+    fi
+    if [ -n "${CONFIG_MAX_RETRIES:-}" ] && [ "$MAX_RETRIES" -eq 1 ]; then
+        MAX_RETRIES="$CONFIG_MAX_RETRIES"
     fi
 }
 
@@ -220,6 +250,26 @@ fi
 INPUT_DIR="$DISCOVERY_DIR/input"
 OUTPUT_DIR="$DISCOVERY_DIR/output"
 
+# ── Pipeline log file ────────────────────────────────────────────────────────
+PIPELINE_LOG="$OUTPUT_DIR/pipeline.log"
+
+pipeline_log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$PIPELINE_LOG"
+}
+
+# ── Cleanup trap ──────────────────────────────────────────────────────────────
+cleanup() {
+    local exit_status=$?
+    if [ $exit_status -ne 0 ]; then
+        echo "" >&2
+        echo "[vern-discovery] Pipeline exited with status $exit_status" >&2
+        if [ -f "$PIPELINE_LOG" ]; then
+            echo "[vern-discovery] See log: $PIPELINE_LOG" >&2
+        fi
+    fi
+}
+trap cleanup EXIT
+
 echo "=== VERN DISCOVERY PIPELINE ==="
 echo "Idea: $IDEA"
 echo "Discovery folder: $DISCOVERY_DIR"
@@ -228,6 +278,11 @@ echo "Pipeline mode: $PIPELINE_MODE ($PIPELINE_TOTAL steps)"
 if [ "$BATCH_MODE" -eq 1 ]; then
     echo "Mode: batch (non-interactive)"
 fi
+if [ "$RESUME_FROM" -gt 0 ]; then
+    echo "Resuming from: step $RESUME_FROM"
+fi
+echo "Max retries: $MAX_RETRIES"
+echo "Timeout: ${VERN_TIMEOUT:-1200}s per step"
 if [ -f "$CONFIG_FILE" ]; then
     echo "Config: $CONFIG_FILE"
 else
@@ -245,6 +300,17 @@ echo ""
 # Create directory structure
 mkdir -p "$INPUT_DIR"
 mkdir -p "$OUTPUT_DIR/vts"
+
+# Export working dir for codex (so it can read discovery files)
+export VERN_WORKING_DIR="$DISCOVERY_DIR"
+
+# Initialize pipeline log
+pipeline_log "=== Pipeline started ==="
+pipeline_log "Idea: $IDEA"
+pipeline_log "Mode: $PIPELINE_MODE ($PIPELINE_TOTAL steps)"
+if [ "$RESUME_FROM" -gt 0 ]; then
+    pipeline_log "Resuming from step $RESUME_FROM"
+fi
 
 # Save prompt if prompt.md doesn't already exist
 if [ ! -f "$INPUT_DIR/prompt.md" ]; then
@@ -338,9 +404,24 @@ $INPUT_CONTEXT
 === END INPUT MATERIALS ==="
 fi
 
+# ── Helper: check if output file is a failure marker ─────────────────────────
+is_failed_output() {
+    local file="$1"
+    if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+        return 0  # empty/missing = failed
+    fi
+    # Check for failure marker written by this script
+    if head -1 "$file" 2>/dev/null | grep -q "^# STEP FAILED"; then
+        return 0  # failure marker = failed
+    fi
+    return 1  # file exists with real content
+}
+
 # ── Dynamic pipeline execution ───────────────────────────────────────────────
 # Tracks outputs for context chaining. Uses indexed arrays for bash 3.2 compat.
 CONSOLIDATION_FILE=""
+FAILED_STEPS=""
+FAILED_COUNT=0
 
 for i in $(seq 1 $PIPELINE_TOTAL); do
     step_name=$(get_step_var "$i" NAME)
@@ -354,6 +435,25 @@ for i in $(seq 1 $PIPELINE_TOTAL); do
     persona_slug=$(slugify "$step_persona")
     name_slug=$(slugify "$step_name")
     output_file="$OUTPUT_DIR/${step_num}-${persona_slug}-${name_slug}.md"
+
+    # ── Resume logic: skip steps before resume_from if output exists ──────
+    if [ "$RESUME_FROM" -gt 0 ] && [ "$i" -lt "$RESUME_FROM" ]; then
+        if [ -f "$output_file" ] && ! is_failed_output "$output_file"; then
+            echo ""
+            echo ">>> Pass $i/$PIPELINE_TOTAL: $step_name — SKIPPED (resuming, output exists)"
+            pipeline_log "Step $i ($step_name): SKIPPED (resume, output exists)"
+            eval "STEP_${i}_OUTPUT_FILE=\"$output_file\""
+            # Track consolidation file if this was the consolidation step
+            if [ "$step_context_mode" = "all_previous" ]; then
+                CONSOLIDATION_FILE="$output_file"
+            fi
+            continue
+        else
+            echo ""
+            echo ">>> Pass $i/$PIPELINE_TOTAL: $step_name — re-running (no valid output for resume)"
+            pipeline_log "Step $i ($step_name): re-running (no valid output for resume)"
+        fi
+    fi
 
     echo ""
     echo ">>> Pass $i/$PIPELINE_TOTAL: $step_name ($step_llm)"
@@ -372,7 +472,7 @@ $FULL_PROMPT"
             prev=$((i - 1))
             prev_file=$(get_step_var "$prev" OUTPUT_FILE)
             prev_output=""
-            if [ -n "$prev_file" ] && [ -f "$prev_file" ]; then
+            if [ -n "$prev_file" ] && [ -f "$prev_file" ] && ! is_failed_output "$prev_file"; then
                 prev_output=$(cat "$prev_file")
             fi
             run_prompt="$step_prompt
@@ -390,7 +490,7 @@ $prev_output"
             for j in $(seq 1 $((i - 1))); do
                 prev_name=$(get_step_var "$j" NAME)
                 prev_file=$(get_step_var "$j" OUTPUT_FILE)
-                if [ -n "$prev_file" ] && [ -f "$prev_file" ]; then
+                if [ -n "$prev_file" ] && [ -f "$prev_file" ] && ! is_failed_output "$prev_file"; then
                     all_context="$all_context
 
 $prev_name: $(cat "$prev_file")"
@@ -408,7 +508,7 @@ $all_context"
         consolidation)
             # Original prompt + consolidation output only
             consol_output=""
-            if [ -n "$CONSOLIDATION_FILE" ] && [ -f "$CONSOLIDATION_FILE" ]; then
+            if [ -n "$CONSOLIDATION_FILE" ] && [ -f "$CONSOLIDATION_FILE" ] && ! is_failed_output "$CONSOLIDATION_FILE"; then
                 consol_output=$(cat "$CONSOLIDATION_FILE")
             fi
             run_prompt="$step_prompt
@@ -424,7 +524,7 @@ Master plan: $consol_output"
             prev=$((i - 1))
             prev_file=$(get_step_var "$prev" OUTPUT_FILE)
             prev_output=""
-            if [ -n "$prev_file" ] && [ -f "$prev_file" ]; then
+            if [ -n "$prev_file" ] && [ -f "$prev_file" ] && ! is_failed_output "$prev_file"; then
                 prev_output=$(cat "$prev_file")
             fi
             run_prompt="$step_prompt
@@ -437,11 +537,69 @@ $prev_output"
             ;;
     esac
 
-    "$VERN_RUN" "$step_llm" "$run_prompt" "$output_file" "$step_persona"
+    # ── Retry loop ────────────────────────────────────────────────────────
+    step_succeeded=0
+    retry_llm="$step_llm"
+    retry_persona="$step_persona"
+    total_attempts=$((MAX_RETRIES + 1))
+
+    for attempt in $(seq 1 $total_attempts); do
+        if [ "$attempt" -gt 1 ]; then
+            echo "    Retry $((attempt - 1))/$MAX_RETRIES for step $i ($step_name)..."
+            pipeline_log "Step $i ($step_name): retry $((attempt - 1))/$MAX_RETRIES with $retry_llm"
+        fi
+
+        "$VERN_RUN" "$retry_llm" "$run_prompt" "$output_file" "$retry_persona"
+        step_exit=$?
+
+        # Check for success: exit 0 and non-empty, non-failure output
+        if [ $step_exit -eq 0 ] && [ -f "$output_file" ] && ! is_failed_output "$output_file"; then
+            step_succeeded=1
+            break
+        fi
+
+        # On timeout (124) with non-claude LLM, fall back to claude for retry
+        if [ $step_exit -eq 124 ] && [ "$retry_llm" != "claude" ]; then
+            echo "    Timeout on $retry_llm — falling back to claude for retry"
+            pipeline_log "Step $i ($step_name): timeout on $retry_llm, falling back to claude"
+            retry_llm="claude"
+            retry_persona="$step_persona"
+        fi
+    done
+
+    if [ $step_succeeded -eq 1 ]; then
+        pipeline_log "Step $i ($step_name): OK (exit $step_exit, attempt $attempt, llm=$retry_llm)"
+    else
+        # Mark step as failed
+        echo "    FAILED after $total_attempts attempts (last exit: $step_exit)"
+        pipeline_log "Step $i ($step_name): FAILED (exit $step_exit, $total_attempts attempts)"
+        # Write failure marker so downstream steps know
+        cat > "$output_file" << FAILEOF
+# STEP FAILED
+
+Step $i ($step_name) failed after $total_attempts attempt(s).
+Last exit code: $step_exit
+LLM: $retry_llm
+
+Re-run with: --resume-from $i
+FAILEOF
+        FAILED_STEPS="$FAILED_STEPS $i"
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+    fi
 
     # Store output file path for later steps to reference
     eval "STEP_${i}_OUTPUT_FILE=\"$output_file\""
 done
+
+# ── Pipeline summary ─────────────────────────────────────────────────────────
+if [ $FAILED_COUNT -gt 0 ]; then
+    echo ""
+    echo "WARNING: $FAILED_COUNT step(s) failed:$FAILED_STEPS"
+    echo "Re-run failed steps with: --resume-from <N>"
+    pipeline_log "Pipeline completed with $FAILED_COUNT failure(s): steps$FAILED_STEPS"
+else
+    pipeline_log "Pipeline completed successfully ($PIPELINE_TOTAL/$PIPELINE_TOTAL steps)"
+fi
 
 # ── Post-processing: split architect breakdown into VTS task files ────────────
 # The last step (architect breakdown) outputs tasks in a single file. Split them
@@ -450,7 +608,13 @@ done
 
 ARCHITECT_FILE=$(get_step_var "$PIPELINE_TOTAL" OUTPUT_FILE)
 
-if [ -f "$ARCHITECT_FILE" ] && [ -s "$ARCHITECT_FILE" ] && command -v python3 &>/dev/null; then
+# Guard: skip VTS post-processing if architect step failed
+if is_failed_output "$ARCHITECT_FILE"; then
+    echo ""
+    echo ">>> Skipping VTS post-processing (architect step failed)"
+    echo "    Re-run with: --resume-from $PIPELINE_TOTAL"
+    pipeline_log "VTS post-processing: SKIPPED (architect step failed)"
+elif [ -f "$ARCHITECT_FILE" ] && [ -s "$ARCHITECT_FILE" ] && command -v python3 &>/dev/null; then
     echo ""
     echo ">>> Splitting architect breakdown into VTS task files..."
     ARCHITECT_FILE="$ARCHITECT_FILE" FORMAT_DIR="$OUTPUT_DIR/vts" python3 << 'PYEOF'
@@ -657,7 +821,13 @@ fi
 
 RAN_VERNHOLE=0
 
-if [ "$BATCH_MODE" -eq 1 ]; then
+# Guard: skip VernHole if any pipeline steps failed
+if [ $FAILED_COUNT -gt 0 ]; then
+    echo ""
+    echo ">>> Skipping VernHole (pipeline had $FAILED_COUNT failed step(s):$FAILED_STEPS)"
+    echo "    Fix failed steps with --resume-from, then re-run with VernHole."
+    pipeline_log "VernHole: SKIPPED ($FAILED_COUNT pipeline step(s) failed)"
+elif [ "$BATCH_MODE" -eq 1 ]; then
     if [ "$VERNHOLE_COUNT" -gt 0 ] || [ -n "$VERNHOLE_COUNCIL" ]; then
         echo ""
         echo "=== ENTERING THE VERNHOLE ==="
@@ -668,7 +838,15 @@ if [ "$BATCH_MODE" -eq 1 ]; then
         else
             "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR/vernhole" "$VERNHOLE_COUNT" "$CONSOLIDATION_FILE"
         fi
-        RAN_VERNHOLE=1
+        vernhole_exit=$?
+        if [ $vernhole_exit -eq 0 ]; then
+            RAN_VERNHOLE=1
+            pipeline_log "VernHole: OK"
+        else
+            echo ""
+            echo "WARNING: VernHole exited with status $vernhole_exit"
+            pipeline_log "VernHole: FAILED (exit $vernhole_exit)"
+        fi
     fi
 else
     echo ""
@@ -679,7 +857,13 @@ else
         echo "Feeding original idea + master plan into the chaos..."
         mkdir -p "$DISCOVERY_DIR/vernhole"
         "$SCRIPT_DIR/vernhole" "$IDEA" "$DISCOVERY_DIR/vernhole" "" "$CONSOLIDATION_FILE"
-        RAN_VERNHOLE=1
+        vernhole_exit=$?
+        if [ $vernhole_exit -eq 0 ]; then
+            RAN_VERNHOLE=1
+        else
+            echo ""
+            echo "WARNING: VernHole exited with status $vernhole_exit"
+        fi
     fi
 fi
 
@@ -787,19 +971,26 @@ $SYNTHESIS_CONTENTS"
 
         ORACLE_VISION_FILE="$DISCOVERY_DIR/oracle-vision.md"
         "$VERN_RUN" claude "$ORACLE_PROMPT" "$ORACLE_VISION_FILE" "oracle"
+        oracle_exit=$?
 
-        echo ""
-        echo "Oracle vision written to: $ORACLE_VISION_FILE"
-
-        # Auto-apply: Architect Vern rewrites VTS based on Oracle's vision
-        if [ "$APPLY_MODE" = "auto" ]; then
+        if [ $oracle_exit -ne 0 ]; then
             echo ""
-            echo "=== APPLYING THE ORACLE'S VISION ==="
-            echo "Architect Vern is rewriting VTS tasks..."
+            echo "WARNING: Oracle step failed (exit $oracle_exit)"
+            pipeline_log "Oracle: FAILED (exit $oracle_exit)"
+        else
+            echo ""
+            echo "Oracle vision written to: $ORACLE_VISION_FILE"
+            pipeline_log "Oracle: OK"
 
-            ORACLE_VISION_CONTENTS=$(cat "$ORACLE_VISION_FILE")
+            # Auto-apply: Architect Vern rewrites VTS based on Oracle's vision
+            if [ "$APPLY_MODE" = "auto" ]; then
+                echo ""
+                echo "=== APPLYING THE ORACLE'S VISION ==="
+                echo "Architect Vern is rewriting VTS tasks..."
 
-            ARCHITECT_APPLY_PROMPT="You are Architect Vern. The Oracle has spoken. Apply the Oracle's vision to produce an updated task breakdown.
+                ORACLE_VISION_CONTENTS=$(cat "$ORACLE_VISION_FILE")
+
+                ARCHITECT_APPLY_PROMPT="You are Architect Vern. The Oracle has spoken. Apply the Oracle's vision to produce an updated task breakdown.
 
 Read the Oracle's vision and the existing VTS tasks. Produce a complete, updated task breakdown incorporating the Oracle's recommendations (new tasks, modified tasks, removed tasks, dependency changes).
 
@@ -813,16 +1004,16 @@ $VTS_CONTENTS
 
 Produce the complete updated task breakdown. Include ALL tasks (not just changed ones)."
 
-            UPDATED_ARCHITECT_FILE="$OUTPUT_DIR/oracle-architect-breakdown.md"
-            "$VERN_RUN" claude "$ARCHITECT_APPLY_PROMPT" "$UPDATED_ARCHITECT_FILE" "architect"
+                UPDATED_ARCHITECT_FILE="$OUTPUT_DIR/oracle-architect-breakdown.md"
+                "$VERN_RUN" claude "$ARCHITECT_APPLY_PROMPT" "$UPDATED_ARCHITECT_FILE" "architect"
 
-            # Re-run VTS post-processor on the updated architect file
-            if [ -f "$UPDATED_ARCHITECT_FILE" ] && [ -s "$UPDATED_ARCHITECT_FILE" ] && command -v python3 &>/dev/null; then
-                echo ""
-                echo ">>> Re-splitting updated architect breakdown into VTS task files..."
-                # Clear old VTS files
-                rm -f "$OUTPUT_DIR"/vts/vts-*.md
-                ARCHITECT_FILE="$UPDATED_ARCHITECT_FILE" FORMAT_DIR="$OUTPUT_DIR/vts" python3 << 'PYEOF'
+                # Re-run VTS post-processor on the updated architect file
+                if [ -f "$UPDATED_ARCHITECT_FILE" ] && [ -s "$UPDATED_ARCHITECT_FILE" ] && command -v python3 &>/dev/null; then
+                    echo ""
+                    echo ">>> Re-splitting updated architect breakdown into VTS task files..."
+                    # Clear old VTS files
+                    rm -f "$OUTPUT_DIR"/vts/vts-*.md
+                    ARCHITECT_FILE="$UPDATED_ARCHITECT_FILE" FORMAT_DIR="$OUTPUT_DIR/vts" python3 << 'PYEOF'
 import re, os, sys
 
 architect_file = os.environ['ARCHITECT_FILE']
@@ -979,12 +1170,14 @@ with open(architect_file, 'w') as f:
 print("  Rewrote {} as summary ({} VTS tasks extracted)".format(
     os.path.basename(architect_file), len(tasks)))
 PYEOF
-            fi
+                fi
 
-            echo ""
-            echo "Oracle's vision applied. Updated VTS files in: $OUTPUT_DIR/vts/"
-        elif [ "$APPLY_MODE" = "manual" ]; then
-            echo "Review oracle-vision.md and update VTS files manually."
+                echo ""
+                echo "Oracle's vision applied. Updated VTS files in: $OUTPUT_DIR/vts/"
+                pipeline_log "Oracle apply: OK"
+            elif [ "$APPLY_MODE" = "manual" ]; then
+                echo "Review oracle-vision.md and update VTS files manually."
+            fi
         fi
     fi
 fi

@@ -8,8 +8,18 @@
 #   output_file: Optional file to save output
 #   persona: Optional persona name (loads agents/{persona}.md for personality context)
 #
+# Environment variables:
+#   VERN_TIMEOUT       Per-step timeout in seconds (default: 1200 = 20 min)
+#   VERN_WORKING_DIR   Working directory for codex (default: .)
+#
+# Exit codes:
+#   0    Success
+#   1    Usage error / unknown LLM
+#   124  Timeout (GNU timeout convention)
+#   *    LLM CLI failure
+#
 
-set -e
+set -o pipefail
 
 LLM="$1"
 PROMPT="$2"
@@ -23,6 +33,13 @@ if [ -z "$LLM" ] || [ -z "$PROMPT" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Timeout configuration ────────────────────────────────────────────────────
+VERN_TIMEOUT="${VERN_TIMEOUT:-1200}"
+
+# ── Temp file for capturing LLM output ───────────────────────────────────────
+VERN_TMP=$(mktemp "${TMPDIR:-/tmp}/vern-run.XXXXXX.md")
+trap 'rm -f "$VERN_TMP"' EXIT
 
 # ── Load persona context from agent file ─────────────────────────────────────
 # Injects the full personality (behavior, catchphrases, output style, sign-off)
@@ -68,25 +85,60 @@ run_claude() {
 run_codex() {
     # Codex is a code agent — without explicit instructions it will BUILD
     # things instead of PLANNING. We tell it to write analysis only, capture
-    # via -o (last message), and sandbox in a temp dir for safety.
-    local tmpdir=$(mktemp -d)
-    local tmpout="$tmpdir/output.md"
+    # via -o (last message). Uses VERN_WORKING_DIR so codex can read project files.
     local codex_prefix="IMPORTANT: You are acting as a PLANNING and ANALYSIS agent for a discovery pipeline. Write your complete analysis, implementation plan, and recommendations as a detailed markdown document. Do NOT create any code files, project scaffolding, or application code. Do NOT build anything. Your entire output should be a thorough written analysis — problem space, architecture, risks, recommendations — not a built project.
 
 "
+    local codex_cd="${VERN_WORKING_DIR:-.}"
+    local tmpout=$(mktemp "${TMPDIR:-/tmp}/vern-codex.XXXXXX.md")
+
     codex exec --dangerously-bypass-approvals-and-sandbox \
         --skip-git-repo-check \
-        --cd "$tmpdir" \
+        --cd "$codex_cd" \
         -o "$tmpout" \
         "${codex_prefix}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}" >/dev/null 2>&1
+    local rc=$?
+
     if [ -f "$tmpout" ]; then
         cat "$tmpout"
     fi
-    rm -rf "$tmpdir"
+    rm -f "$tmpout"
+    return $rc
 }
 
 run_gemini() {
     gemini --yolo "${TEXT_ONLY}${PERSONA_CONTEXT}${PROMPT}${DAD_JOKE}"
+}
+
+# ── run_with_timeout: background watchdog for macOS bash 3.2 ─────────────────
+# Runs an LLM function with a timeout. Captures output to VERN_TMP.
+# Returns: 0 on success, 124 on timeout, or the LLM's exit code on failure.
+run_with_timeout() {
+    local llm_func="$1"
+
+    # Run LLM in background, capturing output
+    $llm_func > "$VERN_TMP" 2>&1 &
+    local llm_pid=$!
+
+    # Spawn watchdog: kill LLM after timeout
+    ( sleep "$VERN_TIMEOUT" && kill "$llm_pid" 2>/dev/null ) &
+    local watchdog_pid=$!
+
+    # Wait for LLM to finish (or be killed)
+    wait "$llm_pid" 2>/dev/null
+    local exit_code=$?
+
+    # Cancel watchdog if LLM finished first
+    kill "$watchdog_pid" 2>/dev/null
+    wait "$watchdog_pid" 2>/dev/null
+
+    # Normalize SIGTERM (128+15=143) to exit 124 (GNU timeout convention)
+    if [ "$exit_code" -eq 143 ]; then
+        echo "[vern-run] Timeout: $llm_func exceeded ${VERN_TIMEOUT}s limit" >&2
+        exit_code=124
+    fi
+
+    return $exit_code
 }
 
 # Fallback: if requested LLM isn't installed, fall back to claude
@@ -106,32 +158,37 @@ case "$LLM" in
         ;;
 esac
 
-# Execute the appropriate LLM
+# ── Execute the appropriate LLM with timeout ────────────────────────────────
+LLM_FUNC=""
 case "$LLM" in
-    claude|c)
-        if [ -n "$OUTPUT_FILE" ]; then
-            run_claude | tee "$OUTPUT_FILE"
-        else
-            run_claude
-        fi
-        ;;
-    codex|x)
-        if [ -n "$OUTPUT_FILE" ]; then
-            run_codex | tee "$OUTPUT_FILE"
-        else
-            run_codex
-        fi
-        ;;
-    gemini|g)
-        if [ -n "$OUTPUT_FILE" ]; then
-            run_gemini | tee "$OUTPUT_FILE"
-        else
-            run_gemini
-        fi
-        ;;
+    claude|c)  LLM_FUNC="run_claude" ;;
+    codex|x)   LLM_FUNC="run_codex" ;;
+    gemini|g)  LLM_FUNC="run_gemini" ;;
     *)
         echo "Unknown LLM: $LLM"
         echo "Valid options: claude, codex, gemini"
         exit 1
         ;;
 esac
+
+run_with_timeout "$LLM_FUNC"
+EXIT_CODE=$?
+
+# ── Output validation ────────────────────────────────────────────────────────
+if [ ! -s "$VERN_TMP" ]; then
+    echo "[vern-run] Warning: LLM produced empty output (exit code: $EXIT_CODE)" >&2
+fi
+
+# ── Emit output ──────────────────────────────────────────────────────────────
+if [ -s "$VERN_TMP" ]; then
+    if [ -n "$OUTPUT_FILE" ]; then
+        cat "$VERN_TMP" | tee "$OUTPUT_FILE"
+    else
+        cat "$VERN_TMP"
+    fi
+elif [ -n "$OUTPUT_FILE" ]; then
+    # Write empty file so downstream knows the step ran
+    : > "$OUTPUT_FILE"
+fi
+
+exit $EXIT_CODE

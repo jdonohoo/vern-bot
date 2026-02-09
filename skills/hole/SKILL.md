@@ -62,7 +62,7 @@ Arguments:
 For backward compat, you can also pass a bare number as the third positional arg instead of using --council.
 
 ### Important:
-- Use a long timeout (at least 600000ms / 10 minutes) for the Bash call — the script spawns multiple LLM subprocesses (one per Vern plus synthesis)
+- Use a long timeout (at least 1800000ms / 30 minutes) for the Bash call — the script spawns multiple LLM subprocesses (one per Vern plus synthesis) with 20-minute per-step timeouts
 - The script handles ALL file creation, directory setup, and LLM calls internally
 - Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
 

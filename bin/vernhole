@@ -20,7 +20,7 @@
 #   --council <name>   Use a named council tier
 #
 
-set -e
+set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERN_RUN="$SCRIPT_DIR/vern-run"
@@ -335,6 +335,8 @@ mkdir -p "$VERNHOLE_DIR"
 # Track all outputs for synthesis
 ALL_OUTPUTS=""
 VERN_NUM=1
+SUCCEEDED_COUNT=0
+FAILED_VERNS=""
 
 while IFS= read -r vern_line <&3; do
     IFS=':' read -r vern_id model desc <<< "$vern_line"
@@ -348,25 +350,69 @@ while IFS= read -r vern_line <&3; do
     "$VERN_RUN" "$LLM" "Analyze this idea from your unique perspective. Be true to your persona.
 
 Original idea: $IDEA$CONTEXT_BLOCK" "$OUTPUT_FILE" "$vern_id"
+    vern_exit=$?
 
-    ALL_OUTPUTS="$ALL_OUTPUTS
+    if [ $vern_exit -eq 0 ] && [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
+        ALL_OUTPUTS="$ALL_OUTPUTS
 
 === $desc ===
 $(cat "$OUTPUT_FILE")"
+        SUCCEEDED_COUNT=$((SUCCEEDED_COUNT + 1))
+    else
+        echo "    WARNING: $vern_id failed (exit $vern_exit) — excluding from synthesis"
+        FAILED_VERNS="$FAILED_VERNS $vern_id"
+    fi
 
     ((VERN_NUM++))
     echo ""
 done 3<<< "$SELECTED"
 
-echo ">>> Synthesizing the chaos..."
-"$VERN_RUN" claude "Synthesize these diverse perspectives into actionable insights. Identify common themes, interesting contradictions, and recommended paths forward.
+# Report failed Verns
+if [ -n "$FAILED_VERNS" ]; then
+    echo ">>> Failed Verns:$FAILED_VERNS"
+    echo ""
+fi
+
+# Only run synthesis if at least 1 Vern succeeded
+if [ $SUCCEEDED_COUNT -gt 0 ]; then
+    echo ">>> Synthesizing the chaos ($SUCCEEDED_COUNT/$NUM_VERNS Verns succeeded)..."
+
+    # Note missing perspectives in the synthesis prompt
+    MISSING_NOTE=""
+    if [ -n "$FAILED_VERNS" ]; then
+        MISSING_NOTE="
+
+NOTE: The following Verns failed and their perspectives are missing from this synthesis:$FAILED_VERNS
+Consider what perspectives might be absent and note any gaps."
+    fi
+
+    "$VERN_RUN" claude "Synthesize these diverse perspectives into actionable insights. Identify common themes, interesting contradictions, and recommended paths forward.
 
 ORIGINAL IDEA: $IDEA
 $CONTEXT_BLOCK
 THE VERNS HAVE SPOKEN:
-$ALL_OUTPUTS" "$VERNHOLE_DIR/synthesis.md" "vernhole-orchestrator"
+$ALL_OUTPUTS$MISSING_NOTE" "$VERNHOLE_DIR/synthesis.md" "vernhole-orchestrator"
+    synthesis_exit=$?
+
+    if [ $synthesis_exit -ne 0 ]; then
+        echo ""
+        echo "WARNING: Synthesis step failed (exit $synthesis_exit)"
+    fi
+else
+    echo ">>> All Verns failed — skipping synthesis"
+    echo "No perspectives to synthesize."
+fi
 
 echo ""
 echo "=== THE VERNHOLE HAS SPOKEN ==="
 echo "Files created in: $VERNHOLE_DIR"
+echo "Succeeded: $SUCCEEDED_COUNT/$NUM_VERNS"
+if [ -n "$FAILED_VERNS" ]; then
+    echo "Failed:$FAILED_VERNS"
+fi
 ls -la "$VERNHOLE_DIR"
+
+# Exit with failure if all Verns failed
+if [ $SUCCEEDED_COUNT -eq 0 ]; then
+    exit 1
+fi
