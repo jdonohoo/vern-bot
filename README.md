@@ -209,6 +209,7 @@ Pipelines are **failure-tolerant**. A single LLM step failure won't kill your en
 | **`--resume-from N`** | Resume a pipeline from step N after a failure. Skips completed steps, preserves context chaining. |
 | **`--max-retries N`** | Retry failed steps (default: 1 retry). On timeout, non-claude LLMs automatically fall back to claude. |
 | **Pipeline log** | `output/pipeline.log` tracks per-step status (OK/FAILED/SKIPPED), timestamps, exit codes, and retry counts. |
+| **Pipeline status** | `output/pipeline-status.md` provides a human-readable progress summary with step results table, durations, output sizes, and resume hints. |
 | **Failure markers** | Failed steps write a `# STEP FAILED` marker instead of halting. Downstream steps continue. |
 | **Downstream guards** | VTS post-processing, VernHole, and Oracle automatically skip when upstream steps fail. |
 
@@ -258,7 +259,8 @@ discovery/{name}/
 │   ├── 04-mighty-consolidation.md   # (or 06-... in expanded)
 │   ├── 05-architect-architect-breakdown.md  # (or 07-... in expanded)
 │   ├── vts/                   # Vern Task Spec files
-│   └── pipeline.log           # Per-step status, timestamps, exit codes
+│   ├── pipeline.log           # Per-step status, timestamps, exit codes
+│   └── pipeline-status.md     # Human-readable progress summary
 ├── vernhole/                  # Only if you opted in
 └── oracle-vision.md           # Only if Oracle ran
 ```

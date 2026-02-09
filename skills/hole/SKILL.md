@@ -43,27 +43,31 @@ Options:
 - **Current directory** (Recommended) - `./vernhole/`
 - **Choose a path** - custom location
 
-## Step 3: Execute via Bash Script
+## Step 3: Execute via CLI
 
-**CRITICAL: Do NOT orchestrate the Vern passes yourself.** Instead, run the `bin/vernhole` bash script in a single Bash tool call. This ensures the entire VernHole runs non-interactively without permission prompts.
+**CRITICAL: Do NOT orchestrate the Vern passes yourself.** Instead, run the `bin/vernhole` CLI wrapper in a single Bash tool call. This ensures the entire VernHole runs non-interactively without permission prompts.
 
-The script is located at `bin/vernhole` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
+The CLI wrapper is located at `bin/vernhole` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
 
 ```bash
-{plugin_root}/bin/vernhole --council "<council_name>" "<idea>" "<output_dir>" "" ["<context_file>"]
+{plugin_root}/bin/vernhole \
+  --council "<council_name>" \
+  --output-dir "<output_dir>" \
+  [--context "<context_file>"] \
+  "<idea>"
 ```
 
-Arguments:
-- **idea**: The user's idea/task from `$ARGUMENTS`
-- **output_dir**: The directory from step 2
-- **council_name**: From step 1 (hammers, conflict, inner, round, war, full, random)
-- **context_file** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
+Flags:
+- **--council**: Council tier from step 1 (hammers, conflict, inner, round, war, full, random)
+- **--output-dir**: The directory from step 2
+- **--context** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
+- **--count N**: Alternative to --council — summon exactly N random Verns (min 3)
 
-For backward compat, you can also pass a bare number as the third positional arg instead of using --council.
+The idea is the only positional argument.
 
 ### Important:
-- Use a long timeout (at least 1800000ms / 30 minutes) for the Bash call — the script spawns multiple LLM subprocesses (one per Vern plus synthesis) with 20-minute per-step timeouts
-- The script handles ALL file creation, directory setup, and LLM calls internally
+- Use a long timeout (at least 1200000ms / 20 minutes) for the Bash call — the CLI spawns multiple LLM subprocesses (one per Vern plus synthesis, run in parallel)
+- The CLI handles ALL file creation, directory setup, and LLM calls internally
 - Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
 
 ## The Councils
@@ -80,7 +84,7 @@ For backward compat, you can also pass a bare number as the third positional arg
 
 ## The Vern Roster (dynamic)
 
-The roster is built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md` and `oracle.md`). As new personas are added, they join the VernHole automatically. The `bin/vernhole` script scans agent files at runtime.
+The roster is built automatically from every persona in `agents/*.md` (excluding `vernhole-orchestrator.md` and `oracle.md`). As new personas are added, they join the VernHole automatically. The CLI scans agent files at runtime.
 
 ## Step 4: Report Results
 

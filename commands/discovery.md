@@ -73,11 +73,11 @@ Ask the user using AskUserQuestion:
    - **Manual** — review oracle-vision.md yourself (Recommended)
    - **Auto-apply** — Architect Vern executes the Oracle's vision
 
-## Step 4: Execute Pipeline via Bash Script
+## Step 4: Execute Pipeline via CLI
 
-**CRITICAL: Do NOT orchestrate the pipeline steps yourself.** Instead, build a single bash command and run it via the Bash tool. This ensures the entire pipeline runs non-interactively without permission prompts.
+**CRITICAL: Do NOT orchestrate the pipeline steps yourself.** Instead, build a single CLI command and run it via the Bash tool. This ensures the entire pipeline runs non-interactively without permission prompts.
 
-The script is located at `bin/vern-discovery` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
+The CLI wrapper is located at `bin/vern-discovery` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
 
 Build the command:
 
@@ -107,20 +107,22 @@ Build the command:
 - User provided extra files → add `--extra-context /path/to/file` for each one
 
 ### Important:
-- Use a long timeout (at least 600000ms / 10 minutes) for the Bash call — the pipeline spawns multiple LLM subprocesses
-- The script handles ALL file creation, directory setup, and LLM calls internally
+- Use a long timeout (at least 1200000ms / 20 minutes) for the Bash call — the pipeline spawns multiple LLM subprocesses
+- The CLI handles ALL file creation, directory setup, and LLM calls internally
 - Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
 
 ## Step 5: Report Completion
 
-After the script completes, tell the user:
+After the CLI completes, read `{discovery_dir}/output/pipeline-status.md` for a structured overview. Then tell the user:
+- The status table from pipeline-status.md (step results, durations, sizes)
 - Where files were created
 - Pipeline mode used (default or expanded) and number of steps
-- Summary of the pipeline output
 - Read and briefly summarize the master plan from the consolidation output file
+- If any steps failed, show the resume command from the status file
+- If VTS files were generated, how many
+- If VernHole ran, which Verns were summoned
 - If Oracle ran, summarize the oracle-vision.md
 - If auto-apply ran, note that VTS files were updated
-- The folder structure for reference
 
 ## The Pipelines
 
@@ -196,6 +198,8 @@ discovery/{name}/
 │   ├── 03-yolo-chaos-check.md
 │   ├── 04-mighty-consolidation.md
 │   ├── 05-architect-architect-breakdown.md
+│   ├── pipeline.log                        # Per-step status, timestamps, exit codes
+│   ├── pipeline-status.md                  # Structured status (read this first)
 │   └── vts/                               # Vern Task Spec files
 │       ├── vts-001-{slug}.md
 │       └── ...

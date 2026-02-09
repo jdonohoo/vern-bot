@@ -41,6 +41,9 @@ type Pipeline struct {
 	fullPrompt    string
 	consolidation string // path to consolidation file
 	logFile       *os.File
+	statusPath    string    // path to pipeline-status.md
+	startTime     time.Time // pipeline start time
+	mode          string    // pipeline mode (default/expanded)
 }
 
 // Run executes the full discovery pipeline.
@@ -100,6 +103,11 @@ func (p *Pipeline) execute(mode string) error {
 		return fmt.Errorf("open pipeline log: %w", err)
 	}
 	defer p.logFile.Close()
+
+	// Initialize status file and timing
+	p.statusPath = filepath.Join(outputDir, "pipeline-status.md")
+	p.startTime = time.Now()
+	p.mode = mode
 
 	// Banner
 	fmt.Println("=== VERN DISCOVERY PIPELINE ===")
@@ -242,16 +250,19 @@ func (p *Pipeline) execute(mode string) error {
 		}
 
 		if succeeded {
-			p.log("Step %d (%s): OK (exit %d, attempt %d, llm=%s)", stepNum, step.Name, lastExitCode, attemptCount, retryLLM)
+			outputBytes := fileSize(outputFile)
+			fmt.Printf("    OK (%s, %d bytes, %s)\n", retryLLM, outputBytes, duration.Truncate(time.Second))
+			p.log("Step %d (%s): OK (exit %d, attempt %d, llm=%s, %d bytes)", stepNum, step.Name, lastExitCode, attemptCount, retryLLM, outputBytes)
 			p.results[idx] = StepResult{
-				StepNum:    stepNum,
-				Name:       step.Name,
-				OutputFile: outputFile,
-				Status:     "ok",
-				ExitCode:   lastExitCode,
-				Attempts:   attemptCount,
-				LLMUsed:    retryLLM,
-				DurationMS: duration.Milliseconds(),
+				StepNum:     stepNum,
+				Name:        step.Name,
+				OutputFile:  outputFile,
+				Status:      "ok",
+				ExitCode:    lastExitCode,
+				Attempts:    attemptCount,
+				LLMUsed:     retryLLM,
+				DurationMS:  duration.Milliseconds(),
+				OutputBytes: outputBytes,
 			}
 		} else {
 			fmt.Printf("    FAILED after %d attempts (last exit: %d)\n", totalAttempts, lastExitCode)
@@ -264,19 +275,21 @@ func (p *Pipeline) execute(mode string) error {
 
 			failedSteps = append(failedSteps, stepNum)
 			p.results[idx] = StepResult{
-				StepNum:    stepNum,
-				Name:       step.Name,
-				OutputFile: outputFile,
-				Status:     "failed",
-				ExitCode:   lastExitCode,
-				Attempts:   attemptCount,
-				LLMUsed:    retryLLM,
-				DurationMS: duration.Milliseconds(),
+				StepNum:     stepNum,
+				Name:        step.Name,
+				OutputFile:  outputFile,
+				Status:      "failed",
+				ExitCode:    lastExitCode,
+				Attempts:    attemptCount,
+				LLMUsed:     retryLLM,
+				DurationMS:  duration.Milliseconds(),
+				OutputBytes: 0,
 			}
 		}
 
-		// Write structured JSON log entry
+		// Write structured JSON log entry + update status file
 		p.logJSON(p.results[idx])
+		p.writeStatus("running", failedSteps)
 	}
 
 	// Pipeline summary
@@ -287,6 +300,7 @@ func (p *Pipeline) execute(mode string) error {
 	} else {
 		p.log("Pipeline completed successfully (%d/%d steps)", len(p.steps), len(p.steps))
 	}
+	p.writeStatus("pipeline_complete", failedSteps)
 
 	// VTS post-processing
 	lastResult := p.results[len(p.results)-1]
@@ -461,6 +475,7 @@ func (p *Pipeline) runVernHole() {
 	if err != nil {
 		fmt.Printf("\nWARNING: VernHole failed: %v\n", err)
 		p.log("VernHole: FAILED (%v)", err)
+		p.writeStatus("complete_vernhole_failed", nil)
 		return
 	}
 
@@ -470,6 +485,8 @@ func (p *Pipeline) runVernHole() {
 	if opts.OracleFlag {
 		p.runOracle(vernholeDir)
 	}
+
+	p.writeStatus("complete", nil)
 }
 
 func (p *Pipeline) runOracle(vernholeDir string) {
@@ -639,6 +656,7 @@ func (p *Pipeline) log(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	fmt.Fprintf(p.logFile, "[%s] %s\n", timestamp, msg)
+	p.logFile.Sync()
 }
 
 func (p *Pipeline) logJSON(result StepResult) {
@@ -654,6 +672,7 @@ func (p *Pipeline) logJSON(result StepResult) {
 	}
 	data, _ := json.Marshal(entry)
 	fmt.Fprintf(p.logFile, "%s\n", string(data))
+	p.logFile.Sync()
 }
 
 func (p *Pipeline) printDirectoryStructure() {
@@ -678,4 +697,129 @@ func readFileIfExists(path string) ([]byte, error) {
 		return nil, err
 	}
 	return os.ReadFile(path)
+}
+
+// fileSize returns the size of a file in bytes, or 0 if it doesn't exist.
+func fileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
+}
+
+// writeStatus writes a human-readable pipeline-status.md file.
+// This file is designed to be read by Claude Code to report progress to the user.
+func (p *Pipeline) writeStatus(phase string, failedSteps []int) {
+	if p.statusPath == "" {
+		return
+	}
+
+	elapsed := time.Since(p.startTime).Truncate(time.Second)
+
+	var b strings.Builder
+	b.WriteString("# Pipeline Status\n\n")
+	b.WriteString(fmt.Sprintf("**Phase:** %s\n", phase))
+	b.WriteString(fmt.Sprintf("**Mode:** %s (%d steps)\n", p.mode, len(p.steps)))
+	b.WriteString(fmt.Sprintf("**Elapsed:** %s\n", elapsed))
+	b.WriteString(fmt.Sprintf("**Started:** %s\n", p.startTime.Format("2006-01-02 15:04:05")))
+
+	if p.opts.ResumeFrom > 0 {
+		b.WriteString(fmt.Sprintf("**Resumed from:** step %d\n", p.opts.ResumeFrom))
+	}
+	b.WriteString("\n")
+
+	// Step results table
+	b.WriteString("## Pipeline Steps\n\n")
+	b.WriteString("| Step | Name | LLM | Status | Duration | Size |\n")
+	b.WriteString("|------|------|-----|--------|----------|------|\n")
+
+	completedSteps := 0
+	for _, r := range p.results {
+		if r.Name == "" {
+			continue // not yet run
+		}
+
+		status := r.Status
+		switch status {
+		case "ok":
+			completedSteps++
+		case "failed":
+			status = fmt.Sprintf("FAILED (exit %d, %d attempts)", r.ExitCode, r.Attempts)
+		}
+
+		dur := ""
+		if r.DurationMS > 0 {
+			dur = (time.Duration(r.DurationMS) * time.Millisecond).Truncate(time.Second).String()
+		}
+
+		size := ""
+		if r.OutputBytes > 0 {
+			if r.OutputBytes > 1024 {
+				size = fmt.Sprintf("%.1fKB", float64(r.OutputBytes)/1024)
+			} else {
+				size = fmt.Sprintf("%dB", r.OutputBytes)
+			}
+		}
+
+		llm := r.LLMUsed
+		if llm == "" {
+			llm = "-"
+		}
+
+		b.WriteString(fmt.Sprintf("| %d | %s | %s | %s | %s | %s |\n",
+			r.StepNum, r.Name, llm, status, dur, size))
+	}
+
+	b.WriteString(fmt.Sprintf("\n**Progress:** %d/%d steps complete\n", completedSteps, len(p.steps)))
+
+	if len(failedSteps) > 0 {
+		b.WriteString(fmt.Sprintf("\n**Failed steps:** %v\n", failedSteps))
+		b.WriteString(fmt.Sprintf("**Resume command:** `--resume-from %d`\n", failedSteps[0]))
+	}
+
+	// VernHole info
+	if phase == "complete" || phase == "complete_vernhole_failed" {
+		b.WriteString("\n## VernHole\n\n")
+		if phase == "complete_vernhole_failed" {
+			b.WriteString("**Status:** FAILED\n")
+		} else {
+			vernholeDir := filepath.Join(p.opts.DiscoveryDir, "vernhole")
+			entries, err := os.ReadDir(vernholeDir)
+			if err == nil && len(entries) > 0 {
+				b.WriteString("**Status:** complete\n")
+				b.WriteString(fmt.Sprintf("**Council:** %s\n", p.opts.VernHoleCouncil))
+				b.WriteString("**Files:**\n")
+				for _, e := range entries {
+					if strings.HasSuffix(e.Name(), ".md") {
+						size := fileSize(filepath.Join(vernholeDir, e.Name()))
+						b.WriteString(fmt.Sprintf("- %s (%.1fKB)\n", e.Name(), float64(size)/1024))
+					}
+				}
+			}
+		}
+	}
+
+	// Oracle info
+	oracleFile := filepath.Join(p.opts.DiscoveryDir, "oracle-vision.md")
+	if size := fileSize(oracleFile); size > 0 {
+		b.WriteString(fmt.Sprintf("\n## Oracle\n\n**Status:** complete\n**File:** oracle-vision.md (%.1fKB)\n", float64(size)/1024))
+	}
+
+	// VTS info
+	vtsDir := filepath.Join(p.opts.DiscoveryDir, "output", "vts")
+	entries, err := os.ReadDir(vtsDir)
+	if err == nil {
+		vtsCount := 0
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), "vts-") && strings.HasSuffix(e.Name(), ".md") {
+				vtsCount++
+			}
+		}
+		if vtsCount > 0 {
+			b.WriteString(fmt.Sprintf("\n## VTS Tasks\n\n**Count:** %d task files in `output/vts/`\n", vtsCount))
+		}
+	}
+
+	os.WriteFile(p.statusPath, []byte(b.String()), 0644)
 }

@@ -202,6 +202,116 @@ func TestSlugify(t *testing.T) {
 	}
 }
 
+const sampleTableOutput = `# Architect Breakdown
+
+Here is the phased task breakdown.
+
+## Architecture Decisions
+
+Some preamble text about decisions made.
+
+---
+
+### Phase 0: Compatibility Gate (30 min)
+
+| # | Task | Done When | Notes |
+|---|------|-----------|-------|
+| T-01 | **Verify SST compatibility** | Pinned version documented | Check SST docs [blocks: T-02] |
+| T-02 | **Verify Tailwind version** | Config format confirmed | Run create-next-app [blocks: T-03] |
+
+### Phase 1: Foundation (2-3 hours)
+
+| # | Task | Done When | Notes |
+|---|------|-----------|-------|
+| T-03 | **Scaffold the project** | Dev server runs clean | Use pinned version from T-01 |
+| T-04 | **Define TypeScript types** | Types file created | Product, Variant, CartItem |
+
+## Dependency Graph
+
+T-01 -> T-02 -> T-03 -> T-04
+`
+
+func TestParseTableFormat(t *testing.T) {
+	tasks, header, footer := ParseArchitectOutput(sampleTableOutput)
+
+	if len(tasks) != 4 {
+		t.Fatalf("expected 4 tasks, got %d", len(tasks))
+	}
+
+	// Check header is present
+	if header == "" {
+		t.Error("header should not be empty")
+	}
+
+	// Check footer contains dependency graph
+	if footer == "" {
+		t.Error("footer should not be empty")
+	}
+
+	// Task 1
+	t1 := tasks[0]
+	if t1.Num != 1 {
+		t.Errorf("task 1 num: got %d", t1.Num)
+	}
+	if t1.Title != "Verify SST compatibility" {
+		t.Errorf("task 1 title: got %q", t1.Title)
+	}
+
+	// Task 1 should have dependency on T-02 (blocks reference)
+	if len(t1.Dependencies) != 1 || t1.Dependencies[0] != "VTS-002" {
+		t.Errorf("task 1 deps: got %v, want [VTS-002]", t1.Dependencies)
+	}
+
+	// Task 2
+	t2 := tasks[1]
+	if t2.Num != 2 {
+		t.Errorf("task 2 num: got %d", t2.Num)
+	}
+	if t2.Title != "Verify Tailwind version" {
+		t.Errorf("task 2 title: got %q", t2.Title)
+	}
+
+	// Task 3
+	t3 := tasks[2]
+	if t3.Num != 3 {
+		t.Errorf("task 3 num: got %d", t3.Num)
+	}
+
+	// Task 4
+	t4 := tasks[3]
+	if t4.Num != 4 {
+		t.Errorf("task 4 num: got %d", t4.Num)
+	}
+	if t4.Title != "Define TypeScript types" {
+		t.Errorf("task 4 title: got %q", t4.Title)
+	}
+}
+
+func TestParseTableFormatNoBold(t *testing.T) {
+	input := `# Tasks
+
+| # | Task | Notes |
+|---|------|-------|
+| T-01 | Setup project | Basic scaffold |
+| T-02 | Add tests | Unit tests |
+`
+	tasks, _, _ := ParseArchitectOutput(input)
+	if len(tasks) != 2 {
+		t.Fatalf("expected 2 tasks from non-bold table, got %d", len(tasks))
+	}
+	if tasks[0].Title != "Setup project" {
+		t.Errorf("task 1 title: got %q", tasks[0].Title)
+	}
+}
+
+func TestPrimaryPatternPreferred(t *testing.T) {
+	// When primary pattern matches, table fallback should NOT be used
+	tasks, _, _ := ParseArchitectOutput(sampleArchitectOutput)
+	if len(tasks) != 3 {
+		t.Fatalf("primary pattern should still find 3 tasks, got %d", len(tasks))
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))
 }

@@ -20,12 +20,16 @@ type Task struct {
 
 var taskPattern = regexp.MustCompile(`(?im)^#{2,3}\s+Task\s+(\d+)\s*[:\.—]\s*(.+)`)
 
+// tableTaskPattern matches table rows like: | T-01 | **Title** | or | T-01 | Title |
+var tableTaskPattern = regexp.MustCompile(`(?im)^\|\s*T-(\d+)\s*\|\s*\*{0,2}([^|*]+?)\*{0,2}\s*\|`)
+
 // ParseArchitectOutput extracts VTS tasks from architect breakdown markdown.
 // Returns tasks, the header (text before first task), and the footer (text after last task).
 func ParseArchitectOutput(content string) (tasks []Task, header string, footer string) {
 	matches := taskPattern.FindAllStringSubmatchIndex(content, -1)
 	if len(matches) == 0 {
-		return nil, content, ""
+		// Fallback: try table format (| T-NN | **Title** | ...)
+		return parseTableFormat(content)
 	}
 
 	// Header: everything before the first task
@@ -202,4 +206,107 @@ func parseBulletList(text string) []string {
 		}
 	}
 	return items
+}
+
+// parseTableFormat extracts tasks from table rows like: | T-01 | **Title** | Done When | Notes |
+// Used as a fallback when the primary ### TASK N: pattern finds no matches.
+func parseTableFormat(content string) (tasks []Task, header string, footer string) {
+	matches := tableTaskPattern.FindAllStringSubmatchIndex(content, -1)
+	if len(matches) == 0 {
+		return nil, content, ""
+	}
+
+	// Header: everything before the first table row that contains a task
+	header = strings.TrimRight(content[:matches[0][0]], "\n- ")
+
+	// Footer: find first ## heading after the last task row
+	lastTaskPos := matches[len(matches)-1][0]
+	remaining := content[lastTaskPos:]
+	footerPattern := regexp.MustCompile(`(?m)^## [^#|]`)
+	footerMatch := footerPattern.FindStringIndex(remaining)
+
+	var footerAbs int
+	if footerMatch != nil {
+		footerAbs = lastTaskPos + footerMatch[0]
+		pre := strings.TrimRight(content[:footerAbs], " \n\t")
+		if strings.HasSuffix(pre, "---") {
+			footerAbs = len(pre) - 3
+		}
+		footer = strings.TrimLeft(content[footerAbs:], "-")
+		footer = strings.TrimSpace(footer)
+	} else {
+		footerAbs = len(content)
+	}
+
+	// Extract tasks from table rows
+	for _, match := range matches {
+		taskNum := 0
+		fmt.Sscanf(content[match[2]:match[3]], "%d", &taskNum)
+		taskTitle := strings.TrimSpace(content[match[4]:match[5]])
+
+		// Find the full table row to extract extra columns
+		rowStart := match[0]
+		rowEnd := rowStart
+		for rowEnd < len(content) && content[rowEnd] != '\n' {
+			rowEnd++
+		}
+		fullRow := content[rowStart:rowEnd]
+
+		// Parse table columns: | # | Task | Done When/Description | Notes |
+		cols := splitTableRow(fullRow)
+		description := ""
+		if len(cols) >= 3 {
+			description = strings.TrimSpace(cols[2])
+		}
+
+		task := Task{
+			Num:          taskNum,
+			Title:        taskTitle,
+			Body:         fullRow,
+			Description:  description,
+			Complexity:   "?",
+			Dependencies: extractTableDependencies(fullRow),
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, header, footer
+}
+
+// splitTableRow splits a markdown table row into its cell values.
+func splitTableRow(row string) []string {
+	row = strings.TrimSpace(row)
+	row = strings.Trim(row, "|")
+	parts := strings.Split(row, "|")
+	var cells []string
+	for _, p := range parts {
+		cells = append(cells, strings.TrimSpace(p))
+	}
+	return cells
+}
+
+// extractTableDependencies extracts dependency references from a table row.
+// Looks for patterns like [blocks: T-XX] or "depends on T-XX".
+func extractTableDependencies(row string) []string {
+	pattern := regexp.MustCompile(`T-(\d+)`)
+	matches := pattern.FindAllStringSubmatch(row, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	// The first T-NN is the task itself, skip it. Remaining are dependencies.
+	var deps []string
+	seen := map[string]bool{}
+	for i, m := range matches {
+		if i == 0 {
+			continue // skip self-reference
+		}
+		num := 0
+		fmt.Sscanf(m[1], "%d", &num)
+		dep := fmt.Sprintf("VTS-%03d", num)
+		if !seen[dep] {
+			deps = append(deps, dep)
+			seen[dep] = true
+		}
+	}
+	return deps
 }

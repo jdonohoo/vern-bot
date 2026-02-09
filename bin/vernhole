@@ -4,14 +4,13 @@
 #
 # Delegates to the Go vern CLI binary. Auto-downloads if not present.
 #
-# Usage: vernhole "<idea>" [output_dir] [num_verns_or_council] [context_file]
-#   idea: The idea to explore
-#   output_dir: Where to save output (default: current dir)
-#   num_verns_or_council: Number of Verns to summon (min 3), or a council name
-#   context_file: Optional path to a context file
+# Usage: vernhole [flags] "<idea>"
 #
-# Council flag (alternative to positional arg):
+# Flags:
 #   --council <name>   Use a named council tier
+#   --count <N>        Number of Verns to summon (min 3)
+#   --output-dir <dir> Output directory for VernHole files (default: .)
+#   --context <file>   Path to context file (e.g. discovery master plan)
 #
 # Council tiers:
 #   hammers  - Council of the Three Hammers (great, mediocre, ketamine)
@@ -41,64 +40,4 @@ if [ ! -x "$VERN_CLI" ]; then
     fi
 fi
 
-# Parse flags and positional args, mapping to Go CLI flags
-COUNCIL_FLAG=""
-POSITIONAL_ARGS=()
-
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --council)
-            COUNCIL_FLAG="$2"
-            shift 2
-            ;;
-        *)
-            POSITIONAL_ARGS+=("$1")
-            shift
-            ;;
-    esac
-done
-
-IDEA="${POSITIONAL_ARGS[0]:-}"
-OUTPUT_DIR="${POSITIONAL_ARGS[1]:-.}"
-NUM_OR_COUNCIL="${POSITIONAL_ARGS[2]:-}"
-CONTEXT_FILE="${POSITIONAL_ARGS[3]:-}"
-
-# --council flag overrides positional arg
-if [ -n "$COUNCIL_FLAG" ]; then
-    NUM_OR_COUNCIL="$COUNCIL_FLAG"
-fi
-
-if [ -z "$IDEA" ]; then
-    echo "Usage: vernhole \"<idea>\" [output_dir] [num_verns_or_council] [context_file]"
-    echo ""
-    echo "Council tiers:"
-    echo "  hammers  - Council of the Three Hammers (great, mediocre, ketamine)"
-    echo "  conflict - Max Conflict (startup, enterprise, yolo, paranoid, optimist, inverse)"
-    echo "  inner    - The Inner Circle (architect, inverse, paranoid + random fill)"
-    echo "  round    - The Round Table (mighty, yolo, startup, academic, enterprise + random fill)"
-    echo "  war      - The War Room (all round table + ux, retro, optimist, nyquil + random fill)"
-    echo "  full     - The Full Vern Experience (all summonable personas)"
-    echo "  random   - Fate's Hand (random count, random selection)"
-    echo ""
-    echo "Flags:"
-    echo "  --council <name>   Use a named council tier"
-    exit 1
-fi
-
-# Build Go CLI args
-ARGS=("hole" "$IDEA" "--output-dir" "$OUTPUT_DIR")
-
-if [ -n "$NUM_OR_COUNCIL" ]; then
-    # Check if it's a number or a council name
-    if [[ "$NUM_OR_COUNCIL" =~ ^[0-9]+$ ]]; then
-        ARGS+=("--count" "$NUM_OR_COUNCIL")
-    else
-        ARGS+=("--council" "$NUM_OR_COUNCIL")
-    fi
-fi
-
-if [ -n "$CONTEXT_FILE" ]; then
-    ARGS+=("--context" "$CONTEXT_FILE")
-fi
-
-exec "$VERN_CLI" "${ARGS[@]}"
+exec "$VERN_CLI" hole "$@"
