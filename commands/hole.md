@@ -21,7 +21,16 @@ Options:
 - **Max Conflict** (6) - startup, enterprise, yolo, paranoid, optimist, inverse. Maximum contradictions.
 - **The Full Vern Experience** (all 15) - Every summonable persona speaks.
 
-Finer control (if user asks): inner (3-5), round (6-9), war (10-13).
+If the user wants finer control, they can also specify: `inner` (3-5, architect-led), `round` (6-9, round table), or `war` (10-13, war room).
+
+Map their choice to a council name:
+- Fate's Hand / random → `random`
+- Council of the Three Hammers → `hammers`
+- Max Conflict → `conflict`
+- The Full Vern Experience → `full`
+- The Inner Circle → `inner`
+- The Round Table → `round`
+- The War Room → `war`
 
 ## Step 2: Output Location
 

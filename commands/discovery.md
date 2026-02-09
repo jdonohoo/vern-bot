@@ -62,8 +62,11 @@ Ask the user using AskUserQuestion:
 2. **VernHole**: Run VernHole on the result after pipeline completes?
    - **No, just the pipeline** (Recommended)
    - **Fate's Hand (random)** — random count, random selection
-   - **Council of the Three Hammers** — great + mediocre + ketamine (3)
-   - **Max Conflict** — startup, enterprise, yolo, paranoid, optimist, inverse (6)
+   - **Council of the Three Hammers** (3) — great + mediocre + ketamine
+   - **Max Conflict** (6) — startup, enterprise, yolo, paranoid, optimist, inverse
+   - **The Full Vern Experience** (all 15) — every summonable persona speaks
+
+   If the user wants finer control, they can also specify: `inner` (3-5, architect-led), `round` (6-9, round table), or `war` (10-13, war room).
 
 3. **Oracle** (only ask if VernHole = yes): After VernHole, consult Oracle Vern?
    - **No, skip the Oracle** (Recommended)
@@ -101,7 +104,10 @@ Build the command:
   - Fate's Hand → add `--vernhole-council random`
   - Council of the Three Hammers → add `--vernhole-council hammers`
   - Max Conflict → add `--vernhole-council conflict`
-  - Or any other council name → add `--vernhole-council <name>`
+  - The Full Vern Experience → add `--vernhole-council full`
+  - The Inner Circle → add `--vernhole-council inner`
+  - The Round Table → add `--vernhole-council round`
+  - The War Room → add `--vernhole-council war`
 - User said **yes** to Oracle → add `--oracle`
 - User said **auto-apply** → add `--oracle-apply` (replaces `--oracle`)
 - User provided extra files → add `--extra-context /path/to/file` for each one
