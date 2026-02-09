@@ -81,12 +81,19 @@ Ask the user using AskUserQuestion:
 
 **CRITICAL: Do NOT orchestrate the pipeline steps yourself.** Instead, build a single CLI command and run it via the Bash tool. This ensures the entire pipeline runs non-interactively without permission prompts.
 
-The CLI wrapper is located at `bin/vern-discovery` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
+The CLI wrapper is located relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
+
+**Platform detection:** Use the appropriate wrapper for the current OS:
+- **Windows:** `{plugin_root}\bin\vern-discovery.cmd`
+- **macOS/Linux:** `{plugin_root}/bin/vern-discovery`
 
 Build the command:
 
 ```bash
+# macOS/Linux:
 {plugin_root}/bin/vern-discovery --batch \
+# Windows:
+# {plugin_root}\bin\vern-discovery.cmd --batch ^
   [--expanded]                            # if user chose expanded pipeline mode
   [--skip-input]                          # if user said no to reading input files
   [--vernhole N]                          # if user wants VernHole with a specific count

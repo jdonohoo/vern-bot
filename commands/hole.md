@@ -46,10 +46,17 @@ Options:
 
 **CRITICAL: Do NOT orchestrate the Vern passes yourself.** Instead, run the `bin/vernhole` CLI wrapper in a single Bash tool call. This ensures the entire VernHole runs non-interactively without permission prompts.
 
-The CLI wrapper is located at `bin/vernhole` relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
+The CLI wrapper is located relative to the plugin root. Find the plugin root by looking for `.claude-plugin/plugin.json`.
+
+**Platform detection:** Use the appropriate wrapper for the current OS:
+- **Windows:** `{plugin_root}\bin\vernhole.cmd`
+- **macOS/Linux:** `{plugin_root}/bin/vernhole`
 
 ```bash
+# macOS/Linux:
 {plugin_root}/bin/vernhole \
+# Windows:
+# {plugin_root}\bin\vernhole.cmd ^
   --council "<council_name>" \
   --output-dir "<output_dir>" \
   [--context "<context_file>"] \

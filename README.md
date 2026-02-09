@@ -353,10 +353,14 @@ vern-bot/
 │   ├── go.mod
 │   └── go.sum
 ├── bin/                       # Shell wrappers (delegate to Go CLI binary)
-│   ├── vern-run              # Single LLM runner wrapper
-│   ├── vern-discovery        # Full discovery pipeline wrapper
-│   ├── vernhole              # VernHole chaos mode wrapper
-│   └── install-vern-cli      # Auto-download CLI binary from GitHub releases
+│   ├── vern-run              # Single LLM runner wrapper (bash)
+│   ├── vern-run.cmd          # Single LLM runner wrapper (Windows)
+│   ├── vern-discovery        # Full discovery pipeline wrapper (bash)
+│   ├── vern-discovery.cmd    # Full discovery pipeline wrapper (Windows)
+│   ├── vernhole              # VernHole chaos mode wrapper (bash)
+│   ├── vernhole.cmd          # VernHole chaos mode wrapper (Windows)
+│   ├── install-vern-cli      # Auto-download CLI binary from GitHub releases (bash)
+│   └── install-vern-cli.cmd  # Auto-download CLI binary from GitHub releases (Windows)
 ├── discovery/                 # Discovery pipeline output
 └── README.md
 ```
