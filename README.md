@@ -199,6 +199,32 @@ The expanded pipeline inserts **Vern the Mediocre** (Reality Check) and **Startu
 
 Every pass receives the **original prompt + all input context** alongside the chain outputs, so nothing gets lost.
 
+### Error Handling & Recovery
+
+Pipelines are **failure-tolerant**. A single LLM step failure won't kill your entire run.
+
+| Feature | Description |
+|---------|-------------|
+| **20-min timeout** | Each step has a 20-minute watchdog. Configurable via `timeout_seconds` in config or `VERN_TIMEOUT` env var. |
+| **`--resume-from N`** | Resume a pipeline from step N after a failure. Skips completed steps, preserves context chaining. |
+| **`--max-retries N`** | Retry failed steps (default: 1 retry). On timeout, non-claude LLMs automatically fall back to claude. |
+| **Pipeline log** | `output/pipeline.log` tracks per-step status (OK/FAILED/SKIPPED), timestamps, exit codes, and retry counts. |
+| **Failure markers** | Failed steps write a `# STEP FAILED` marker instead of halting. Downstream steps continue. |
+| **Downstream guards** | VTS post-processing, VernHole, and Oracle automatically skip when upstream steps fail. |
+
+```bash
+# Resume from step 3 after fixing an issue
+/vern:discovery --batch --resume-from 3 "my idea" ./discovery/my-project
+
+# Set max retries to 2
+/vern:discovery --batch --max-retries 2 "my idea"
+
+# Override timeout (in seconds) via environment
+VERN_TIMEOUT=600 bin/vern-run claude "say hello"
+```
+
+VernHole is also failure-tolerant — if a Vern fails or times out, it's excluded from synthesis and the remaining Verns carry on.
+
 6. After the pipeline, choose a **VernHole council tier** to brainstorm the plan:
 
 | Tier | Count | Name |
@@ -231,7 +257,8 @@ discovery/{name}/
 │   ├── 03-yolo-chaos-check.md       # (or 03-mediocre-reality-check.md in expanded)
 │   ├── 04-mighty-consolidation.md   # (or 06-... in expanded)
 │   ├── 05-architect-architect-breakdown.md  # (or 07-... in expanded)
-│   └── vts/                   # Vern Task Spec files
+│   ├── vts/                   # Vern Task Spec files
+│   └── pipeline.log           # Per-step status, timestamps, exit codes
 ├── vernhole/                  # Only if you opted in
 └── oracle-vision.md           # Only if Oracle ran
 ```

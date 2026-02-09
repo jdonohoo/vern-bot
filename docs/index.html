@@ -1103,6 +1103,16 @@ Config saved to ~/.claude/vern-bot-config.json</div>
                     <span class="step-arrow">&rarr;</span>
                     <div class="step" style="border-color: var(--green);"><strong>Architect Vern</strong><br><small>Applies the Oracle's Vision (optional)</small></div>
                 </div>
+                <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--green);"><strong>Error Handling &amp; Recovery</strong></p>
+                <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 8px;">Pipelines are failure-tolerant. A single LLM step failure won't kill your entire run.</p>
+                <ul style="color: var(--text-muted); font-size: 0.85rem; margin-left: 20px; line-height: 1.8;">
+                    <li><strong style="color: var(--text);">20-min timeout</strong> per step &mdash; configurable via config or <code>VERN_TIMEOUT</code> env var</li>
+                    <li><strong style="color: var(--text);"><code>--resume-from N</code></strong> &mdash; restart from step N after a failure</li>
+                    <li><strong style="color: var(--text);"><code>--max-retries N</code></strong> &mdash; retry failed steps with automatic claude fallback on timeout</li>
+                    <li><strong style="color: var(--text);">Pipeline log</strong> &mdash; <code>output/pipeline.log</code> with per-step status, timestamps, exit codes</li>
+                    <li><strong style="color: var(--text);">Downstream guards</strong> &mdash; VTS, VernHole, Oracle auto-skip when upstream fails</li>
+                </ul>
+
                 <p style="margin-top: 16px; color: var(--text-muted); font-size: 0.9rem;">Configurable via <code>/vern:setup</code> &mdash; swap any persona or LLM at any step.</p>
             </div>
 
@@ -1179,8 +1189,26 @@ Add another file? [y/N]: <strong style="color: var(--cyan);">n</strong>
 Running discovery pipeline with 4 input files...</div>
             </div>
 
+            <div class="example-block">
+                <div class="example-cmd"><span class="prompt">$ </span>/vern:discovery --batch --resume-from 3 "my SaaS idea" ./discovery/my-saas</div>
+                <div class="example-explain"><strong>Resume after failure</strong> &mdash; step 3 timed out? Resume from step 3. Steps 1&ndash;2 are skipped (their output files already exist), and context chaining is preserved. The <code>--resume-from</code> flag works with both default and expanded pipelines.</div>
+                <div class="example-output"><span class="out-label">Output:</span>
+Resuming from: step 3
+&gt;&gt;&gt; Pass 1/5: Initial Analysis &mdash; SKIPPED (resuming, output exists)
+&gt;&gt;&gt; Pass 2/5: Refinement &mdash; SKIPPED (resuming, output exists)
+&gt;&gt;&gt; Pass 3/5: Chaos Check (gemini)
+ <span style="color: var(--yellow);">Timeout on gemini &mdash; falling back to claude for retry</span>
+ <span style="color: var(--green);">Retry 1/1 for step 3 (Chaos Check)... OK</span>
+&gt;&gt;&gt; Pass 4/5: Consolidation (codex)
+&gt;&gt;&gt; Pass 5/5: Architect Breakdown (claude)</div>
+            </div>
+
             <div class="tip-box">
                 <strong>Tip:</strong> The prepared path (<code>/vern:new-idea</code> then <code>/vern:discovery</code>) is recommended for complex ideas. Drop competitor analysis, user research, technical specs &mdash; anything relevant &mdash; into the <code>input/</code> folder. The pipeline reads it all.
+            </div>
+
+            <div class="tip-box">
+                <strong>Recovery:</strong> Every run writes <code>output/pipeline.log</code> with per-step status. Failed steps print a <code>--resume-from</code> hint. Use <code>--max-retries 2</code> for extra resilience &mdash; on timeout, non-claude LLMs automatically fall back to claude.
             </div>
         </div>
 
@@ -1218,6 +1246,10 @@ Synthesizing 15 perspectives into final report...</div>
 
             <div class="tip-box">
                 <strong>Council tiers:</strong> <strong>Council of the Three Hammers</strong> (3: great + mediocre + ketamine) &bull; <strong>Max Conflict</strong> (6: maximum contradiction) &bull; <strong>The Inner Circle</strong> (3-5: architect-led) &bull; <strong>The Round Table</strong> (6-9) &bull; <strong>The War Room</strong> (10-13) &bull; <strong>The Full Vern Experience</strong> (all 15) &bull; <strong>Fate's Hand</strong> (random)
+            </div>
+
+            <div class="tip-box">
+                <strong>Failure-tolerant:</strong> If a Vern fails or times out, it's excluded from synthesis and the remaining Verns carry on. The synthesis prompt notes which perspectives are missing so you know what gaps exist.
             </div>
         </div>
 
