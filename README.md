@@ -289,6 +289,12 @@ Choose a council tier — from the focused **Council of the Three Hammers** (3 V
 
 Oracle is excluded from all council rosters (15 summonable personas).
 
+## Requirements
+
+No additional dependencies for end users. The discovery and VernHole features use a self-contained CLI binary that auto-downloads on first use.
+
+Cross-platform: macOS (Intel + Apple Silicon), Linux (x64 + ARM64), Windows (x64 + ARM64).
+
 ## Plugin Structure
 
 ```
@@ -339,12 +345,39 @@ vern-bot/
 │   ├── hole/SKILL.md
 │   ├── discovery/SKILL.md
 │   └── new-idea/SKILL.md
-├── bin/                       # Pipeline orchestration scripts
-│   ├── vern-run              # Single LLM runner
-│   ├── vern-discovery        # Full discovery pipeline
-│   └── vernhole              # VernHole chaos mode
+├── go/                        # Compiled CLI (vern run, vern discovery, vern hole)
+│   ├── cmd/vern/             # Cobra CLI entry points
+│   ├── internal/             # Config, LLM runner, VTS parser, pipeline, council
+│   ├── go.mod
+│   └── go.sum
+├── bin/                       # Shell wrappers (delegate to Go CLI binary)
+│   ├── vern-run              # Single LLM runner wrapper
+│   ├── vern-discovery        # Full discovery pipeline wrapper
+│   ├── vernhole              # VernHole chaos mode wrapper
+│   └── install-vern-cli      # Auto-download CLI binary from GitHub releases
 ├── discovery/                 # Discovery pipeline output
 └── README.md
+```
+
+## Development
+
+### Prerequisites
+- Go 1.22+ (`brew install go`)
+
+### Build
+```bash
+cd go && go build -o bin/vern ./cmd/vern
+```
+
+### Test
+```bash
+cd go && go test ./...
+```
+
+### Release
+```bash
+git tag v1.x.0 && git push --tags
+# GitHub Actions builds binaries automatically via GoReleaser
 ```
 
 ## Dad Jokes

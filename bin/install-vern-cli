@@ -1,0 +1,95 @@
+#!/bin/bash
+#
+# install-vern-cli: Auto-download the vern CLI binary for the current platform
+#
+# Downloads from GitHub releases and installs to {plugin_root}/go/bin/vern
+#
+
+set -euo pipefail
+
+REPO="jdonohoo/vern-bot"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_DIR="$SCRIPT_DIR/../go/bin"
+
+# Detect OS
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+case "$OS" in
+    darwin|linux) ;;
+    mingw*|msys*|cygwin*) OS="windows" ;;
+    *)
+        echo "[vern-cli] Unsupported OS: $OS" >&2
+        exit 1
+        ;;
+esac
+
+# Detect architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64|amd64) ARCH="amd64" ;;
+    aarch64|arm64) ARCH="arm64" ;;
+    *)
+        echo "[vern-cli] Unsupported architecture: $ARCH" >&2
+        exit 1
+        ;;
+esac
+
+BINARY_NAME="vern"
+[ "$OS" = "windows" ] && BINARY_NAME="vern.exe"
+
+ARCHIVE_NAME="vern_${OS}_${ARCH}"
+[ "$OS" = "windows" ] && ARCHIVE_NAME="${ARCHIVE_NAME}.zip" || ARCHIVE_NAME="${ARCHIVE_NAME}.tar.gz"
+
+echo "[vern-cli] Detecting platform: ${OS}/${ARCH}"
+
+# Get latest release URL
+RELEASE_URL="https://api.github.com/repos/${REPO}/releases/latest"
+echo "[vern-cli] Fetching latest release info..."
+
+DOWNLOAD_URL=""
+if command -v curl &>/dev/null; then
+    DOWNLOAD_URL=$(curl -sL "$RELEASE_URL" | grep "browser_download_url.*${ARCHIVE_NAME}" | head -1 | cut -d'"' -f4)
+elif command -v wget &>/dev/null; then
+    DOWNLOAD_URL=$(wget -qO- "$RELEASE_URL" | grep "browser_download_url.*${ARCHIVE_NAME}" | head -1 | cut -d'"' -f4)
+else
+    echo "[vern-cli] Error: curl or wget required" >&2
+    exit 1
+fi
+
+if [ -z "$DOWNLOAD_URL" ]; then
+    echo "[vern-cli] Error: Could not find release for ${OS}/${ARCH}" >&2
+    echo "[vern-cli] You may need to build from source: cd go && go build -o bin/vern ./cmd/vern" >&2
+    exit 1
+fi
+
+# Download and extract
+mkdir -p "$INSTALL_DIR"
+TMPDIR_DL=$(mktemp -d)
+trap 'rm -rf "$TMPDIR_DL"' EXIT
+
+echo "[vern-cli] Downloading: $DOWNLOAD_URL"
+
+if command -v curl &>/dev/null; then
+    curl -sL -o "$TMPDIR_DL/$ARCHIVE_NAME" "$DOWNLOAD_URL"
+else
+    wget -q -O "$TMPDIR_DL/$ARCHIVE_NAME" "$DOWNLOAD_URL"
+fi
+
+echo "[vern-cli] Extracting..."
+if [[ "$ARCHIVE_NAME" == *.tar.gz ]]; then
+    tar -xzf "$TMPDIR_DL/$ARCHIVE_NAME" -C "$TMPDIR_DL"
+else
+    unzip -qo "$TMPDIR_DL/$ARCHIVE_NAME" -d "$TMPDIR_DL"
+fi
+
+# Find the binary in extracted files
+EXTRACTED_BINARY=$(find "$TMPDIR_DL" -name "$BINARY_NAME" -type f | head -1)
+if [ -z "$EXTRACTED_BINARY" ]; then
+    echo "[vern-cli] Error: Binary not found in archive" >&2
+    exit 1
+fi
+
+cp "$EXTRACTED_BINARY" "$INSTALL_DIR/$BINARY_NAME"
+chmod +x "$INSTALL_DIR/$BINARY_NAME"
+
+echo "[vern-cli] Installed: $INSTALL_DIR/$BINARY_NAME"
+"$INSTALL_DIR/$BINARY_NAME" --version
