@@ -28,8 +28,29 @@ Ask using AskUserQuestion:
 Options (multiSelect: true):
 - **Codex** (used by MightyVern for raw analysis power)
 - **Gemini** (used by YOLO Vern for chaos checks)
+- **Copilot** (used as analysis engine, GitHub Copilot CLI)
 
-Based on their answer, set `llms.codex` and `llms.gemini` to true/false. `llms.claude` is always true.
+Based on their answer, set `llms.codex`, `llms.gemini`, and `llms.copilot` to true/false. `llms.claude` is always true.
+
+## Step 2.5: Default LLM Mode
+
+Ask using AskUserQuestion:
+
+> "What should be your default LLM mode?"
+
+Options:
+- **Mixed LLMs + Claude fallback** (Recommended) — Pipeline uses codex/claude/gemini/copilot per step config, falls back to claude on failure
+- **Mixed LLMs + Codex fallback** — Same pipeline, falls back to codex instead
+- **Mixed LLMs + Gemini fallback** — Falls back to gemini
+- **Mixed LLMs + Copilot fallback** — Falls back to copilot
+- **Single LLM** — All steps use one LLM (ask which one)
+
+Track the answer as `llm_mode`:
+- Mixed + Claude FB → `"mixed_claude_fallback"`
+- Mixed + Codex FB → `"mixed_codex_fallback"`
+- Mixed + Gemini FB → `"mixed_gemini_fallback"`
+- Mixed + Copilot FB → `"mixed_copilot_fallback"`
+- Single LLM → `"single_llm"` (also ask which LLM and set `llm_modes.single_llm.override_llm`)
 
 ## Step 3: Pipeline Mode
 
@@ -65,6 +86,7 @@ For each of the 5 default pipeline steps, ask using AskUserQuestion:
 Options (build dynamically based on available LLMs):
 - **MightyVern on Codex** (Recommended if codex available) - raw power analysis
 - **MightyVern on Claude** - thorough but different flavor
+- **MightyVern on Copilot** - copilot-powered analysis
 - **Vernile on Claude** - elegant initial analysis
 - **Academic Vern on Claude** - research-heavy initial analysis
 
@@ -83,6 +105,7 @@ Options:
 Options (build dynamically):
 - **YOLO Vern on Gemini** (Recommended if gemini available) - full chaos
 - **YOLO Vern on Claude** - chaos energy, Claude engine
+- **YOLO Vern on Copilot** - chaos energy, Copilot engine
 - **Inverse Vern on Claude** - contrarian stress test
 - **Paranoid Vern on Claude** - risk-focused stress test
 - **Startup Vern on Claude** - "is this actually an MVP?" test
@@ -93,6 +116,7 @@ Options (build dynamically):
 Options:
 - **MightyVern on Codex** (Recommended if codex available) - comprehensive synthesis
 - **MightyVern on Claude** - synthesis without Codex
+- **MightyVern on Copilot** - copilot-powered synthesis
 - **Vernile on Claude** - elegant consolidation
 - **Ketamine Vern on Claude** - pattern-finding consolidation
 
@@ -143,12 +167,14 @@ Write the config to `~/.claude/vern-bot-config.json`:
 
 ```json
 {
-  "version": "1.1.0",
+  "version": "2.1.0",
   "llms": {
     "claude": true,
     "codex": true,
-    "gemini": false
+    "gemini": false,
+    "copilot": false
   },
+  "llm_mode": "mixed_claude_fallback",
   "pipeline_mode": "default",
   "discovery_pipelines": {
     "default": [
@@ -268,7 +294,8 @@ Show the user a summary:
 ```
 === VERN-BOT CONFIGURED ===
 
-LLMs: Claude ✓  Codex ✓  Gemini ✗
+LLM Mode: Mixed + Claude Fallback
+LLMs: Claude ✓  Codex ✓  Gemini ✗  Copilot ✗
 
 Default Pipeline Mode: default (5-step)
 

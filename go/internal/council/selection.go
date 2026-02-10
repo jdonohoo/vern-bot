@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jdonohoo/vern-bot/go/internal/embedded"
 	"github.com/jdonohoo/vern-bot/go/internal/persona"
 )
 
@@ -20,6 +21,7 @@ type Vern struct {
 }
 
 // ScanRoster builds the roster by scanning agents/*.md files.
+// Falls back to embedded agent data if the directory isn't available.
 // Skips vernhole-orchestrator and oracle (pipeline-only personas).
 func ScanRoster(agentsDir string) []Vern {
 	skip := map[string]bool{
@@ -29,7 +31,8 @@ func ScanRoster(agentsDir string) []Vern {
 
 	entries, err := os.ReadDir(agentsDir)
 	if err != nil {
-		return hardcodedRoster()
+		// No agents dir on disk — use embedded data
+		return scanEmbeddedRoster(skip)
 	}
 
 	var roster []Vern
@@ -58,6 +61,34 @@ func ScanRoster(agentsDir string) []Vern {
 	}
 
 	sort.Slice(roster, func(i, j int) bool { return roster[i].ID < roster[j].ID })
+
+	if len(roster) == 0 {
+		return scanEmbeddedRoster(skip)
+	}
+	return roster
+}
+
+// scanEmbeddedRoster builds the roster from compiled-in agent data.
+func scanEmbeddedRoster(skip map[string]bool) []Vern {
+	names := embedded.ListAgents()
+	var roster []Vern
+
+	for _, name := range names {
+		if skip[name] {
+			continue
+		}
+		content, ok := embedded.GetAgent(name)
+		if !ok {
+			continue
+		}
+		p, err := persona.ParseString(content)
+		if err != nil {
+			continue
+		}
+		llm := persona.ModelToLLM(p.Model)
+		desc := persona.ShortDescription(p.Description)
+		roster = append(roster, Vern{ID: name, LLM: llm, Desc: desc})
+	}
 
 	if len(roster) == 0 {
 		return hardcodedRoster()

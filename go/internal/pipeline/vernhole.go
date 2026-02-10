@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,13 +15,17 @@ import (
 
 // VernHoleOptions configures a VernHole run.
 type VernHoleOptions struct {
-	Idea      string
-	OutputDir string
-	Council   string
-	Count     int
-	Context   string // path to context file
-	AgentsDir string
-	Timeout   int // seconds
+	Ctx          context.Context // optional: cancelled on TUI quit
+	Idea         string
+	OutputDir    string
+	Council      string
+	Count        int
+	Context      string       // path to context file
+	AgentsDir    string
+	Timeout      int          // seconds
+	SynthesisLLM string       // LLM for synthesis step (default: claude)
+	OverrideLLM  string       // override all Vern LLMs (single_llm mode)
+	OnLog        func(string) // optional callback for progress lines
 }
 
 // VernHoleResult holds per-Vern results.
@@ -31,6 +36,19 @@ type VernHoleResult struct {
 	ExitCode   int
 	Succeeded  bool
 	OutputFile string
+}
+
+// vernOutput prints to stdout in CLI mode, or routes to OnLog in TUI mode.
+func vernOutput(opts *VernHoleOptions, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	if opts.OnLog != nil {
+		trimmed := strings.TrimSpace(msg)
+		if trimmed != "" {
+			opts.OnLog(trimmed)
+		}
+	} else {
+		fmt.Print(msg)
+	}
 }
 
 // RunVernHole executes a VernHole session with parallel Vern execution.
@@ -55,18 +73,18 @@ func RunVernHole(opts VernHoleOptions) error {
 		data, err := os.ReadFile(opts.Context)
 		if err == nil && len(data) > 0 {
 			contextBlock = "\n\n=== PRIOR DISCOVERY PLAN ===\nThe following plan was synthesised from a full Vern Discovery Pipeline run on this idea. Use it as context, but bring your own unique perspective. Challenge it, build on it, tear it apart — whatever your persona demands.\n\n" + string(data) + "\n\n=== END PRIOR DISCOVERY PLAN ==="
-			fmt.Printf("Context loaded from: %s\n\n", opts.Context)
+			vernOutput(&opts, "Context loaded from: %s\n\n", opts.Context)
 		}
 	}
 
 	// Banner
-	fmt.Println("=== WELCOME TO THE VERNHOLE ===")
-	fmt.Printf("Idea: %s\n", opts.Idea)
-	fmt.Printf("Roster: %d Verns available\n", len(roster))
+	vernOutput(&opts, "=== WELCOME TO THE VERNHOLE ===\n")
+	vernOutput(&opts, "Idea: %s\n", opts.Idea)
+	vernOutput(&opts, "Roster: %d Verns available\n", len(roster))
 	if councilName != "" {
-		fmt.Printf("Council: %s\n", councilName)
+		vernOutput(&opts, "Council: %s\n", councilName)
 	}
-	fmt.Printf("Summoning %d Verns...\n\n", numVerns)
+	vernOutput(&opts, "Summoning %d Verns...\n\n", numVerns)
 
 	if err := os.MkdirAll(opts.OutputDir, 0755); err != nil {
 		return fmt.Errorf("create output dir: %w", err)
@@ -89,12 +107,19 @@ func RunVernHole(opts VernHoleOptions) error {
 			outputFile := filepath.Join(opts.OutputDir, fmt.Sprintf("%02d-%s.md", idx+1, vern.ID))
 			prompt := fmt.Sprintf("Analyze this idea from your unique perspective. Be true to your persona.\n\nOriginal idea: %s%s", opts.Idea, contextBlock)
 
-			fmt.Printf(">>> Vern %d/%d: %s\n", idx+1, numVerns, vern.Desc)
+			// Apply single_llm override if set
+			vernLLM := vern.LLM
+			if opts.OverrideLLM != "" {
+				vernLLM = opts.OverrideLLM
+			}
+
+			vernOutput(&opts, ">>> Vern %d/%d: %s (%s)\n", idx+1, numVerns, vern.Desc, vernLLM)
 
 			result, err := llm.Run(llm.RunOptions{
-				LLM:        vern.LLM,
+				Ctx:        opts.Ctx,
+				LLM:        vernLLM,
 				Prompt:     prompt,
-				OutputFile:  outputFile,
+				OutputFile: outputFile,
 				Persona:    vern.ID,
 				Timeout:    time.Duration(timeout) * time.Second,
 				AgentsDir:  opts.AgentsDir,
@@ -116,7 +141,7 @@ func RunVernHole(opts VernHoleOptions) error {
 					exitCode = result.ExitCode
 				}
 				r.ExitCode = exitCode
-				fmt.Printf("    WARNING: %s failed (exit %d) — excluding from synthesis\n", vern.ID, exitCode)
+				vernOutput(&opts, "    WARNING: %s failed (exit %d) — excluding from synthesis\n", vern.ID, exitCode)
 			}
 
 			results[idx] = r
@@ -140,12 +165,12 @@ func RunVernHole(opts VernHoleOptions) error {
 	}
 
 	if len(failedVerns) > 0 {
-		fmt.Printf("\n>>> Failed Verns: %s\n\n", strings.Join(failedVerns, " "))
+		vernOutput(&opts, "\n>>> Failed Verns: %s\n\n", strings.Join(failedVerns, " "))
 	}
 
 	// Synthesis
 	if succeededCount > 0 {
-		fmt.Printf(">>> Synthesizing the chaos (%d/%d Verns succeeded)...\n", succeededCount, numVerns)
+		vernOutput(&opts, ">>> Synthesizing the chaos (%d/%d Verns succeeded)...\n", succeededCount, numVerns)
 
 		missingNote := ""
 		if len(failedVerns) > 0 {
@@ -155,11 +180,17 @@ func RunVernHole(opts VernHoleOptions) error {
 		synthesisPrompt := fmt.Sprintf("Synthesize these diverse perspectives into actionable insights. Identify common themes, interesting contradictions, and recommended paths forward.\n\nORIGINAL IDEA: %s\n%s\nTHE VERNS HAVE SPOKEN:\n%s%s",
 			opts.Idea, contextBlock, allOutputs.String(), missingNote)
 
+		synthesisLLM := opts.SynthesisLLM
+		if synthesisLLM == "" {
+			synthesisLLM = "claude"
+		}
+
 		synthesisFile := filepath.Join(opts.OutputDir, "synthesis.md")
 		_, err := llm.Run(llm.RunOptions{
-			LLM:        "claude",
+			Ctx:        opts.Ctx,
+			LLM:        synthesisLLM,
 			Prompt:     synthesisPrompt,
-			OutputFile:  synthesisFile,
+			OutputFile: synthesisFile,
 			Persona:    "vernhole-orchestrator",
 			Timeout:    time.Duration(timeout) * time.Second,
 			AgentsDir:  opts.AgentsDir,
@@ -168,17 +199,17 @@ func RunVernHole(opts VernHoleOptions) error {
 			fmt.Fprintf(os.Stderr, "\nWARNING: Synthesis step failed\n")
 		}
 	} else {
-		fmt.Println(">>> All Verns failed — skipping synthesis")
-		fmt.Println("No perspectives to synthesize.")
+		vernOutput(&opts, ">>> All Verns failed — skipping synthesis\n")
+		vernOutput(&opts, "No perspectives to synthesize.\n")
 	}
 
 	// Summary
-	fmt.Println()
-	fmt.Println("=== THE VERNHOLE HAS SPOKEN ===")
-	fmt.Printf("Files created in: %s\n", opts.OutputDir)
-	fmt.Printf("Succeeded: %d/%d\n", succeededCount, numVerns)
+	vernOutput(&opts, "\n")
+	vernOutput(&opts, "=== THE VERNHOLE HAS SPOKEN ===\n")
+	vernOutput(&opts, "Files created in: %s\n", opts.OutputDir)
+	vernOutput(&opts, "Succeeded: %d/%d\n", succeededCount, numVerns)
 	if len(failedVerns) > 0 {
-		fmt.Printf("Failed: %s\n", strings.Join(failedVerns, " "))
+		vernOutput(&opts, "Failed: %s\n", strings.Join(failedVerns, " "))
 	}
 
 	if succeededCount == 0 {

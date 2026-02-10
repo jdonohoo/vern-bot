@@ -6,7 +6,9 @@
 
 https://jdonohoo.github.io/vern-bot/
 
-A Claude Code plugin. 16 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole council tiers, Oracle vision, and a full multi-LLM discovery pipeline.
+A Claude Code plugin and standalone CLI. 16 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole council tiers, Oracle vision, and a full multi-LLM discovery pipeline.
+
+Now available as a **standalone terminal app** — no Claude Code required.
 
 ## The 16 Personas
 
@@ -61,12 +63,95 @@ A Claude Code plugin. 16 AI personas with different personalities, models, and a
 
 ## Install
 
+### As a Claude Code Plugin
+
 ```bash
 /plugin marketplace add https://github.com/jdonohoo/vern-bot
 /plugin install vern
 ```
 
-## Usage
+### Standalone (No Claude Code Required)
+
+Download the latest binary from [GitHub Releases](https://github.com/jdonohoo/vern-bot/releases) or build from source:
+
+```bash
+# Download (macOS Apple Silicon example)
+curl -Lo vern https://github.com/jdonohoo/vern-bot/releases/latest/download/vern-darwin-arm64
+chmod +x vern
+sudo mv vern /usr/local/bin/
+
+# Or build from source
+git clone https://github.com/jdonohoo/vern-bot.git
+cd vern-bot/go
+go build -o bin/vern ./cmd/vern
+sudo cp bin/vern /usr/local/bin/
+```
+
+Then run the setup wizard to detect your LLMs and configure defaults:
+
+```bash
+vern setup
+```
+
+**Available binaries:** macOS (Intel + Apple Silicon), Linux (x64 + ARM64), Windows (x64 + ARM64).
+
+**Required:** At least one LLM CLI installed — `claude`, `codex`, `gemini`, or `copilot`.
+
+## Standalone TUI
+
+Launch the interactive terminal UI — no Claude Code needed:
+
+```bash
+vern tui
+```
+
+```
+┌──────────────────────────────────┐
+│         VERN-BOT v2.1            │
+│                                  │
+│  [1] Discovery Pipeline          │
+│  [2] VernHole Council            │
+│  [3] Single LLM Run             │
+│  [4] Settings                    │
+│  [q] Quit                        │
+│                                  │
+│  LLM Mode: Mixed + Claude FB    │
+│  LLMs: claude codex gemini       │
+└──────────────────────────────────┘
+```
+
+Or run commands directly from the CLI:
+
+```bash
+vern discovery "build a SaaS for freelancers"
+vern hole --council conflict "monolith vs microservices"
+vern run codex "analyze this codebase"
+```
+
+### LLM Modes
+
+Control which LLMs handle your pipeline steps and where failures fall back to:
+
+| Mode | Description |
+|------|-------------|
+| `mixed_claude_fallback` | Default. Mixed LLMs per step, claude catches failures |
+| `mixed_codex_fallback` | Mixed LLMs, codex as safety net |
+| `mixed_gemini_fallback` | Mixed LLMs, gemini as safety net |
+| `mixed_copilot_fallback` | Mixed LLMs, copilot as safety net |
+| `single_llm` | One LLM for everything |
+
+```bash
+# Override LLM mode for a single run
+vern discovery --llm-mode mixed_codex_fallback "my idea"
+
+# Use a single LLM for everything
+vern discovery --single-llm gemini "my idea"
+
+# Same flags work for VernHole
+vern hole --single-llm codex "my idea"
+```
+
+## Usage (Claude Code Plugin)
 
 ```
 /vern:<persona> <task>
@@ -207,7 +292,7 @@ Pipelines are **failure-tolerant**. A single LLM step failure won't kill your en
 |---------|-------------|
 | **20-min timeout** | Each step has a 20-minute watchdog. Configurable via `timeout_seconds` in config or `VERN_TIMEOUT` env var. |
 | **`--resume-from N`** | Resume a pipeline from step N after a failure. Skips completed steps, preserves context chaining. |
-| **`--max-retries N`** | Retry failed steps (default: 2 retries). Non-claude LLMs (gemini, codex) automatically fall back to claude after exhausting retries. |
+| **`--max-retries N`** | Retry failed steps (default: 2 retries). Failed LLMs automatically fall back based on your LLM mode (e.g. codex/gemini/copilot fall back to claude in `mixed_claude_fallback` mode). |
 | **Pipeline log** | `output/pipeline.log` tracks per-step status (OK/FAILED/SKIPPED), timestamps, exit codes, and retry counts. |
 | **Pipeline status** | `output/pipeline-status.md` provides a human-readable progress summary with step results table, durations, output sizes, and resume hints. |
 | **Failure markers** | Failed steps write a `# STEP FAILED` marker instead of halting. Downstream steps continue. |
@@ -293,7 +378,9 @@ Oracle is excluded from all council rosters (15 summonable personas).
 
 ## Requirements
 
-No additional dependencies for end users. The discovery and VernHole features use a self-contained CLI binary that auto-downloads on first use.
+**As a plugin:** No additional dependencies. The CLI binary auto-downloads on first use.
+
+**Standalone:** At least one LLM CLI installed — `claude`, `codex`, `gemini`, or `copilot`. Supports 4 LLMs with configurable fallback chains.
 
 Cross-platform: macOS (Intel + Apple Silicon), Linux (x64 + ARM64), Windows (x64 + ARM64).
 
@@ -347,9 +434,9 @@ vern-bot/
 │   ├── hole/SKILL.md
 │   ├── discovery/SKILL.md
 │   └── new-idea/SKILL.md
-├── go/                        # Compiled CLI (vern run, vern discovery, vern hole)
+├── go/                        # Compiled CLI (vern run, discovery, hole, tui, setup)
 │   ├── cmd/vern/             # Cobra CLI entry points
-│   ├── internal/             # Config, LLM runner, VTS parser, pipeline, council
+│   ├── internal/             # Config, LLM runner, VTS, pipeline, council, TUI
 │   ├── go.mod
 │   └── go.sum
 ├── bin/                       # Shell wrappers (delegate to Go CLI binary)
@@ -380,9 +467,18 @@ cd go && go build -o bin/vern ./cmd/vern
 cd go && go test ./...
 ```
 
+### Subcommands
+```bash
+vern run <llm> <prompt>      # Single LLM run
+vern discovery <prompt>       # Full discovery pipeline
+vern hole <idea>              # VernHole council
+vern tui                      # Interactive terminal UI
+vern setup                    # First-run configuration wizard
+```
+
 ### Release
 ```bash
-git tag v1.x.0 && git push --tags
+git tag v2.x.0 && git push --tags
 # GitHub Actions builds binaries automatically via GoReleaser
 ```
 

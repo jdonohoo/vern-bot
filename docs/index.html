@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="images/favicon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
     <meta property="og:title" content="Vern-Bot">
-    <meta property="og:description" content="16 AI personas, multi-LLM discovery pipelines, VernHole council tiers, and Oracle vision. One idea in, battle-tested plan out.">
+    <meta property="og:description" content="16 AI personas, multi-LLM discovery pipelines, VernHole council tiers, and Oracle vision. Now available as a standalone TUI. One idea in, battle-tested plan out.">
     <meta property="og:image" content="images/favicon-512.png">
     <style>
         :root {
@@ -272,6 +272,81 @@
             font-size: 1rem;
             color: var(--cyan);
             text-align: left;
+        }
+
+        /* Standalone Feature Section */
+        .standalone-section {
+            padding: 60px 0;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, var(--bg) 0%, #0f1519 100%);
+        }
+        .standalone-section h2 {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .standalone-section .tagline {
+            text-align: center;
+            color: var(--purple);
+            font-size: 1.1rem;
+            font-style: italic;
+            margin-bottom: 32px;
+        }
+        .standalone-section .intro-text {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1rem;
+            max-width: 700px;
+            margin: 0 auto 40px auto;
+            line-height: 1.6;
+        }
+        .tui-benefits {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        .tui-benefit {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .tui-benefit h4 {
+            color: var(--cyan);
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        .tui-benefit p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .tui-preview {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 32px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--text);
+            max-width: 520px;
+            margin: 0 auto 32px auto;
+            line-height: 1.7;
+        }
+        .tui-preview .tui-header {
+            color: var(--purple);
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .tui-preview .tui-item {
+            color: var(--cyan);
+        }
+        .tui-preview .tui-status {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 12px;
         }
 
         /* Pipelines */
@@ -1013,8 +1088,63 @@
 <!-- Install & Setup -->
 <div class="install">
     <div class="container">
-        <h2>Install</h2>
+        <h2>Install (Claude Code Plugin)</h2>
         <div class="install-cmd">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
+    </div>
+</div>
+
+<!-- Introducing Vern-Bot Standalone -->
+<div class="standalone-section">
+    <div class="container">
+        <h2>Introducing Vern-Bot Standalone</h2>
+        <p class="tagline">You asked. The Verns listened.</p>
+        <p class="intro-text">
+            Hit your Claude Code token limit? Prefer a native terminal workflow? Now you can run the full Vern-Bot experience &mdash; discovery pipelines, VernHole councils, and all 16 personas &mdash; without Claude Code. Just the <code>vern</code> binary, your LLMs, and a terminal.
+        </p>
+
+        <div class="tui-preview">
+            <div class="tui-header">VERN-BOT v2.1</div>
+            <span class="tui-item">[1]</span> Discovery Pipeline<br>
+            <span class="tui-item">[2]</span> VernHole Council<br>
+            <span class="tui-item">[3]</span> Single LLM Run<br>
+            <span class="tui-item">[4]</span> Settings<br>
+            <span class="tui-item">[q]</span> Quit<br>
+            <div class="tui-status">LLM Mode: Mixed + Claude Fallback &nbsp;&bull;&nbsp; LLMs: claude codex gemini copilot</div>
+        </div>
+
+        <h3 style="text-align: center; margin-bottom: 24px; font-size: 1.2rem;">Why Standalone?</h3>
+
+        <div class="tui-benefits">
+            <div class="tui-benefit">
+                <h4>Beat the Usage Limits</h4>
+                <p>Waiting on Claude Code usage resets? Route pipeline work to codex, gemini, or copilot instead. Juggle your subscriptions and keep the Verns in action while your limits cool down.</p>
+            </div>
+            <div class="tui-benefit">
+                <h4>4 LLMs, Your Rules</h4>
+                <p>Claude, Codex, Gemini, and Copilot. Pick your fallback chain. Run everything on one LLM, or let each step use its best match. Configurable per run.</p>
+            </div>
+            <div class="tui-benefit">
+                <h4>Interactive TUI</h4>
+                <p>Guided wizards for discovery pipelines and VernHole councils. Live progress with spinners, step-by-step status, and parallel Vern tracking. All in your terminal.</p>
+            </div>
+            <div class="tui-benefit">
+                <h4>Same Engine, No Wrapper</h4>
+                <p>The TUI calls the same Go backend as the CLI and plugin. Same pipelines, same personas, same council tiers. Just a different front door.</p>
+            </div>
+            <div class="tui-benefit">
+                <h4>Settings That Stick</h4>
+                <p>Configure your default LLM mode, pipeline preferences, and available LLMs once. The TUI settings screen saves to <code>~/.config/vern/config.json</code> and remembers.</p>
+            </div>
+            <div class="tui-benefit">
+                <h4>Works Everywhere</h4>
+                <p>macOS (Intel + Apple Silicon), Linux (x64 + ARM64), Windows (x64 + ARM64). One binary, zero dependencies beyond your LLM CLIs.</p>
+            </div>
+        </div>
+
+        <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 24px;">
+            Requires at least one LLM CLI: <code>claude</code>, <code>codex</code>, <code>gemini</code>, or <code>copilot</code>.
+            <br>Available for macOS, Linux, and Windows from <a href="https://github.com/jdonohoo/vern-bot/releases" style="color: var(--accent);">GitHub Releases</a>.
+        </p>
     </div>
 </div>
 
@@ -1033,11 +1163,19 @@
 
             <div class="example-block">
                 <div class="example-cmd"><span class="prompt">$ </span>/vern:setup</div>
-                <div class="example-explain">Interactive setup wizard. Walks you through: which LLMs you have installed (Codex, Gemini), which persona and LLM to use for each discovery pipeline step, VernHole council defaults, and Oracle preferences. Saves to <code>~/.claude/vern-bot-config.json</code>.</div>
+                <div class="example-explain">Interactive setup wizard. Walks you through: which LLMs you have installed (Codex, Gemini, Copilot), your default LLM mode (fallback chain), which persona and LLM to use for each discovery pipeline step, VernHole council defaults, and Oracle preferences. Saves to <code>~/.claude/vern-bot-config.json</code>.</div>
                 <div class="example-output"><span class="out-label">Prompts:</span>
 Which LLMs do you have available?
  [x] Codex (OpenAI)
  [x] Gemini (Google)
+ [x] Copilot (GitHub)
+
+Default LLM mode:
+ > Mixed LLMs + Claude fallback (Recommended)
+   Mixed LLMs + Codex fallback
+   Mixed LLMs + Gemini fallback
+   Mixed LLMs + Copilot fallback
+   Single LLM
 
 Step 1 - Analysis:
   Persona: MightyVern  |  LLM: codex
@@ -1051,7 +1189,7 @@ Config saved to ~/.claude/vern-bot-config.json</div>
             </div>
 
             <div class="tip-box">
-                <strong>Note:</strong> If you skip setup, the default pipeline runs with Claude for all steps. Codex and Gemini steps fall back to Claude automatically if those LLMs aren't configured.
+                <strong>Note:</strong> If you skip setup, the default pipeline runs with mixed LLMs and Claude as fallback. Failed steps automatically fall back based on your LLM mode. Supports Claude, Codex, Gemini, and Copilot.
             </div>
         </div>
 
@@ -1108,7 +1246,7 @@ Config saved to ~/.claude/vern-bot-config.json</div>
                 <ul style="color: var(--text-muted); font-size: 0.85rem; margin-left: 20px; line-height: 1.8;">
                     <li><strong style="color: var(--text);">20-min timeout</strong> per step &mdash; configurable via config or <code>VERN_TIMEOUT</code> env var</li>
                     <li><strong style="color: var(--text);"><code>--resume-from N</code></strong> &mdash; restart from step N after a failure</li>
-                    <li><strong style="color: var(--text);"><code>--max-retries N</code></strong> &mdash; retry failed steps (default: 2). Non-claude LLMs fall back to claude after exhausting retries</li>
+                    <li><strong style="color: var(--text);"><code>--max-retries N</code></strong> &mdash; retry failed steps (default: 2). Failed LLMs fall back based on your LLM mode (e.g. codex/gemini/copilot &rarr; claude in default mode)</li>
                     <li><strong style="color: var(--text);">Pipeline log</strong> &mdash; <code>output/pipeline.log</code> with per-step status, timestamps, exit codes</li>
                     <li><strong style="color: var(--text);">Status file</strong> &mdash; <code>output/pipeline-status.md</code> with human-readable progress summary, step results table, and resume hints</li>
                     <li><strong style="color: var(--text);">Downstream guards</strong> &mdash; VTS, VernHole, Oracle auto-skip when upstream fails</li>
@@ -1209,7 +1347,7 @@ Resuming from: step 3
             </div>
 
             <div class="tip-box">
-                <strong>Recovery:</strong> Every run writes <code>output/pipeline.log</code> and <code>output/pipeline-status.md</code> with per-step status. If gemini or codex fails after retries, the step automatically falls back to claude. Failed steps that can't recover print a <code>--resume-from</code> hint.
+                <strong>Recovery:</strong> Every run writes <code>output/pipeline.log</code> and <code>output/pipeline-status.md</code> with per-step status. Failed steps automatically fall back based on your LLM mode (e.g. codex/gemini/copilot &rarr; claude in default mode). Use <code>--llm-mode</code> or <code>--single-llm</code> to override per run. Failed steps that can't recover print a <code>--resume-from</code> hint.
             </div>
         </div>
 
@@ -1405,6 +1543,7 @@ Synthesizing 15 perspectives into final report...</div>
             Check us out on GitHub
         </a>
         <div class="install-cmd">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Or go standalone: <code style="color: var(--cyan);">vern tui</code> &mdash; no Claude Code required</p>
         <p class="dad-joke">Why did the mass of Verns cross the road? To get to the other paradigm.</p>
     </div>
 </footer>

@@ -8,6 +8,19 @@ import (
 	"strings"
 )
 
+// vtsOutput prints to stdout in CLI mode, or routes to onLog in TUI mode.
+func vtsOutput(onLog func(string), format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	if onLog != nil {
+		trimmed := strings.TrimSpace(msg)
+		if trimmed != "" {
+			onLog(trimmed)
+		}
+	} else {
+		fmt.Print(msg)
+	}
+}
+
 // Slugify converts a string to a URL-friendly slug.
 func Slugify(s string) string {
 	s = strings.ToLower(s)
@@ -19,7 +32,8 @@ func Slugify(s string) string {
 
 // WriteVTSFiles writes individual VTS task files to the given directory.
 // source identifies the origin (e.g. "discovery" or "oracle").
-func WriteVTSFiles(tasks []Task, dir string, source string, sourceRef string) error {
+// onLog is an optional callback for progress output (nil = stdout).
+func WriteVTSFiles(tasks []Task, dir string, source string, sourceRef string, onLog func(string)) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create VTS dir: %w", err)
 	}
@@ -80,14 +94,15 @@ func WriteVTSFiles(tasks []Task, dir string, source string, sourceRef string) er
 		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 			return fmt.Errorf("write VTS file %s: %w", filename, err)
 		}
-		fmt.Printf("  Created: vts/%s\n", filename)
+		vtsOutput(onLog, "  Created: vts/%s\n", filename)
 	}
 
 	return nil
 }
 
 // WriteSummary rewrites the architect file as a summary with a VTS task index.
-func WriteSummary(tasks []Task, architectFile string, header string, footer string, indexTitle string) error {
+// onLog is an optional callback for progress output (nil = stdout).
+func WriteSummary(tasks []Task, architectFile string, header string, footer string, indexTitle string, onLog func(string)) error {
 	if indexTitle == "" {
 		indexTitle = "VTS Task Index"
 	}
@@ -125,7 +140,7 @@ func WriteSummary(tasks []Task, architectFile string, header string, footer stri
 		return fmt.Errorf("write summary: %w", err)
 	}
 
-	fmt.Printf("  Rewrote %s as summary (%d VTS tasks extracted)\n",
+	vtsOutput(onLog, "  Rewrote %s as summary (%d VTS tasks extracted)\n",
 		filepath.Base(architectFile), len(tasks))
 	return nil
 }

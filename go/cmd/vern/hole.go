@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/pipeline"
 	"github.com/spf13/cobra"
 )
@@ -30,6 +31,8 @@ var (
 	holeCouncil   string
 	holeContext   string
 	holeCount     int
+	holeLLMMode   string
+	holeSingleLLM string
 )
 
 func init() {
@@ -37,12 +40,36 @@ func init() {
 	holeCmd.Flags().StringVar(&holeCouncil, "council", "", "Named council tier")
 	holeCmd.Flags().StringVar(&holeContext, "context", "", "Path to context file (e.g. discovery master plan)")
 	holeCmd.Flags().IntVarP(&holeCount, "count", "n", 0, "Number of Verns to summon (min 3)")
+	holeCmd.Flags().StringVar(&holeLLMMode, "llm-mode", "", "LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, etc.)")
+	holeCmd.Flags().StringVar(&holeSingleLLM, "single-llm", "", "Use a single LLM for all Verns and synthesis")
 	rootCmd.AddCommand(holeCmd)
 }
 
 func runHole(cmd *cobra.Command, args []string) error {
 	idea := args[0]
 	agentsDir := resolveAgentsDir()
+
+	// Find project root
+	projectRoot := ""
+	if agentsDir != "agents" {
+		projectRoot = agentsDir[:len(agentsDir)-len("/agents")]
+	}
+
+	// Load config for LLM mode
+	cfg := config.Load(projectRoot)
+
+	// Apply LLM mode overrides
+	synthesisLLM := cfg.GetSynthesisLLM()
+	overrideLLM := cfg.GetOverrideLLM()
+
+	if holeSingleLLM != "" {
+		overrideLLM = holeSingleLLM
+		synthesisLLM = holeSingleLLM
+	} else if holeLLMMode != "" {
+		cfg.LLMMode = holeLLMMode
+		synthesisLLM = cfg.GetSynthesisLLM()
+		overrideLLM = cfg.GetOverrideLLM()
+	}
 
 	// Resolve timeout
 	timeout := 1200
@@ -54,13 +81,15 @@ func runHole(cmd *cobra.Command, args []string) error {
 	}
 
 	err := pipeline.RunVernHole(pipeline.VernHoleOptions{
-		Idea:      idea,
-		OutputDir: holeOutputDir,
-		Council:   holeCouncil,
-		Count:     holeCount,
-		Context:   holeContext,
-		AgentsDir: agentsDir,
-		Timeout:   timeout,
+		Idea:         idea,
+		OutputDir:    holeOutputDir,
+		Council:      holeCouncil,
+		Count:        holeCount,
+		Context:      holeContext,
+		AgentsDir:    agentsDir,
+		Timeout:      timeout,
+		SynthesisLLM: synthesisLLM,
+		OverrideLLM:  overrideLLM,
 	})
 	if err != nil {
 		os.Exit(1)

@@ -25,7 +25,9 @@ Flags:
   --expanded           Use expanded pipeline
   --extra-context FILE Add extra context file (repeatable)
   --resume-from N      Resume pipeline from step N
-  --max-retries N      Max retry attempts per step`,
+  --max-retries N      Max retry attempts per step
+  --llm-mode MODE      LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, etc.)
+  --single-llm LLM     Use a single LLM for all steps`,
 	Args: cobra.RangeArgs(1, 2),
 	RunE: runDiscovery,
 }
@@ -41,6 +43,8 @@ var (
 	discExtraContext   []string
 	discResumeFrom    int
 	discMaxRetries    int
+	discLLMMode       string
+	discSingleLLM     string
 )
 
 func init() {
@@ -54,6 +58,8 @@ func init() {
 	discoveryCmd.Flags().StringArrayVar(&discExtraContext, "extra-context", nil, "Extra context files (repeatable)")
 	discoveryCmd.Flags().IntVar(&discResumeFrom, "resume-from", 0, "Resume pipeline from step N")
 	discoveryCmd.Flags().IntVar(&discMaxRetries, "max-retries", 0, "Max retry attempts per step")
+	discoveryCmd.Flags().StringVar(&discLLMMode, "llm-mode", "", "LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, mixed_gemini_fallback, mixed_copilot_fallback, single_llm)")
+	discoveryCmd.Flags().StringVar(&discSingleLLM, "single-llm", "", "Use a single LLM for all steps (shorthand for --llm-mode single_llm)")
 	rootCmd.AddCommand(discoveryCmd)
 }
 
@@ -112,6 +118,8 @@ func runDiscovery(cmd *cobra.Command, args []string) error {
 		AgentsDir:         agentsDir,
 		ProjectRoot:       projectRoot,
 		Timeout:           timeout,
+		LLMMode:           discLLMMode,
+		SingleLLM:         discSingleLLM,
 	}
 
 	return pipeline.Run(opts)

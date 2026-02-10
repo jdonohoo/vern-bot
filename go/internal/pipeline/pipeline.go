@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +16,7 @@ import (
 
 // Options configures a pipeline run.
 type Options struct {
+	Ctx               context.Context // optional: cancelled on TUI quit
 	Idea              string
 	DiscoveryDir      string
 	BatchMode         bool
@@ -29,7 +31,10 @@ type Options struct {
 	ExtraContextFiles []string
 	AgentsDir         string
 	ProjectRoot       string
-	Timeout           int // seconds
+	Timeout           int          // seconds
+	LLMMode           string       // override config's llm_mode
+	SingleLLM         string       // shorthand for single_llm mode with this LLM
+	OnLog             func(string) // optional callback for progress lines
 }
 
 // Pipeline orchestrates the discovery pipeline execution.
@@ -46,9 +51,34 @@ type Pipeline struct {
 	mode          string    // pipeline mode (default/expanded)
 }
 
+// printf prints to stdout in CLI mode, or routes to OnLog in TUI mode.
+func (p *Pipeline) printf(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	if p.opts.OnLog != nil {
+		trimmed := strings.TrimSpace(msg)
+		if trimmed != "" {
+			p.opts.OnLog(trimmed)
+		}
+	} else {
+		fmt.Print(msg)
+	}
+}
+
 // Run executes the full discovery pipeline.
 func Run(opts Options) error {
 	cfg := config.Load(opts.ProjectRoot)
+
+	// Apply LLM mode overrides from CLI flags
+	if opts.SingleLLM != "" {
+		cfg.LLMMode = "single_llm"
+		if mode, ok := cfg.LLMModes["single_llm"]; ok {
+			mode.OverrideLLM = opts.SingleLLM
+			mode.SynthesisLLM = opts.SingleLLM
+			cfg.LLMModes["single_llm"] = mode
+		}
+	} else if opts.LLMMode != "" {
+		cfg.LLMMode = opts.LLMMode
+	}
 
 	// Override timeout from config if not set
 	if opts.Timeout == 0 {
@@ -109,28 +139,30 @@ func (p *Pipeline) execute(mode string) error {
 	p.startTime = time.Now()
 	p.mode = mode
 
-	// Banner
-	fmt.Println("=== VERN DISCOVERY PIPELINE ===")
-	fmt.Printf("Idea: %s\n", opts.Idea)
-	fmt.Printf("Discovery folder: %s\n", opts.DiscoveryDir)
-	fmt.Println("Output: Vern Task Spec (VTS)")
-	fmt.Printf("Pipeline mode: %s (%d steps)\n", mode, len(p.steps))
-	if opts.BatchMode {
-		fmt.Println("Mode: batch (non-interactive)")
+	// Banner — concise in TUI mode (header already shows folder/mode/LLM),
+	// full details in CLI mode.
+	p.printf("=== VERN DISCOVERY PIPELINE ===\n")
+	if opts.OnLog != nil {
+		// TUI: show prompt path + input file count, not the raw idea
+		p.printf("Prompt: input/prompt.md\n")
+	} else {
+		// CLI: show full idea
+		p.printf("Idea: %s\n", opts.Idea)
+		p.printf("Discovery folder: %s\n", opts.DiscoveryDir)
+		p.printf("Output: Vern Task Spec (VTS)\n")
 	}
+	p.printf("Pipeline: %s (%d steps)\n", mode, len(p.steps))
 	if opts.ResumeFrom > 0 {
-		fmt.Printf("Resuming from: step %d\n", opts.ResumeFrom)
+		p.printf("Resuming from: step %d\n", opts.ResumeFrom)
 	}
-	fmt.Printf("Max retries: %d\n", opts.MaxRetries)
-	fmt.Printf("Timeout: %ds per step\n", opts.Timeout)
-	fmt.Println()
+	p.printf("Retries: %d | Timeout: %ds\n", opts.MaxRetries, opts.Timeout)
+	p.printf("\n")
 
-	// Print pipeline steps
-	fmt.Println("Pipeline:")
+	// Print pipeline steps with step numbers for coloring
 	for _, step := range p.steps {
-		fmt.Printf("  %d. %s → %s\n", step.Step, step.Name, step.LLM)
+		p.printf("[step] %d. %s → %s\n", step.Step, step.Name, step.LLM)
 	}
-	fmt.Println()
+	p.printf("\n")
 
 	p.log("=== Pipeline started ===")
 	p.log("Idea: %s", opts.Idea)
@@ -143,7 +175,7 @@ func (p *Pipeline) execute(mode string) error {
 	promptFile := filepath.Join(inputDir, "prompt.md")
 	if _, err := os.Stat(promptFile); os.IsNotExist(err) {
 		os.WriteFile(promptFile, []byte("# Discovery Prompt\n\n"+opts.Idea+"\n"), 0644)
-		fmt.Printf("Saved prompt to %s\n", promptFile)
+		p.printf("Saved prompt to %s\n", promptFile)
 	}
 
 	// Build context from input files
@@ -153,11 +185,11 @@ func (p *Pipeline) execute(mode string) error {
 	for _, f := range opts.ExtraContextFiles {
 		data, err := os.ReadFile(f)
 		if err != nil {
-			fmt.Printf("Warning: Extra context file not found: %s\n", f)
+			p.printf("Warning: Extra context file not found: %s\n", f)
 			continue
 		}
 		inputContext += fmt.Sprintf("\n\n=== %s ===\n%s\n", filepath.Base(f), string(data))
-		fmt.Printf("Added extra context: %s\n", f)
+		p.printf("Added extra context: %s\n", f)
 	}
 
 	// Build full prompt
@@ -180,7 +212,7 @@ func (p *Pipeline) execute(mode string) error {
 		// Resume logic
 		if opts.ResumeFrom > 0 && stepNum < opts.ResumeFrom {
 			if !IsFailedOutput(outputFile) {
-				fmt.Printf("\n>>> Pass %d/%d: %s — SKIPPED (resuming, output exists)\n", stepNum, len(p.steps), step.Name)
+				p.printf("\n>>> Pass %d/%d: %s — SKIPPED (resuming, output exists)\n", stepNum, len(p.steps), step.Name)
 				p.log("Step %d (%s): SKIPPED (resume, output exists)", stepNum, step.Name)
 				p.results[idx] = StepResult{
 					StepNum:    stepNum,
@@ -194,11 +226,11 @@ func (p *Pipeline) execute(mode string) error {
 				}
 				continue
 			}
-			fmt.Printf("\n>>> Pass %d/%d: %s — re-running (no valid output for resume)\n", stepNum, len(p.steps), step.Name)
+			p.printf("\n>>> Pass %d/%d: %s — re-running (no valid output for resume)\n", stepNum, len(p.steps), step.Name)
 			p.log("Step %d (%s): re-running (no valid output for resume)", stepNum, step.Name)
 		}
 
-		fmt.Printf("\n>>> Pass %d/%d: %s (%s)\n", stepNum, len(p.steps), step.Name, step.LLM)
+		p.printf("\n>>> Pass %d/%d: %s (%s)\n", stepNum, len(p.steps), step.Name, step.LLM)
 
 		// Build prompt based on context mode
 		runPrompt := p.buildStepPrompt(step, idx)
@@ -208,27 +240,33 @@ func (p *Pipeline) execute(mode string) error {
 			p.consolidation = outputFile
 		}
 
-		// Retry loop with claude fallback
+		// Retry loop with configurable fallback
 		succeeded := false
 		originalLLM := step.LLM
-		retryLLM := step.LLM
+		// Apply single_llm override if active
+		if override := p.cfg.GetOverrideLLM(); override != "" {
+			originalLLM = override
+		}
+		retryLLM := originalLLM
 		retryPersona := step.Persona
 		fellBack := false
 		totalAttempts := opts.MaxRetries + 1
 		var lastExitCode int
 		var attemptCount int
 		var duration time.Duration
+		fallbackLLM := p.cfg.GetFallbackLLM(originalLLM)
 
 		for attempt := 1; attempt <= totalAttempts; attempt++ {
 			if attempt > 1 {
-				fmt.Printf("    Retry %d/%d for step %d (%s) with %s...\n", attempt-1, opts.MaxRetries, stepNum, step.Name, retryLLM)
+				p.printf("    Retry %d/%d for step %d (%s) with %s...\n", attempt-1, opts.MaxRetries, stepNum, step.Name, retryLLM)
 				p.log("Step %d (%s): retry %d/%d with %s", stepNum, step.Name, attempt-1, opts.MaxRetries, retryLLM)
 			}
 
 			result, _ := llm.Run(llm.RunOptions{
+				Ctx:        opts.Ctx,
 				LLM:        retryLLM,
 				Prompt:     runPrompt,
-				OutputFile:  outputFile,
+				OutputFile: outputFile,
 				Persona:    retryPersona,
 				Timeout:    time.Duration(opts.Timeout) * time.Second,
 				AgentsDir:  opts.AgentsDir,
@@ -243,28 +281,29 @@ func (p *Pipeline) execute(mode string) error {
 				break
 			}
 
-			// On timeout with non-claude LLM, fall back to claude immediately (don't waste more timeout cycles)
-			if result.ExitCode == llm.ExitTimeout && retryLLM != "claude" {
-				fmt.Printf("    Timeout on %s — falling back to claude\n", retryLLM)
-				p.log("Step %d (%s): timeout on %s after %s, falling back to claude", stepNum, step.Name, retryLLM, result.Duration.Truncate(time.Second))
-				retryLLM = "claude"
+			// On timeout with a non-fallback LLM, switch to fallback immediately
+			if result.ExitCode == llm.ExitTimeout && fallbackLLM != "" && retryLLM != fallbackLLM {
+				p.printf("    Timeout on %s — falling back to %s\n", retryLLM, fallbackLLM)
+				p.log("Step %d (%s): timeout on %s after %s, falling back to %s", stepNum, step.Name, retryLLM, result.Duration.Truncate(time.Second), fallbackLLM)
+				retryLLM = fallbackLLM
 				fellBack = true
 			}
 		}
 
-		// Claude fallback: if all retries failed with a non-claude LLM, try claude as final safety net
-		if !succeeded && retryLLM != "claude" {
-			fmt.Printf("    %s failed after %d attempt(s) — falling back to claude\n", originalLLM, totalAttempts)
-			p.log("Step %d (%s): %s FAILED after %d attempt(s) (last exit %d), falling back to claude",
-				stepNum, step.Name, originalLLM, totalAttempts, lastExitCode)
+		// Fallback: if all retries failed and we have a fallback configured, try it as final safety net
+		if !succeeded && fallbackLLM != "" && retryLLM != fallbackLLM {
+			p.printf("    %s failed after %d attempt(s) — falling back to %s\n", originalLLM, totalAttempts, fallbackLLM)
+			p.log("Step %d (%s): %s FAILED after %d attempt(s) (last exit %d), falling back to %s",
+				stepNum, step.Name, originalLLM, totalAttempts, lastExitCode, fallbackLLM)
 
-			retryLLM = "claude"
+			retryLLM = fallbackLLM
 			fellBack = true
 
 			result, _ := llm.Run(llm.RunOptions{
-				LLM:        "claude",
+				Ctx:        opts.Ctx,
+				LLM:        fallbackLLM,
 				Prompt:     runPrompt,
-				OutputFile:  outputFile,
+				OutputFile: outputFile,
 				Persona:    retryPersona,
 				Timeout:    time.Duration(opts.Timeout) * time.Second,
 				AgentsDir:  opts.AgentsDir,
@@ -276,20 +315,20 @@ func (p *Pipeline) execute(mode string) error {
 
 			if result.ExitCode == 0 && !IsFailedOutput(outputFile) {
 				succeeded = true
-				fmt.Printf("    Claude fallback succeeded\n")
-				p.log("Step %d (%s): claude fallback OK after %s failed", stepNum, step.Name, originalLLM)
+				p.printf("    %s fallback succeeded\n", fallbackLLM)
+				p.log("Step %d (%s): %s fallback OK after %s failed", stepNum, step.Name, fallbackLLM, originalLLM)
 			} else {
-				p.log("Step %d (%s): claude fallback also FAILED (exit %d)", stepNum, step.Name, result.ExitCode)
+				p.log("Step %d (%s): %s fallback also FAILED (exit %d)", stepNum, step.Name, fallbackLLM, result.ExitCode)
 			}
 		}
 
 		if succeeded {
 			outputBytes := fileSize(outputFile)
 			if fellBack {
-				fmt.Printf("    OK (%s→claude fallback, %d bytes, %s)\n", originalLLM, outputBytes, duration.Truncate(time.Second))
-				p.log("Step %d (%s): OK via claude fallback (original=%s, attempt %d, %d bytes)", stepNum, step.Name, originalLLM, attemptCount, outputBytes)
+				p.printf("    OK (%s→%s fallback, %d bytes, %s)\n", originalLLM, retryLLM, outputBytes, duration.Truncate(time.Second))
+				p.log("Step %d (%s): OK via %s fallback (original=%s, attempt %d, %d bytes)", stepNum, step.Name, retryLLM, originalLLM, attemptCount, outputBytes)
 			} else {
-				fmt.Printf("    OK (%s, %d bytes, %s)\n", retryLLM, outputBytes, duration.Truncate(time.Second))
+				p.printf("    OK (%s, %d bytes, %s)\n", retryLLM, outputBytes, duration.Truncate(time.Second))
 				p.log("Step %d (%s): OK (exit %d, attempt %d, llm=%s, %d bytes)", stepNum, step.Name, lastExitCode, attemptCount, retryLLM, outputBytes)
 			}
 			p.results[idx] = StepResult{
@@ -306,7 +345,7 @@ func (p *Pipeline) execute(mode string) error {
 				OutputBytes: outputBytes,
 			}
 		} else {
-			fmt.Printf("    FAILED after %d attempts including claude fallback (last exit: %d)\n", attemptCount, lastExitCode)
+			p.printf("    FAILED after %d attempts (last exit: %d)\n", attemptCount, lastExitCode)
 			p.log("Step %d (%s): FAILED (exit %d, %d attempts, original=%s, final=%s)", stepNum, step.Name, lastExitCode, attemptCount, originalLLM, retryLLM)
 
 			// Write failure marker
@@ -337,8 +376,8 @@ func (p *Pipeline) execute(mode string) error {
 
 	// Pipeline summary
 	if len(failedSteps) > 0 {
-		fmt.Printf("\nWARNING: %d step(s) failed: %v\n", len(failedSteps), failedSteps)
-		fmt.Println("Re-run failed steps with: --resume-from <N>")
+		p.printf("\nWARNING: %d step(s) failed: %v\n", len(failedSteps), failedSteps)
+		p.printf("Re-run failed steps with: --resume-from <N>\n")
 		p.log("Pipeline completed with %d failure(s): steps %v", len(failedSteps), failedSteps)
 	} else {
 		p.log("Pipeline completed successfully (%d/%d steps)", len(p.steps), len(p.steps))
@@ -348,22 +387,22 @@ func (p *Pipeline) execute(mode string) error {
 	// VTS post-processing
 	lastResult := p.results[len(p.results)-1]
 	if lastResult.Status == "failed" || IsFailedOutput(lastResult.OutputFile) {
-		fmt.Println("\n>>> Skipping VTS post-processing (architect step failed)")
-		fmt.Printf("    Re-run with: --resume-from %d\n", len(p.steps))
+		p.printf("\n>>> Skipping VTS post-processing (architect step failed)\n")
+		p.printf("    Re-run with: --resume-from %d\n", len(p.steps))
 		p.log("VTS post-processing: SKIPPED (architect step failed)")
 	} else {
 		p.processVTS(lastResult.OutputFile, vtsDir, "discovery")
 	}
 
 	// Directory structure output
-	fmt.Println()
-	fmt.Println("=== DISCOVERY COMPLETE ===")
-	fmt.Printf("Files created in: %s\n", opts.DiscoveryDir)
+	p.printf("\n")
+	p.printf("=== DISCOVERY COMPLETE ===\n")
+	p.printf("Files created in: %s\n", opts.DiscoveryDir)
 	p.printDirectoryStructure()
 
 	// VernHole
 	if len(failedSteps) > 0 {
-		fmt.Printf("\n>>> Skipping VernHole (pipeline had %d failed step(s): %v)\n", len(failedSteps), failedSteps)
+		p.printf("\n>>> Skipping VernHole (pipeline had %d failed step(s): %v)\n", len(failedSteps), failedSteps)
 		p.log("VernHole: SKIPPED (%d pipeline step(s) failed)", len(failedSteps))
 	} else if opts.VernHoleCount > 0 || opts.VernHoleCouncil != "" {
 		p.runVernHole()
@@ -423,7 +462,7 @@ func (p *Pipeline) buildStepPrompt(step config.PipelineStep, idx int) string {
 
 func (p *Pipeline) buildInputContext(inputDir string) string {
 	if !p.opts.ReadInput {
-		fmt.Println("Skipping input files (--skip-input).")
+		p.printf("Skipping input files (--skip-input).\n")
 		return ""
 	}
 
@@ -452,7 +491,7 @@ func (p *Pipeline) buildInputContext(inputDir string) string {
 	}
 
 	if count > 0 {
-		fmt.Printf("Loaded %d input files as context.\n", count)
+		p.printf("Loaded %d input files as context.\n", count)
 	}
 
 	return context.String()
@@ -464,21 +503,24 @@ func (p *Pipeline) processVTS(architectFile string, vtsDir string, source string
 		return
 	}
 
-	fmt.Println("\n>>> Splitting architect breakdown into VTS task files...")
+	p.printf("\n>>> Splitting architect breakdown into VTS task files...\n")
 
 	tasks, header, footer := vts.ParseArchitectOutput(string(data))
 	if len(tasks) == 0 {
-		fmt.Println("  No tasks found in architect breakdown, skipping split")
+		p.printf("  No tasks found in architect breakdown, skipping split\n")
 		return
 	}
 
-	if err := vts.WriteVTSFiles(tasks, vtsDir, source, filepath.Base(architectFile)); err != nil {
-		fmt.Printf("  Error writing VTS files: %v\n", err)
+	// Route VTS output through pipeline's printf (TUI-safe)
+	onLog := p.opts.OnLog
+
+	if err := vts.WriteVTSFiles(tasks, vtsDir, source, filepath.Base(architectFile), onLog); err != nil {
+		p.printf("  Error writing VTS files: %v\n", err)
 		return
 	}
 
-	if err := vts.WriteSummary(tasks, architectFile, header, footer, ""); err != nil {
-		fmt.Printf("  Error writing summary: %v\n", err)
+	if err := vts.WriteSummary(tasks, architectFile, header, footer, "", onLog); err != nil {
+		p.printf("  Error writing summary: %v\n", err)
 	}
 }
 
@@ -499,24 +541,28 @@ func (p *Pipeline) runVernHole() {
 		}
 	}
 
-	fmt.Println()
-	fmt.Println("=== ENTERING THE VERNHOLE ===")
-	fmt.Println("Feeding original idea + master plan into the chaos...")
+	p.printf("\n")
+	p.printf("=== ENTERING THE VERNHOLE ===\n")
+	p.printf("Feeding original idea + master plan into the chaos...\n")
 
 	vernholeDir := filepath.Join(opts.DiscoveryDir, "vernhole")
 	os.MkdirAll(vernholeDir, 0755)
 
 	err := RunVernHole(VernHoleOptions{
-		Idea:      opts.Idea,
-		OutputDir: vernholeDir,
-		Council:   opts.VernHoleCouncil,
-		Count:     opts.VernHoleCount,
-		Context:   consolFile,
-		AgentsDir: opts.AgentsDir,
-		Timeout:   opts.Timeout,
+		Ctx:          opts.Ctx,
+		Idea:         opts.Idea,
+		OutputDir:    vernholeDir,
+		Council:      opts.VernHoleCouncil,
+		Count:        opts.VernHoleCount,
+		Context:      consolFile,
+		AgentsDir:    opts.AgentsDir,
+		Timeout:      opts.Timeout,
+		SynthesisLLM: p.cfg.GetSynthesisLLM(),
+		OverrideLLM:  p.cfg.GetOverrideLLM(),
+		OnLog:        opts.OnLog,
 	})
 	if err != nil {
-		fmt.Printf("\nWARNING: VernHole failed: %v\n", err)
+		p.printf("\nWARNING: VernHole failed: %v\n", err)
 		p.log("VernHole: FAILED (%v)", err)
 		p.writeStatus("complete_vernhole_failed", nil)
 		return
@@ -538,13 +584,13 @@ func (p *Pipeline) runOracle(vernholeDir string) {
 
 	data, err := os.ReadFile(synthesisFile)
 	if err != nil {
-		fmt.Println(">>> Skipping Oracle (no synthesis file)")
+		p.printf(">>> Skipping Oracle (no synthesis file)\n")
 		return
 	}
 
-	fmt.Println()
-	fmt.Println("=== CONSULTING THE ORACLE ===")
-	fmt.Println("Reading the VernHole synthesis and VTS tasks...")
+	p.printf("\n")
+	p.printf("=== CONSULTING THE ORACLE ===\n")
+	p.printf("Reading the VernHole synthesis and VTS tasks...\n")
 
 	// Build VTS task contents
 	vtsDir := filepath.Join(opts.DiscoveryDir, "output", "vts")
@@ -602,23 +648,25 @@ VTS TASK FILES:
 VERNHOLE SYNTHESIS:
 %s`, p.fullPrompt, vtsIndex.String(), vtsContents.String(), string(data))
 
+	oracleLLM := p.cfg.GetSynthesisLLM()
 	oracleVisionFile := filepath.Join(opts.DiscoveryDir, "oracle-vision.md")
 	result, err := llm.Run(llm.RunOptions{
-		LLM:        "claude",
+		Ctx:        opts.Ctx,
+		LLM:        oracleLLM,
 		Prompt:     oraclePrompt,
-		OutputFile:  oracleVisionFile,
+		OutputFile: oracleVisionFile,
 		Persona:    "oracle",
 		Timeout:    time.Duration(opts.Timeout) * time.Second,
 		AgentsDir:  opts.AgentsDir,
 	})
 
 	if err != nil || result.ExitCode != 0 {
-		fmt.Println("\nWARNING: Oracle step failed")
+		p.printf("\nWARNING: Oracle step failed\n")
 		p.log("Oracle: FAILED")
 		return
 	}
 
-	fmt.Printf("\nOracle vision written to: %s\n", oracleVisionFile)
+	p.printf("\nOracle vision written to: %s\n", oracleVisionFile)
 	p.log("Oracle: OK")
 
 	// Auto-apply: Architect Vern rewrites VTS based on Oracle's vision
@@ -630,9 +678,9 @@ VERNHOLE SYNTHESIS:
 func (p *Pipeline) applyOracleVision(oracleVisionFile string) {
 	opts := p.opts
 
-	fmt.Println()
-	fmt.Println("=== APPLYING THE ORACLE'S VISION ===")
-	fmt.Println("Architect Vern is rewriting VTS tasks...")
+	p.printf("\n")
+	p.printf("=== APPLYING THE ORACLE'S VISION ===\n")
+	p.printf("Architect Vern is rewriting VTS tasks...\n")
 
 	oracleData, _ := os.ReadFile(oracleVisionFile)
 
@@ -662,18 +710,20 @@ EXISTING VTS TASKS:
 
 Produce the complete updated task breakdown. Include ALL tasks (not just changed ones).`, string(oracleData), vtsContents.String())
 
+	applyLLM := p.cfg.GetSynthesisLLM()
 	updatedFile := filepath.Join(opts.DiscoveryDir, "output", "oracle-architect-breakdown.md")
 	result, err := llm.Run(llm.RunOptions{
-		LLM:        "claude",
+		Ctx:        opts.Ctx,
+		LLM:        applyLLM,
 		Prompt:     architectPrompt,
-		OutputFile:  updatedFile,
+		OutputFile: updatedFile,
 		Persona:    "architect",
 		Timeout:    time.Duration(opts.Timeout) * time.Second,
 		AgentsDir:  opts.AgentsDir,
 	})
 
 	if err != nil || result.ExitCode != 0 || IsFailedOutput(updatedFile) {
-		fmt.Println("\nWARNING: Oracle apply step failed")
+		p.printf("\nWARNING: Oracle apply step failed\n")
 		p.log("Oracle apply: FAILED")
 		return
 	}
@@ -685,10 +735,10 @@ Produce the complete updated task breakdown. Include ALL tasks (not just changed
 		}
 	}
 
-	fmt.Println("\n>>> Re-splitting updated architect breakdown into VTS task files...")
+	p.printf("\n>>> Re-splitting updated architect breakdown into VTS task files...\n")
 	p.processVTS(updatedFile, vtsDir, "oracle")
 
-	fmt.Printf("\nOracle's vision applied. Updated VTS files in: %s\n", vtsDir)
+	p.printf("\nOracle's vision applied. Updated VTS files in: %s\n", vtsDir)
 	p.log("Oracle apply: OK")
 }
 
@@ -719,19 +769,19 @@ func (p *Pipeline) logJSON(result StepResult) {
 }
 
 func (p *Pipeline) printDirectoryStructure() {
-	fmt.Printf("\nStructure:\n")
-	fmt.Printf("  %s/\n", p.opts.DiscoveryDir)
-	fmt.Printf("  ├── input/\n")
+	p.printf("\nStructure:\n")
+	p.printf("  %s/\n", p.opts.DiscoveryDir)
+	p.printf("  ├── input/\n")
 	inputDir := filepath.Join(p.opts.DiscoveryDir, "input")
 	entries, _ := os.ReadDir(inputDir)
 	for _, e := range entries {
-		fmt.Printf("  │   ├── %s\n", e.Name())
+		p.printf("  │   ├── %s\n", e.Name())
 	}
-	fmt.Printf("  └── output/\n")
+	p.printf("  └── output/\n")
 	outputDir := filepath.Join(p.opts.DiscoveryDir, "output")
 	entries, _ = os.ReadDir(outputDir)
 	for _, e := range entries {
-		fmt.Printf("      ├── %s\n", e.Name())
+		p.printf("      ├── %s\n", e.Name())
 	}
 }
 
@@ -788,7 +838,7 @@ func (p *Pipeline) writeStatus(phase string, failedSteps []int) {
 		case "ok":
 			completedSteps++
 			if r.FellBack {
-				status = fmt.Sprintf("ok (fallback: %s→claude)", r.OriginalLLM)
+				status = fmt.Sprintf("ok (fallback: %s→%s)", r.OriginalLLM, r.LLMUsed)
 			}
 		case "failed":
 			status = fmt.Sprintf("FAILED (exit %d, %d attempts)", r.ExitCode, r.Attempts)
@@ -813,7 +863,7 @@ func (p *Pipeline) writeStatus(phase string, failedSteps []int) {
 			llmCol = "-"
 		}
 		if r.FellBack {
-			llmCol = fmt.Sprintf("~~%s~~ → claude", r.OriginalLLM)
+			llmCol = fmt.Sprintf("~~%s~~ → %s", r.OriginalLLM, r.LLMUsed)
 		}
 
 		b.WriteString(fmt.Sprintf("| %d | %s | %s | %s | %s | %s |\n",

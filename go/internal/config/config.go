@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/jdonohoo/vern-bot/go/internal/embedded"
 )
 
 // Config represents the vern-bot configuration.
@@ -15,10 +17,20 @@ type Config struct {
 	PipelineMode   string                      `json:"pipeline_mode"`
 	Pipelines      map[string][]PipelineStep   `json:"discovery_pipelines"`
 	LLMs           map[string]bool             `json:"llms"`
+	LLMMode        string                      `json:"llm_mode"`
+	LLMModes       map[string]LLMModeConfig    `json:"llm_modes"`
 	VernHole       VernHoleConfig              `json:"vernhole"`
 
 	// Backward compat: old config format
 	LegacyPipeline []PipelineStep              `json:"discovery_pipeline"`
+}
+
+// LLMModeConfig defines fallback behavior for a given LLM mode.
+type LLMModeConfig struct {
+	Description  string            `json:"description"`
+	Fallback     map[string]string `json:"fallback"`
+	SynthesisLLM string            `json:"synthesis_llm"`
+	OverrideLLM  string            `json:"override_llm,omitempty"`
 }
 
 // PipelineStep defines a single step in a discovery pipeline.
@@ -37,25 +49,74 @@ type VernHoleConfig struct {
 	Min            int    `json:"min"`
 }
 
-// Load reads configuration using the 3-tier chain:
-//  1. ~/.claude/vern-bot-config.json (user config)
-//  2. {projectRoot}/config.default.json (project defaults)
-//  3. Hardcoded defaults
+// Load reads configuration using the 4-tier chain:
+//  1. ~/.claude/vern-bot-config.json (user config, Claude Code plugin)
+//  2. ~/.config/vern/config.json (standalone user config)
+//  3. {projectRoot}/config.default.json (project defaults)
+//  4. Hardcoded defaults
 func Load(projectRoot string) *Config {
-	// Tier 1: user config
+	// Tier 1: Claude Code plugin user config
 	userConfig := filepath.Join(os.Getenv("HOME"), ".claude", "vern-bot-config.json")
 	if cfg, err := loadFile(userConfig); err == nil {
 		return cfg
 	}
 
-	// Tier 2: project default config
+	// Tier 2: standalone user config
+	standaloneConfig := filepath.Join(os.Getenv("HOME"), ".config", "vern", "config.json")
+	if cfg, err := loadFile(standaloneConfig); err == nil {
+		return cfg
+	}
+
+	// Tier 3: project default config (on disk)
 	defaultConfig := filepath.Join(projectRoot, "config.default.json")
 	if cfg, err := loadFile(defaultConfig); err == nil {
 		return cfg
 	}
 
-	// Tier 3: hardcoded defaults
+	// Tier 4: embedded default config (compiled into binary)
+	if cfg, err := loadEmbeddedConfig(); err == nil {
+		return cfg
+	}
+
+	// Tier 5: hardcoded defaults
 	return hardcodedDefaults()
+}
+
+func loadEmbeddedConfig() (*Config, error) {
+	data := embedded.GetDefaultConfig()
+	if data == "" {
+		return nil, fmt.Errorf("no embedded config")
+	}
+
+	cfg := &Config{}
+	if err := json.Unmarshal([]byte(data), cfg); err != nil {
+		return nil, fmt.Errorf("parse embedded config: %w", err)
+	}
+
+	// Apply same defaults as loadFile
+	if cfg.TimeoutSeconds == 0 {
+		cfg.TimeoutSeconds = 1200
+	}
+	if cfg.MaxRetries == 0 {
+		cfg.MaxRetries = 2
+	}
+	if cfg.PipelineMode == "" {
+		cfg.PipelineMode = "default"
+	}
+	if cfg.VernHole.Min == 0 {
+		cfg.VernHole.Min = 3
+	}
+	if cfg.VernHole.DefaultCouncil == "" {
+		cfg.VernHole.DefaultCouncil = "random"
+	}
+	if cfg.LLMMode == "" {
+		cfg.LLMMode = "mixed_claude_fallback"
+	}
+	if cfg.LLMModes == nil {
+		cfg.LLMModes = defaultLLMModes()
+	}
+
+	return cfg, nil
 }
 
 func loadFile(path string) (*Config, error) {
@@ -93,6 +154,12 @@ func loadFile(path string) (*Config, error) {
 	if cfg.VernHole.DefaultCouncil == "" {
 		cfg.VernHole.DefaultCouncil = "random"
 	}
+	if cfg.LLMMode == "" {
+		cfg.LLMMode = "mixed_claude_fallback"
+	}
+	if cfg.LLMModes == nil {
+		cfg.LLMModes = defaultLLMModes()
+	}
 
 	return cfg, nil
 }
@@ -112,20 +179,96 @@ func (c *Config) GetPipeline(mode string) []PipelineStep {
 	return hardcodedDefaults().Pipelines["default"]
 }
 
+// GetFallbackLLM returns the fallback LLM for a given original LLM based on the active LLM mode.
+// Returns empty string if no fallback is configured.
+func (c *Config) GetFallbackLLM(originalLLM string) string {
+	mode := c.getActiveMode()
+	if mode == nil {
+		return "claude" // backward compat default
+	}
+	if fb, ok := mode.Fallback[originalLLM]; ok && fb != originalLLM {
+		return fb
+	}
+	return ""
+}
+
+// GetSynthesisLLM returns the LLM to use for VernHole synthesis.
+func (c *Config) GetSynthesisLLM() string {
+	mode := c.getActiveMode()
+	if mode != nil && mode.SynthesisLLM != "" {
+		return mode.SynthesisLLM
+	}
+	return "claude" // backward compat default
+}
+
+// GetOverrideLLM returns the override LLM for single_llm mode, or empty string.
+func (c *Config) GetOverrideLLM() string {
+	mode := c.getActiveMode()
+	if mode != nil {
+		return mode.OverrideLLM
+	}
+	return ""
+}
+
+func (c *Config) getActiveMode() *LLMModeConfig {
+	if c.LLMMode == "" || c.LLMModes == nil {
+		return nil
+	}
+	mode, ok := c.LLMModes[c.LLMMode]
+	if !ok {
+		return nil
+	}
+	return &mode
+}
+
+func defaultLLMModes() map[string]LLMModeConfig {
+	return map[string]LLMModeConfig{
+		"mixed_claude_fallback": {
+			Description:  "Mixed LLMs, claude as safety net",
+			Fallback:     map[string]string{"codex": "claude", "gemini": "claude", "copilot": "claude"},
+			SynthesisLLM: "claude",
+		},
+		"mixed_codex_fallback": {
+			Description:  "Mixed LLMs, codex as safety net",
+			Fallback:     map[string]string{"claude": "codex", "gemini": "codex", "copilot": "codex"},
+			SynthesisLLM: "codex",
+		},
+		"mixed_gemini_fallback": {
+			Description:  "Mixed LLMs, gemini as safety net",
+			Fallback:     map[string]string{"claude": "gemini", "codex": "gemini", "copilot": "gemini"},
+			SynthesisLLM: "gemini",
+		},
+		"mixed_copilot_fallback": {
+			Description:  "Mixed LLMs, copilot as safety net",
+			Fallback:     map[string]string{"claude": "copilot", "codex": "copilot", "gemini": "copilot"},
+			SynthesisLLM: "copilot",
+		},
+		"single_llm": {
+			Description:  "Single LLM for everything",
+			OverrideLLM:  "",
+			Fallback:     map[string]string{},
+			SynthesisLLM: "",
+		},
+	}
+}
+
 func hardcodedDefaults() *Config {
 	return &Config{
-		Version:        "1.6.0",
+		Version:        "2.1.0",
 		TimeoutSeconds: 1200,
 		MaxRetries:     2,
 		PipelineMode:   "default",
+		LLMMode:        "mixed_claude_fallback",
+		LLMModes:       defaultLLMModes(),
 		VernHole: VernHoleConfig{
 			DefaultCouncil: "random",
 			Min:            3,
 		},
 		LLMs: map[string]bool{
-			"claude": true,
-			"codex":  true,
-			"gemini": true,
+			"claude":  true,
+			"codex":   true,
+			"gemini":  true,
+			"copilot": true,
 		},
 		Pipelines: map[string][]PipelineStep{
 			"default": {

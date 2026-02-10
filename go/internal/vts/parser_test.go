@@ -130,7 +130,7 @@ func TestWriteVTSFiles(t *testing.T) {
 		},
 	}
 
-	err := WriteVTSFiles(tasks, dir, "discovery", "architect.md")
+	err := WriteVTSFiles(tasks, dir, "discovery", "architect.md", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestWriteSummary(t *testing.T) {
 		{Num: 2, Title: "Second", Complexity: "M", Dependencies: []string{"VTS-001"}},
 	}
 
-	err := WriteSummary(tasks, file, "# Header", "## Footer", "")
+	err := WriteSummary(tasks, file, "# Header", "## Footer", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

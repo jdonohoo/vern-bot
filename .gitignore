@@ -6,3 +6,5 @@
 
 # Go build artifacts
 go/bin/
+
+CLAUDE.md

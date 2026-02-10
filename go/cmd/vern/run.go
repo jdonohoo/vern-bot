@@ -15,7 +15,7 @@ var runCmd = &cobra.Command{
 	Short: "Run a single LLM subprocess",
 	Long: `Spawn an LLM subprocess with timeout and optional persona context.
 
-Supported LLMs: claude (c), codex (x), gemini (g)
+Supported LLMs: claude (c), codex (x), gemini (g), copilot (p)
 
 Exit codes:
   0    Success

@@ -1,0 +1,573 @@
+package tui
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/jdonohoo/vern-bot/go/internal/pipeline"
+)
+
+type discoveryState int
+
+const (
+	discStateSetupForm discoveryState = iota
+	discStateEditFiles
+	discStateConfigForm
+	discStateRunning
+	discStateDone
+)
+
+// discoveryVals holds form-bound values on the heap so pointers survive
+// bubbletea's value-copy semantics.
+type discoveryVals struct {
+	idea       string
+	name       string
+	outputPath string
+	customPath string
+	llmMode    string
+	singleLLM  string
+	pipeline    string
+	vernhole    string
+	oracle      bool
+	oracleApply string
+	confirm     bool
+	cancel     context.CancelFunc
+	logCh      chan string
+}
+
+// DiscoveryModel handles the discovery pipeline wizard.
+type DiscoveryModel struct {
+	state       discoveryState
+	setupForm   *huh.Form
+	configForm  *huh.Form
+	spinner     spinner.Model
+	projectRoot string
+	agentsDir   string
+	width       int
+	height      int
+	vals        *discoveryVals
+
+	// Execution state
+	running       bool
+	stepLog       []string
+	statusContent string // pipeline-status.md content for status panel
+	err           error
+	setupErr      error
+}
+
+func NewDiscoveryModel(projectRoot, agentsDir string) DiscoveryModel {
+	vals := &discoveryVals{
+		outputPath:  "default",
+		llmMode:     "mixed_claude_fallback",
+		singleLLM:   "claude",
+		pipeline:    "default",
+		vernhole:    "full",
+		oracle:      true,
+		oracleApply: "vision",
+		confirm:     true,
+	}
+
+	m := DiscoveryModel{
+		state:       discStateSetupForm,
+		projectRoot: projectRoot,
+		agentsDir:   agentsDir,
+		vals:        vals,
+	}
+
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	m.spinner = s
+
+	m.setupForm = m.buildSetupForm()
+	m.configForm = m.buildConfigForm()
+
+	return m
+}
+
+// SetSize updates the terminal dimensions and resizes forms accordingly.
+func (m *DiscoveryModel) SetSize(w, h int) {
+	m.width = w
+	m.height = h
+	cw := contentWidth(w)
+	if m.setupForm != nil {
+		m.setupForm.WithWidth(cw).WithHeight(h)
+	}
+	if m.configForm != nil {
+		m.configForm.WithWidth(cw).WithHeight(h)
+	}
+}
+
+func (m *DiscoveryModel) buildSetupForm() *huh.Form {
+	lines := textareaLines(m.height)
+	w := contentWidth(m.width)
+	v := m.vals
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewText().
+				Title("Prompt").
+				Description("This prompt will be sent to each step in the discovery pipeline").
+				Placeholder("Describe your idea in detail...").
+				Lines(lines).
+				CharLimit(2000).
+				Value(&v.idea).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("idea is required")
+					}
+					return nil
+				}),
+		),
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Name for this discovery (folder name)").
+				Placeholder("my-project").
+				CharLimit(80).
+				Value(&v.name).
+				Validate(validateName),
+		),
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Output location").
+				Options(OutputPathOptions...).
+				Value(&v.outputPath),
+		),
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Custom output path").
+				Placeholder("./discovery").
+				Value(&v.customPath),
+		).WithHideFunc(func() bool { return v.outputPath != "custom" }),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+}
+
+func (m *DiscoveryModel) buildConfigForm() *huh.Form {
+	w := contentWidth(m.width)
+	v := m.vals
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("LLM Mode").
+				Options(LLMModeOptions...).
+				Height(len(LLMModeOptions)+1).
+				Value(&v.llmMode),
+		),
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Which LLM should run all steps?").
+				Options(SingleLLMOptions...).
+				Height(len(SingleLLMOptions)+1).
+				Value(&v.singleLLM),
+		).WithHideFunc(func() bool { return v.llmMode != "single_llm" }),
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Pipeline mode").
+				Options(PipelineOptions...).
+				Height(len(PipelineOptions)+1).
+				Value(&v.pipeline),
+		),
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Run VernHole council after pipeline?").
+				Options(VernHoleOptions...).
+				Height(len(VernHoleOptions)+1).
+				Value(&v.vernhole),
+		),
+		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Consult the Oracle after VernHole?").
+				Description("Oracle Vern reads the council's chaos and finds the signal").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&v.oracle),
+		).WithHideFunc(func() bool { return v.vernhole == "" }),
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("How should the Oracle's vision be handled?").
+				Options(OracleApplyOptions...).
+				Value(&v.oracleApply),
+		).WithHideFunc(func() bool { return !v.oracle || v.vernhole == "" }),
+		huh.NewGroup(
+			huh.NewNote().
+				Title("Review Configuration").
+				DescriptionFunc(func() string {
+					return m.confirmSummary()
+				}, &v.idea),
+			huh.NewConfirm().
+				Title("Start discovery pipeline?").
+				Affirmative("Yes, start pipeline").
+				Negative("Cancel").
+				Value(&v.confirm),
+		),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+}
+
+func (m DiscoveryModel) Init() tea.Cmd {
+	return m.setupForm.Init()
+}
+
+func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "esc" && !m.running {
+			return m, backToMenu
+		}
+
+	case pipelineDoneMsg:
+		m.state = discStateDone
+		m.running = false
+		m.err = msg.err
+		// Final status read
+		m.readStatus()
+		return m, nil
+
+	case pipelineLogMsg:
+		m.stepLog = append(m.stepLog, msg.line)
+		return m, m.waitForLog()
+
+	case discStatusTickMsg:
+		if m.state == discStateRunning {
+			m.readStatus()
+			return m, m.statusTick()
+		}
+		return m, nil
+	}
+
+	switch m.state {
+	case discStateSetupForm:
+		form, cmd := m.setupForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.setupForm = f
+		}
+		if m.setupForm.State == huh.StateCompleted {
+			m.setupErr = m.createInputFolder()
+			m.state = discStateEditFiles
+			return m, nil
+		}
+		if m.setupForm.State == huh.StateAborted {
+			return m, backToMenu
+		}
+		return m, cmd
+
+	case discStateEditFiles:
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case "enter":
+				m.state = discStateConfigForm
+				return m, m.configForm.Init()
+			case "esc":
+				return m, backToMenu
+			}
+		}
+		return m, nil
+
+	case discStateConfigForm:
+		form, cmd := m.configForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.configForm = f
+		}
+		if m.configForm.State == huh.StateCompleted {
+			if !m.vals.confirm {
+				return m, backToMenu
+			}
+			m.state = discStateRunning
+			m.running = true
+			m.vals.logCh = make(chan string, 100)
+			return m, tea.Batch(m.spinner.Tick, m.startPipeline(), m.waitForLog(), m.statusTick())
+		}
+		if m.configForm.State == huh.StateAborted {
+			return m, backToMenu
+		}
+		return m, cmd
+
+	case discStateRunning:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
+	case discStateDone:
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if keyMsg.String() == "enter" || keyMsg.String() == "q" || keyMsg.String() == "esc" {
+				return m, backToMenu
+			}
+		}
+	}
+
+	return m, nil
+}
+
+func (m DiscoveryModel) outputBase() string {
+	if m.vals.outputPath == "custom" && m.vals.customPath != "" {
+		return expandHome(m.vals.customPath)
+	}
+	return "./discovery"
+}
+
+func (m DiscoveryModel) discoveryDir() string {
+	return fmt.Sprintf("%s/%s", m.outputBase(), m.vals.name)
+}
+
+func (m DiscoveryModel) createInputFolder() error {
+	inputDir := filepath.Join(m.discoveryDir(), "input")
+	if err := os.MkdirAll(inputDir, 0755); err != nil {
+		return fmt.Errorf("create input folder: %w", err)
+	}
+
+	promptPath := filepath.Join(inputDir, "prompt.md")
+	if _, err := os.Stat(promptPath); err == nil {
+		return nil
+	}
+
+	content := fmt.Sprintf("# %s\n\n%s\n", m.vals.name, m.vals.idea)
+	if err := os.WriteFile(promptPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("write prompt.md: %w", err)
+	}
+	return nil
+}
+
+func (m DiscoveryModel) confirmSummary() string {
+	v := m.vals
+	label := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true).Render
+	val := lipgloss.NewStyle().Foreground(colorSecondary).Render
+	dim := lipgloss.NewStyle().Foreground(colorMuted).Italic(true).Render
+
+	// Prompt section
+	idea := v.idea
+	if len(idea) > 120 {
+		idea = idea[:117] + "..."
+	}
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Prompt:"), dim(idea)))
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Name:"), val(v.name)))
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Output:"), dim(m.discoveryDir())))
+
+	// Horizontal rule
+	b.WriteString("\n  " + lipgloss.NewStyle().Foreground(colorMuted).Render(strings.Repeat("─", 40)) + "\n\n")
+
+	// Config section
+	mode := "Default (5-step)"
+	if v.pipeline == "expanded" {
+		mode = "Expanded (7-step)"
+	}
+	council := "None"
+	if v.vernhole != "" {
+		council = councilLabel(v.vernhole)
+	}
+	llmDesc := v.llmMode
+	if v.llmMode == "single_llm" {
+		llmDesc = "single_llm (" + v.singleLLM + ")"
+	}
+
+	b.WriteString(fmt.Sprintf("  %s    %s\n", label("Pipeline:"), val(mode)))
+	b.WriteString(fmt.Sprintf("  %s    %s\n", label("LLM Mode:"), val(llmDesc)))
+	b.WriteString(fmt.Sprintf("  %s    %s\n", label("VernHole:"), val(council)))
+
+	if v.vernhole != "" && v.oracle {
+		oracleDesc := "Vision only"
+		if v.oracleApply == "apply" {
+			oracleDesc = "Auto-apply via Architect"
+		}
+		b.WriteString(fmt.Sprintf("  %s      %s\n", label("Oracle:"), val(oracleDesc)))
+	}
+
+	return b.String()
+}
+
+type pipelineDoneMsg struct {
+	results []pipeline.StepResult
+	err     error
+}
+
+type pipelineLogMsg struct {
+	line string
+}
+
+type discStatusTickMsg time.Time
+
+func (m DiscoveryModel) startPipeline() tea.Cmd {
+	return func() tea.Msg {
+		v := m.vals
+		defer close(v.logCh)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		v.cancel = cancel
+		defer cancel()
+
+		dir := m.discoveryDir()
+
+		opts := pipeline.Options{
+			Ctx:          ctx,
+			Idea:         v.idea,
+			DiscoveryDir: dir,
+			BatchMode:    true,
+			ReadInput:    true,
+			Expanded:     v.pipeline == "expanded",
+			AgentsDir:    m.agentsDir,
+			ProjectRoot:  m.projectRoot,
+			LLMMode:      v.llmMode,
+			SingleLLM:    v.singleLLM,
+			OnLog: func(line string) {
+				select {
+				case v.logCh <- line:
+				default:
+				}
+			},
+		}
+
+		if v.vernhole != "" {
+			opts.VernHoleCouncil = v.vernhole
+			if v.oracle {
+				opts.OracleFlag = true
+				opts.OracleApplyFlag = v.oracleApply == "apply"
+			}
+		}
+
+		err := pipeline.Run(opts)
+		return pipelineDoneMsg{err: err}
+	}
+}
+
+func (m DiscoveryModel) waitForLog() tea.Cmd {
+	return func() tea.Msg {
+		if m.vals.logCh == nil {
+			return nil
+		}
+		line, ok := <-m.vals.logCh
+		if !ok {
+			return nil
+		}
+		return pipelineLogMsg{line: line}
+	}
+}
+
+func (m DiscoveryModel) statusTick() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return discStatusTickMsg(t)
+	})
+}
+
+func (m *DiscoveryModel) readStatus() {
+	statusPath := filepath.Join(m.discoveryDir(), "output", "pipeline-status.md")
+	data, err := os.ReadFile(statusPath)
+	if err == nil {
+		m.statusContent = string(data)
+	}
+}
+
+// Cancel aborts any running pipeline goroutine.
+func (m DiscoveryModel) Cancel() {
+	if m.vals != nil && m.vals.cancel != nil {
+		m.vals.cancel()
+	}
+}
+
+func (m DiscoveryModel) View() string {
+	var b strings.Builder
+
+	b.WriteString(titleStyle.Render("Discovery Pipeline"))
+	b.WriteString("\n\n")
+
+	switch m.state {
+	case discStateSetupForm:
+		b.WriteString(m.setupForm.View())
+
+	case discStateEditFiles:
+		dir := m.discoveryDir()
+		inputDir := filepath.Join(dir, "input")
+		promptPath := filepath.Join(inputDir, "prompt.md")
+
+		if m.setupErr != nil {
+			b.WriteString(stepFailStyle.Render("Failed to create folder: " + m.setupErr.Error()))
+			b.WriteString("\n\n")
+			b.WriteString(subtitleStyle.Render("Press Enter to continue anyway"))
+			b.WriteString("\n")
+			b.WriteString(subtitleStyle.Render("Press Esc to go back"))
+		} else {
+			b.WriteString(stepOKStyle.Render("Created discovery folder:"))
+			b.WriteString("\n\n")
+			b.WriteString(fmt.Sprintf("  %s\n", dir))
+			b.WriteString(fmt.Sprintf("  %s\n", inputDir))
+			b.WriteString(fmt.Sprintf("  %s\n", promptPath))
+			b.WriteString("\n")
+			b.WriteString("Your idea has been written to prompt.md.\n")
+			b.WriteString("You can now:\n\n")
+			b.WriteString("  1. Edit prompt.md to refine your idea\n")
+			b.WriteString("  2. Add reference files to the input/ folder\n")
+			b.WriteString("\n")
+			b.WriteString(subtitleStyle.Render("Press Enter when ready to configure"))
+			b.WriteString("\n")
+			b.WriteString(subtitleStyle.Render("Press Esc to go back"))
+		}
+
+	case discStateConfigForm:
+		b.WriteString(m.configForm.View())
+
+	case discStateRunning:
+		label := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true).Render
+
+		b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Running discovery pipeline...")))
+
+		// Prompt section
+		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Prompt:"), logDimStyle.Render("input/prompt.md")))
+		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Output:"), logDimStyle.Render(m.discoveryDir())))
+
+		// Separator
+		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 40)) + "\n")
+
+		// Config section
+		mode := "default"
+		if m.vals.pipeline == "expanded" {
+			mode = "expanded"
+		}
+		b.WriteString(fmt.Sprintf("  %s    %s  |  %s  %s\n\n",
+			label("Pipeline:"), llmStyle.Render(mode),
+			label("LLM:"), llmStyle.Render(m.vals.llmMode)))
+
+		cw := contentWidth(m.width)
+		availHeight := m.height - 10
+		if availHeight < 8 {
+			availHeight = 8
+		}
+
+		if cw >= splitPanelMinWidth && m.statusContent != "" {
+			// Two-panel layout: status left, log right
+			leftW := cw * 2 / 5
+			rightW := cw - leftW - 1
+
+			left := renderStatusPanel(m.statusContent, leftW)
+			right := renderLogPanel(m.stepLog, rightW, availHeight)
+
+			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, left, right))
+		} else {
+			// Single-column: scrolling log only
+			maxLines := availHeight
+			start := 0
+			if len(m.stepLog) > maxLines {
+				start = len(m.stepLog) - maxLines
+			}
+			for _, line := range m.stepLog[start:] {
+				b.WriteString("  " + renderLogLine(line) + "\n")
+			}
+		}
+
+	case discStateDone:
+		if m.err != nil {
+			b.WriteString(stepFailStyle.Render("Pipeline failed: " + m.err.Error()))
+		} else {
+			b.WriteString(stepOKStyle.Render("Discovery pipeline complete!"))
+			b.WriteString(fmt.Sprintf("\n\nOutput: %s\n", m.discoveryDir()))
+		}
+		b.WriteString("\n\n")
+		b.WriteString(subtitleStyle.Render("Press Enter or q to return to menu"))
+	}
+
+	return b.String()
+}

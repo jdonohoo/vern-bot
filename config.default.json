@@ -1,11 +1,41 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {
     "claude": true,
     "codex": true,
-    "gemini": true
+    "gemini": true,
+    "copilot": true
+  },
+  "llm_mode": "mixed_claude_fallback",
+  "llm_modes": {
+    "mixed_claude_fallback": {
+      "description": "Mixed LLMs, claude as safety net",
+      "fallback": {"codex": "claude", "gemini": "claude", "copilot": "claude"},
+      "synthesis_llm": "claude"
+    },
+    "mixed_codex_fallback": {
+      "description": "Mixed LLMs, codex as safety net",
+      "fallback": {"claude": "codex", "gemini": "codex", "copilot": "codex"},
+      "synthesis_llm": "codex"
+    },
+    "mixed_gemini_fallback": {
+      "description": "Mixed LLMs, gemini as safety net",
+      "fallback": {"claude": "gemini", "codex": "gemini", "copilot": "gemini"},
+      "synthesis_llm": "gemini"
+    },
+    "mixed_copilot_fallback": {
+      "description": "Mixed LLMs, copilot as safety net",
+      "fallback": {"claude": "copilot", "codex": "copilot", "gemini": "copilot"},
+      "synthesis_llm": "copilot"
+    },
+    "single_llm": {
+      "description": "Single LLM for everything",
+      "override_llm": "",
+      "fallback": {},
+      "synthesis_llm": ""
+    }
   },
   "pipeline_mode": "default",
   "discovery_pipelines": {
@@ -48,7 +78,7 @@
         "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
-        "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable Vern Task Spec (VTS) tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched. Think in systems. Consider failure modes. Make it maintainable."
+        "prompt_prefix": "You are Architect Vern. Your ONLY job is to break down the master plan into numbered implementation tasks. Do NOT write an essay, review, or analysis. Output ONLY a structured task list.\n\nFORMAT REQUIREMENTS (mandatory — the output is machine-parsed):\n- Every task MUST start with exactly: ### TASK N: Title\n- Number tasks sequentially starting at 1\n- Each task MUST include these bold fields:\n  **Description:** what needs to be done\n  **Acceptance Criteria:**\n  - bullet list of done-when conditions\n  **Complexity:** S|M|L|XL\n  **Dependencies:** Task N references or None\n  **Files:** list of files likely touched\n\nExample task:\n### TASK 1: Implement user authentication\n**Description:** Add JWT-based auth middleware\n**Acceptance Criteria:**\n- Login endpoint returns valid JWT\n- Protected routes reject invalid tokens\n**Complexity:** M\n**Dependencies:** None\n**Files:** auth.go, middleware.go, routes.go\n\nProduce 5-15 tasks. Think in systems. Consider failure modes. Make it maintainable."
       }
     ],
     "expanded": [
@@ -106,7 +136,7 @@
         "persona": "architect",
         "llm": "claude",
         "context_mode": "consolidation",
-        "prompt_prefix": "You are Architect Vern. Break down this master plan into actionable Vern Task Spec (VTS) tasks. Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched. Think in systems. Consider failure modes. Make it maintainable."
+        "prompt_prefix": "You are Architect Vern. Your ONLY job is to break down the master plan into numbered implementation tasks. Do NOT write an essay, review, or analysis. Output ONLY a structured task list.\n\nFORMAT REQUIREMENTS (mandatory — the output is machine-parsed):\n- Every task MUST start with exactly: ### TASK N: Title\n- Number tasks sequentially starting at 1\n- Each task MUST include these bold fields:\n  **Description:** what needs to be done\n  **Acceptance Criteria:**\n  - bullet list of done-when conditions\n  **Complexity:** S|M|L|XL\n  **Dependencies:** Task N references or None\n  **Files:** list of files likely touched\n\nExample task:\n### TASK 1: Implement user authentication\n**Description:** Add JWT-based auth middleware\n**Acceptance Criteria:**\n- Login endpoint returns valid JWT\n- Protected routes reject invalid tokens\n**Complexity:** M\n**Dependencies:** None\n**Files:** auth.go, middleware.go, routes.go\n\nProduce 5-15 tasks. Think in systems. Consider failure modes. Make it maintainable."
       }
     ]
   },

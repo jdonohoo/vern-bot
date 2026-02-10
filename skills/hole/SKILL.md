@@ -17,12 +17,13 @@ Before summoning the council, ask the user using AskUserQuestion:
 > "Which council do you want to summon?"
 
 Options:
-- **Fate's Hand (random)** (Recommended) - Random count (3 to all), random selection. Let fate decide.
-- **Council of the Three Hammers** - Always great + mediocre + ketamine. The essential trio.
-- **Max Conflict** - startup, enterprise, yolo, paranoid, optimist, inverse. Maximum contradiction.
-- **The Full Vern Experience** - Every summonable persona speaks. All 15.
-
-If the user wants finer control, they can also specify: `inner` (3-5, architect-led), `round` (6-9, round table), or `war` (10-13, war room).
+- **The Full Vern Experience** (15) (Recommended) - Every summonable persona speaks.
+- **Fate's Hand** - Random count (3 to all), random selection. Let fate decide.
+- **The War Room** (10-13) - All round table + ux, retro, optimist, nyquil + random fill.
+- **The Round Table** (6-9) - mighty, yolo, startup, academic, enterprise + random fill.
+- **Max Conflict** (6) - startup, enterprise, yolo, paranoid, optimist, inverse. Maximum contradiction.
+- **The Inner Circle** (3-5) - architect, inverse, paranoid + random fill.
+- **Council of the Three Hammers** (3) - Always great + mediocre + ketamine. The essential trio.
 
 Map their choice to a council name:
 - Fate's Hand / random → `random`
@@ -32,6 +33,27 @@ Map their choice to a council name:
 - The Inner Circle → `inner`
 - The Round Table → `round`
 - The War Room → `war`
+
+## Step 1.5: LLM Mode
+
+Ask the user using AskUserQuestion:
+
+> "Which LLM mode for this VernHole session?"
+
+Options:
+- **Mixed LLMs + Claude fallback** (Recommended) — Each Vern uses its configured LLM, falls back to claude on failure
+- **Mixed LLMs + Codex fallback** — Falls back to codex instead
+- **Mixed LLMs + Gemini fallback** — Falls back to gemini
+- **Mixed LLMs + Copilot fallback** — Falls back to copilot
+- **Single LLM** — All Verns and synthesis use one LLM
+
+If "Single LLM" is chosen, follow up with:
+> "Which LLM?"
+Options:
+- **Claude**
+- **Codex**
+- **Gemini**
+- **Copilot**
 
 ## Step 2: Output Location
 
@@ -60,6 +82,8 @@ The CLI wrapper is located relative to the plugin root. Find the plugin root by 
 # {plugin_root}\bin\vernhole.cmd ^
   --council "<council_name>" \
   --output-dir "<output_dir>" \
+  [--llm-mode MODE] \
+  [--single-llm LLM] \
   [--context "<context_file>"] \
   "<idea>"
 ```
@@ -67,6 +91,12 @@ The CLI wrapper is located relative to the plugin root. Find the plugin root by 
 Flags:
 - **--council**: Council tier from step 1 (hammers, conflict, inner, round, war, full, random)
 - **--output-dir**: The directory from step 2
+- **--llm-mode**: LLM fallback mode from step 1.5:
+  - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit, it's the default)
+  - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
+  - Mixed + Gemini FB → `--llm-mode mixed_gemini_fallback`
+  - Mixed + Copilot FB → `--llm-mode mixed_copilot_fallback`
+- **--single-llm**: Single LLM mode from step 1.5 (e.g. `--single-llm codex`)
 - **--context** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
 - **--count N**: Alternative to --council — summon exactly N random Verns (min 3)
 

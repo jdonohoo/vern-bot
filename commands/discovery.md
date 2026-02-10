@@ -55,11 +55,26 @@ If yes: Ask the user to provide file paths one at a time. Collect them as EXTRA_
 
 Ask the user using AskUserQuestion:
 
-1. **Pipeline mode**: Which pipeline to run?
+1. **LLM Mode**: How should LLMs be allocated?
+   - **Mixed LLMs + Claude fallback** (Recommended) — Default pipeline uses codex/claude/gemini/copilot per step config, falls back to claude on failure
+   - **Mixed LLMs + Codex fallback** — Same pipeline, falls back to codex instead of claude
+   - **Mixed LLMs + Gemini fallback** — Same pipeline, falls back to gemini
+   - **Mixed LLMs + Copilot fallback** — Same pipeline, falls back to copilot
+   - **Single LLM** — All steps use one LLM (ask which one next)
+
+   If "Single LLM" is chosen, follow up with:
+   > "Which LLM should run all steps?"
+   Options:
+   - **Claude**
+   - **Codex**
+   - **Gemini**
+   - **Copilot**
+
+2. **Pipeline mode**: Which pipeline to run?
    - `Default (5-step)` — Analysis → Refinement → Chaos Check → Consolidation → Architect (Recommended)
    - `Expanded (7-step)` — Adds Reality Check (Vern the Mediocre) and MVP Lens (Startup Vern) before consolidation
 
-2. **VernHole**: Run VernHole on the result after pipeline completes?
+3. **VernHole**: Run VernHole on the result after pipeline completes?
    - **No, just the pipeline** (Recommended)
    - **Fate's Hand (random)** — random count, random selection
    - **Council of the Three Hammers** (3) — great + mediocre + ketamine
@@ -68,11 +83,11 @@ Ask the user using AskUserQuestion:
 
    If the user wants finer control, they can also specify: `inner` (3-5, architect-led), `round` (6-9, round table), or `war` (10-13, war room).
 
-3. **Oracle** (only ask if VernHole = yes): After VernHole, consult Oracle Vern?
+4. **Oracle** (only ask if VernHole = yes): After VernHole, consult Oracle Vern?
    - **No, skip the Oracle** (Recommended)
    - **Yes, get the Oracle's vision**
 
-4. **Oracle apply mode** (only if Oracle = yes):
+5. **Oracle apply mode** (only if Oracle = yes):
    - **Manual** — review oracle-vision.md yourself (Recommended)
    - **Auto-apply** — Architect Vern executes the Oracle's vision
 
@@ -93,6 +108,8 @@ Build the command:
 {plugin_root}/bin/vern-discovery --batch \
 # Windows:
 # {plugin_root}\bin\vern-discovery.cmd --batch ^
+  [--llm-mode MODE]                       # LLM fallback mode
+  [--single-llm LLM]                     # single LLM mode (overrides --llm-mode)
   [--expanded]                            # if user chose expanded pipeline mode
   [--skip-input]                          # if user said no to reading input files
   [--vernhole N]                          # if user wants VernHole with a specific count
@@ -105,6 +122,11 @@ Build the command:
 ```
 
 ### Flag mapping:
+- User chose **Mixed + Claude FB** → add `--llm-mode mixed_claude_fallback` (or omit, it's the default)
+- User chose **Mixed + Codex FB** → add `--llm-mode mixed_codex_fallback`
+- User chose **Mixed + Gemini FB** → add `--llm-mode mixed_gemini_fallback`
+- User chose **Mixed + Copilot FB** → add `--llm-mode mixed_copilot_fallback`
+- User chose **Single LLM** → add `--single-llm <chosen_llm>` (e.g. `--single-llm codex`)
 - User chose **Expanded** pipeline → add `--expanded`
 - User said **no** to reading input files → add `--skip-input`
 - User said **yes** to VernHole:

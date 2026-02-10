@@ -32,6 +32,27 @@ Map their choice to a council name:
 - The Round Table → `round`
 - The War Room → `war`
 
+## Step 1.5: LLM Mode
+
+Ask the user using AskUserQuestion:
+
+> "Which LLM mode for this VernHole session?"
+
+Options:
+- **Mixed LLMs + Claude fallback** (Recommended) — Each Vern uses its configured LLM, falls back to claude on failure
+- **Mixed LLMs + Codex fallback** — Falls back to codex instead
+- **Mixed LLMs + Gemini fallback** — Falls back to gemini
+- **Mixed LLMs + Copilot fallback** — Falls back to copilot
+- **Single LLM** — All Verns and synthesis use one LLM
+
+If "Single LLM" is chosen, follow up with:
+> "Which LLM?"
+Options:
+- **Claude**
+- **Codex**
+- **Gemini**
+- **Copilot**
+
 ## Step 2: Output Location
 
 Ask the user using AskUserQuestion:
@@ -59,6 +80,8 @@ The CLI wrapper is located relative to the plugin root. Find the plugin root by 
 # {plugin_root}\bin\vernhole.cmd ^
   --council "<council_name>" \
   --output-dir "<output_dir>" \
+  [--llm-mode MODE] \
+  [--single-llm LLM] \
   [--context "<context_file>"] \
   "<idea>"
 ```
@@ -73,6 +96,12 @@ Flags:
   - The Round Table → `round`
   - The War Room → `war`
 - **--output-dir**: The directory from step 2
+- **--llm-mode**: LLM fallback mode from step 1.5:
+  - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit, it's the default)
+  - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
+  - Mixed + Gemini FB → `--llm-mode mixed_gemini_fallback`
+  - Mixed + Copilot FB → `--llm-mode mixed_copilot_fallback`
+- **--single-llm**: Single LLM mode (e.g. `--single-llm codex`)
 - **--context** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
 - **--count N**: Alternative to --council — summon exactly N random Verns (min 3)
 

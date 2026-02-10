@@ -15,7 +15,8 @@ const (
 
 // RunOptions configures an LLM subprocess invocation.
 type RunOptions struct {
-	LLM        string // claude, codex, gemini
+	Ctx        context.Context // optional parent context for cancellation
+	LLM        string          // claude, codex, gemini, copilot
 	Prompt     string
 	OutputFile string // optional: write output to this file
 	Persona    string // optional: persona context to inject
@@ -59,7 +60,11 @@ func Run(opts RunOptions) (*Result, error) {
 		dadJoke = "\n\n---\nSIGN-OFF: You MUST end your response with a dad joke followed by a persona attribution. Format as a horizontal rule, your joke, then '-- [Your Name]' with a witty sign-off. This is mandatory — it's the law."
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+	parent := opts.Ctx
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parent, opts.Timeout)
 	defer cancel()
 
 	start := time.Now()
@@ -134,8 +139,12 @@ func Run(opts RunOptions) (*Result, error) {
 		fullPrompt := textOnly + personaContext + opts.Prompt + dadJoke
 		cmd = exec.CommandContext(ctx, "gemini", "--yolo", fullPrompt)
 
+	case "copilot":
+		fullPrompt := textOnly + personaContext + opts.Prompt + dadJoke
+		cmd = exec.CommandContext(ctx, "copilot", "--prompt", fullPrompt)
+
 	default:
-		return nil, fmt.Errorf("unknown LLM: %s (valid: claude, codex, gemini)", llm)
+		return nil, fmt.Errorf("unknown LLM: %s (valid: claude, codex, gemini, copilot)", llm)
 	}
 
 	// Set process group for non-codex LLMs
@@ -180,6 +189,12 @@ func resolveLLM(llm string) string {
 			return "claude"
 		}
 		return "gemini"
+	case "copilot", "p":
+		if _, err := exec.LookPath("copilot"); err != nil {
+			fmt.Fprintf(os.Stderr, "[vern-run] Warning: copilot CLI not found, falling back to claude\n")
+			return "claude"
+		}
+		return "copilot"
 	default:
 		return llm
 	}

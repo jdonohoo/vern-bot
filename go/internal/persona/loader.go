@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jdonohoo/vern-bot/go/internal/embedded"
 )
 
 // Persona represents a parsed agent file.
@@ -19,9 +21,16 @@ type Persona struct {
 
 // Load reads an agent file and parses its YAML frontmatter and body.
 // agentsDir is the path to the agents/ directory, name is the persona ID (e.g. "mighty").
+// Falls back to embedded agent data if the file doesn't exist on disk.
 func Load(agentsDir, name string) (*Persona, error) {
 	path := filepath.Join(agentsDir, name+".md")
-	return LoadFile(path)
+	p, err := LoadFile(path)
+	if err == nil {
+		return p, nil
+	}
+
+	// Fall back to embedded data
+	return LoadEmbedded(name)
 }
 
 // LoadFile reads and parses a single agent markdown file.
@@ -83,6 +92,58 @@ func LoadFile(path string) (*Persona, error) {
 		p.Model = "claude"
 	}
 
+	return p, nil
+}
+
+// LoadEmbedded loads a persona from the compiled-in embedded agent data.
+func LoadEmbedded(name string) (*Persona, error) {
+	content, ok := embedded.GetAgent(name)
+	if !ok {
+		return nil, fmt.Errorf("agent %q not found in embedded data", name)
+	}
+	return ParseString(content)
+}
+
+// ParseString parses persona markdown content from a string (same format as .md files).
+func ParseString(content string) (*Persona, error) {
+	p := &Persona{}
+	state := 0
+	var bodyLines []string
+
+	for _, line := range strings.Split(content, "\n") {
+		switch state {
+		case 0:
+			if strings.TrimSpace(line) == "---" {
+				state = 1
+			}
+		case 1:
+			if strings.TrimSpace(line) == "---" {
+				state = 2
+				continue
+			}
+			if idx := strings.Index(line, ":"); idx > 0 {
+				key := strings.TrimSpace(line[:idx])
+				val := strings.TrimSpace(line[idx+1:])
+				switch key {
+				case "name":
+					p.Name = val
+				case "description":
+					p.Description = val
+				case "model":
+					p.Model = val
+				case "color":
+					p.Color = val
+				}
+			}
+		case 2:
+			bodyLines = append(bodyLines, line)
+		}
+	}
+
+	p.Body = strings.Join(bodyLines, "\n")
+	if p.Model == "" {
+		p.Model = "claude"
+	}
 	return p, nil
 }
 
