@@ -4,7 +4,7 @@ project_name: vern
 
 before:
   hooks:
-    - cd go && go generate ./internal/embedded/
+    - sh -c "cd go && go generate ./internal/embedded/"
 
 builds:
   - main: ./cmd/vern
