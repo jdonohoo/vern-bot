@@ -667,19 +667,11 @@ func (m DiscoveryModel) View() string {
 
 	case discStateRunning:
 		label := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true).Render
+		cw := contentWidth(m.width)
 
 		b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Running discovery pipeline...")))
 
-		// Progress bar
-		pct := float64(m.stepsCompleted) / float64(m.totalSteps)
-		if pct > 1 {
-			pct = 1
-		}
-		b.WriteString(fmt.Sprintf("  %s %d/%d steps\n\n",
-			progressStyle.Render(m.progress.ViewAs(pct)),
-			m.stepsCompleted, m.totalSteps))
-
-		// Config section
+		// Config line
 		mode := "default"
 		if m.vals.pipeline == "expanded" {
 			mode = "expanded"
@@ -689,47 +681,58 @@ func (m DiscoveryModel) View() string {
 			label("LLM:"), llmStyle.Render(m.vals.llmMode),
 			label("Output:"), logDimStyle.Render(m.discoveryDir())))
 
-		// Separator
-		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
-
-		// Step outline
-		outlineLines := 0
+		// Step outline — only show when there's enough vertical space
+		outlineLines := len(m.pipelineSteps)
 		if m.historianPhase != "skipped" {
-			historianLabel := "Historian (pre-step)"
-			switch m.historianPhase {
-			case "done":
-				b.WriteString("  " + stepOKStyle.Render("✓ "+historianLabel) + "\n")
-			case "running":
-				b.WriteString("  " + m.spinner.View() + " " + llmStyle.Render(historianLabel) + "\n")
-			case "failed":
-				b.WriteString("  " + stepFailStyle.Render("✗ "+historianLabel+" (failed)") + "\n")
-			default: // pending
-				b.WriteString("  " + logDimStyle.Render("· "+historianLabel) + "\n")
-			}
 			outlineLines++
 		}
+		// Need: 2 title + 1 config + 2 separators + outline + panels(8 min) + 2 progress = ~15 + outline
+		showOutline := (m.height - 15 - outlineLines) >= 8
 
-		for i, stepLine := range m.pipelineSteps {
-			stepNum := i + 1
-			if stepNum <= m.completedPipelineStep {
-				b.WriteString("  " + stepOKStyle.Render("✓ "+stepLine) + "\n")
-			} else if stepNum == m.currentStep {
-				style := stepColors[(stepNum-1)%len(stepColors)]
-				b.WriteString("  " + m.spinner.View() + " " + style.Render(stepLine) + "\n")
-			} else {
-				b.WriteString("  " + logDimStyle.Render("· "+stepLine) + "\n")
+		if showOutline && (len(m.pipelineSteps) > 0 || m.historianPhase != "skipped") {
+			b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
+
+			// Historian line
+			if m.historianPhase != "skipped" {
+				historianLabel := "Historian (pre-step)"
+				switch m.historianPhase {
+				case "done":
+					b.WriteString("  " + stepOKStyle.Render("✓ "+historianLabel) + "\n")
+				case "running":
+					b.WriteString("  " + m.spinner.View() + " " + llmStyle.Render(historianLabel) + "\n")
+				case "failed":
+					b.WriteString("  " + stepFailStyle.Render("✗ "+historianLabel+" (failed)") + "\n")
+				default: // pending
+					b.WriteString("  " + logDimStyle.Render("· "+historianLabel) + "\n")
+				}
 			}
-			outlineLines++
+
+			// Pipeline steps
+			for i, stepLine := range m.pipelineSteps {
+				stepNum := i + 1
+				if stepNum <= m.completedPipelineStep {
+					b.WriteString("  " + stepOKStyle.Render("✓ "+stepLine) + "\n")
+				} else if stepNum == m.currentStep {
+					style := stepColors[(stepNum-1)%len(stepColors)]
+					b.WriteString("  " + m.spinner.View() + " " + style.Render(stepLine) + "\n")
+				} else {
+					b.WriteString("  " + logDimStyle.Render("· "+stepLine) + "\n")
+				}
+			}
+		} else {
+			outlineLines = 0 // not shown, don't count
 		}
 
-		// Separator before activity log
+		// Separator before panels/log
 		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
 
-		// Activity log
-		cw := contentWidth(m.width)
-		availHeight := m.height - 14 - outlineLines
-		if availHeight < 4 {
-			availHeight = 4
+		// Panels / activity log — reserve 2 lines for bottom progress bar
+		availHeight := m.height - 10 - outlineLines
+		if showOutline {
+			availHeight -= 2 // separators around outline
+		}
+		if availHeight < 6 {
+			availHeight = 6
 		}
 
 		if cw >= splitPanelMinWidth && m.statusContent != "" {
@@ -750,6 +753,16 @@ func (m DiscoveryModel) View() string {
 				b.WriteString("  " + renderLogLine(line) + "\n")
 			}
 		}
+
+		// Progress bar — pinned at bottom, always visible
+		pct := float64(m.stepsCompleted) / float64(m.totalSteps)
+		if pct > 1 {
+			pct = 1
+		}
+		b.WriteString("\n")
+		b.WriteString(fmt.Sprintf("  %s %d/%d steps",
+			m.progress.ViewAs(pct),
+			m.stepsCompleted, m.totalSteps))
 
 	case discStateDone:
 		b.WriteString(m.viewport.View())
