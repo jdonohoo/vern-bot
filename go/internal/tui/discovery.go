@@ -739,7 +739,7 @@ func (m DiscoveryModel) View() string {
 			leftW := cw * 2 / 5
 			rightW := cw - leftW - 1
 
-			left := renderStatusPanel(m.statusContent, leftW)
+			left := renderStatusPanel(m.statusContent, leftW, availHeight)
 			right := renderLogPanel(m.stepLog, rightW, availHeight)
 
 			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, left, right))

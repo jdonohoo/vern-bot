@@ -630,7 +630,7 @@ func (m OracleModel) View() string {
 			leftW := cw * 2 / 5
 			rightW := cw - leftW - 1
 
-			left := renderVernStatusPanel(m.vals.council, m.llmModeLabel(), m.vernsCompleted, m.totalVerns, leftW)
+			left := renderVernStatusPanel(m.vals.council, m.llmModeLabel(), m.vernsCompleted, m.totalVerns, leftW, availHeight)
 			right := renderLogPanel(m.stepLog, rightW, availHeight)
 
 			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, left, right))

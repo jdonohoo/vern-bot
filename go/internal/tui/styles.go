@@ -263,8 +263,13 @@ func isFilteredLogLine(line string) bool {
 	return false
 }
 
-// renderLogPanel renders the scrolling log lines into a bordered panel.
-func renderLogPanel(stepLog []string, width, maxLines int) string {
+// renderLogPanel renders the scrolling log lines into a bordered panel with fixed height.
+func renderLogPanel(stepLog []string, width, height int) string {
+	// Account for title line + top/bottom border padding
+	maxLines := height - 4
+	if maxLines < 3 {
+		maxLines = 3
+	}
 	start := 0
 	if len(stepLog) > maxLines {
 		start = len(stepLog) - maxLines
@@ -273,7 +278,7 @@ func renderLogPanel(stepLog []string, width, maxLines int) string {
 	for _, line := range stepLog[start:] {
 		b.WriteString(renderLogLine(line) + "\n")
 	}
-	return logPanelStyle.Width(width).Render(
+	return logPanelStyle.Width(width).Height(height).Render(
 		panelTitleStyle.Render("Activity Log") + "\n" + b.String(),
 	)
 }
@@ -298,22 +303,22 @@ func stripMarkdown(content string) string {
 	return strings.Join(filtered, "\n")
 }
 
-// renderStatusPanel renders the pipeline status content into a bordered panel.
-func renderStatusPanel(content string, width int) string {
-	return statusPanelStyle.Width(width).Render(
+// renderStatusPanel renders the pipeline status content into a bordered panel with fixed height.
+func renderStatusPanel(content string, width, height int) string {
+	return statusPanelStyle.Width(width).Height(height).Render(
 		panelTitleStyle.Render("Pipeline Status") + "\n" + stripMarkdown(content),
 	)
 }
 
-// renderVernStatusPanel renders VernHole progress into a bordered panel.
-func renderVernStatusPanel(council string, llmMode string, vernsCompleted int, totalVerns int, width int) string {
+// renderVernStatusPanel renders VernHole progress into a bordered panel with fixed height.
+func renderVernStatusPanel(council string, llmMode string, vernsCompleted int, totalVerns int, width, height int) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Council:  %s\n", llmStyle.Render(council)))
 	b.WriteString(fmt.Sprintf("LLM Mode: %s\n\n", llmStyle.Render(llmMode)))
 
 	b.WriteString(fmt.Sprintf("Progress: %s\n", llmStyle.Render(fmt.Sprintf("%d/%d Verns", vernsCompleted, totalVerns))))
 
-	return statusPanelStyle.Width(width).Render(
+	return statusPanelStyle.Width(width).Height(height).Render(
 		panelTitleStyle.Render("VernHole Status") + "\n" + b.String(),
 	)
 }
