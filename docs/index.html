@@ -1274,6 +1274,64 @@
     </div>
 </div>
 
+<!-- Pipelines Overview (visual diagram) -->
+<div style="padding: 48px 0; border-bottom: 1px solid var(--border);">
+    <div class="container">
+        <div class="pipeline-card">
+            <h3>Pipelines</h3>
+            <p style="color: var(--text-muted); margin-bottom: 16px;">Multi-LLM workflows that chain personas together. Your idea goes through multiple passes across competing LLMs. Each pass builds on the last.</p>
+
+            <h4 style="margin-bottom: 8px;">Discovery Pipeline</h4>
+            <div class="cmd">/vern:discovery &lt;prompt&gt;</div>
+
+            <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--accent);"><strong>Default (5 steps)</strong></p>
+            <div class="pipeline-steps">
+                <div class="step" style="border-color: var(--yellow);"><strong>Historian</strong><br><small>Input Pre-Step</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>MightyVern</strong><br><small>Analysis</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>Vernile</strong><br><small>Refinement</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>YOLO Vern</strong><br><small>Chaos Check</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>Architect Vern</strong><br><small>Breakdown &rarr; VTS</small></div>
+            </div>
+
+            <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--purple);"><strong>Expanded (7 steps)</strong> &mdash; use <code>--expanded</code></p>
+            <div class="pipeline-steps">
+                <div class="step" style="border-color: var(--yellow);"><strong>Historian</strong><br><small>Input Pre-Step</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>MightyVern</strong><br><small>Analysis</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>Vernile</strong><br><small>Refinement</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step" style="border-color: var(--purple);"><strong>Mediocre</strong><br><small>Reality Check</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>YOLO Vern</strong><br><small>Chaos Check</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step" style="border-color: var(--purple);"><strong>Startup Vern</strong><br><small>MVP Lens</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step"><strong>Architect Vern</strong><br><small>Breakdown &rarr; VTS</small></div>
+            </div>
+
+            <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--yellow);"><strong>Post-Pipeline (optional)</strong></p>
+            <div class="pipeline-steps">
+                <div class="step" style="border-color: var(--magenta);"><strong>VernHole</strong><br><small>Council Brainstorm</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step" style="border-color: var(--green);"><strong>Oracle Vern</strong><br><small>Vision &amp; VTS Mods</small></div>
+                <span class="step-arrow">&rarr;</span>
+                <div class="step" style="border-color: var(--green);"><strong>Architect Vern</strong><br><small>Applies the Oracle's Vision (optional)</small></div>
+            </div>
+
+            <p style="margin-top: 8px; color: var(--text-muted); font-size: 0.85rem;"><em>Historian pre-step runs only when input files exist in the input folder.</em></p>
+        </div>
+    </div>
+</div>
+
 <!-- Install & Setup -->
 <div class="install">
     <div class="container">
@@ -1310,44 +1368,68 @@
                     </div>
                 </div>
 
-                <!-- Slide 2: Discovery Running -->
+                <!-- Slide 2: Discovery Running (split-panel) -->
                 <div class="tui-slide" data-label="Discovery Pipeline">
                     <div class="tui-preview">
-                        <div class="tui-header">Discovery Pipeline</div>
-                        <span class="tui-spinner">&#9673;</span> <span class="tui-purple"><b>Running pipeline...</b></span><br>
-                        <span class="tui-dim">&nbsp;&nbsp;Folder: discovery/my-saas-app</span><br>
-                        <span class="tui-dim">&nbsp;&nbsp;Mode: default (5 steps)</span><br><br>
+                        <div class="tui-header">Running discovery pipeline...</div>
+                        <span class="tui-dim">&nbsp;&nbsp;Folder: discovery/my-saas-app &nbsp;&bull;&nbsp; Mode: default (5 steps)</span><br>
                         <span class="tui-dim">&nbsp;&nbsp;</span><span class="tui-progress-bar"><span class="tui-progress-fill" style="width:60%"></span></span> <span class="tui-dim">3/5 steps</span><br><br>
-                        <span class="tui-accent">&nbsp;&nbsp;1. Initial Analysis &rarr; codex</span><br>
-                        <span class="tui-item">&nbsp;&nbsp;2. Refinement &rarr; claude</span><br>
-                        <span class="tui-accent">&nbsp;&nbsp;3. Chaos Check &rarr; gemini</span><br>
-                        <span class="tui-dim">&nbsp;&nbsp;4. Consolidation &rarr; codex</span><br>
-                        <span class="tui-dim">&nbsp;&nbsp;5. Architect Breakdown &rarr; claude</span><br><br>
-                        <span class="tui-ok">&nbsp;&nbsp;OK (codex, 4.2KB, 32s)</span><br>
-                        <span class="tui-ok">&nbsp;&nbsp;OK (claude, 6.1KB, 45s)</span><br>
-                        <span class="tui-ok">&nbsp;&nbsp;OK (gemini, 3.8KB, 28s)</span><br>
-                        <div class="tui-status">j/k scroll &nbsp;&bull;&nbsp; ctrl+c cancel</div>
+                        <div style="display: flex; gap: 8px; font-size: 0.82rem;">
+                            <div style="flex: 1; border: 1px solid var(--purple); border-radius: 6px; padding: 6px 8px;">
+                                <span class="tui-purple"><b>Pipeline Steps</b></span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; Historian (pre-step)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; 1. Analysis &rarr; codex</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; 2. Refinement &rarr; claude</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; 3. Chaos Check &rarr; gemini</span><br>
+                                <span class="tui-purple">&nbsp;&nbsp;&#9673; 4. Consolidation &rarr; codex</span><br>
+                                <span class="tui-dim">&nbsp;&nbsp;&#183; 5. Breakdown &rarr; claude</span>
+                            </div>
+                            <div style="flex: 1; border: 1px solid var(--text-muted); border-radius: 6px; padding: 6px 8px;">
+                                <span class="tui-purple"><b>Activity Log</b></span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Step 1/5: Analysis (codex)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;OK (codex, 4.2KB, 32s)</span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Step 2/5: Refinement (claude)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;OK (claude, 6.1KB, 45s)</span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Step 3/5: Chaos Check (gemini)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;OK (gemini, 3.8KB, 28s)</span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Step 4/5: Consolidation (codex)</span>
+                            </div>
+                        </div>
+                        <div class="tui-status">ctrl+c cancel</div>
                     </div>
                 </div>
 
-                <!-- Slide 3: VernHole Council -->
+                <!-- Slide 3: VernHole Council (split-panel) -->
                 <div class="tui-slide" data-label="VernHole Council">
                     <div class="tui-preview">
-                        <div class="tui-header">VernHole Council</div>
-                        <span class="tui-spinner">&#9673;</span> <span class="tui-purple"><b>Summoning the VernHole council...</b></span><br>
-                        <span class="tui-dim">&nbsp;&nbsp;Output: ./vernhole/</span><br><br>
+                        <div class="tui-header">Summoning the VernHole council...</div>
+                        <span class="tui-dim">&nbsp;&nbsp;Council: The Full Vern Experience &nbsp;&bull;&nbsp; LLM Mode: Mixed + Claude Fallback</span><br>
                         <span class="tui-dim">&nbsp;&nbsp;</span><span class="tui-progress-bar"><span class="tui-progress-fill" style="width:47%"></span></span> <span class="tui-dim">7/15 Verns</span><br><br>
-                        <span class="tui-accent">&gt;&gt;&gt; Vern 1/15: Vernile the Great (claude)</span><br>
-                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (claude, 4.8KB, 38s)</span><br>
-                        <span class="tui-accent">&gt;&gt;&gt; Vern 2/15: Vern the Mediocre (claude)</span><br>
-                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (claude, 2.1KB, 12s)</span><br>
-                        <span class="tui-accent">&gt;&gt;&gt; Vern 3/15: YOLO Vern (gemini)</span><br>
-                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (gemini, 3.2KB, 22s)</span><br>
-                        <span class="tui-accent">&gt;&gt;&gt; Vern 4/15: Paranoid Vern (claude)</span><br>
-                        <span class="tui-warn">&nbsp;&nbsp;&nbsp;&nbsp;WARNING: paranoid failed (exit 1)</span><br>
-                        <span class="tui-accent">&gt;&gt;&gt; Vern 5/15: MightyVern (codex)</span><br>
-                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (codex, 5.6KB, 41s)</span><br>
-                        <div class="tui-status">j/k scroll &nbsp;&bull;&nbsp; ctrl+c cancel</div>
+                        <div style="display: flex; gap: 8px; font-size: 0.82rem;">
+                            <div style="flex: 1; border: 1px solid var(--purple); border-radius: 6px; padding: 6px 8px;">
+                                <span class="tui-purple"><b>Vern Roster</b></span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; Vernile the Great</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; Vern the Mediocre</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; YOLO Vern</span><br>
+                                <span class="tui-warn">&nbsp;&nbsp;&#10007; Paranoid Vern</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; MightyVern</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; Academic Vern</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; Startup Vern</span><br>
+                                <span class="tui-purple">&nbsp;&nbsp;&#9673; Architect Vern</span><br>
+                                <span class="tui-dim">&nbsp;&nbsp;&#183; Inverse Vern</span>
+                            </div>
+                            <div style="flex: 1; border: 1px solid var(--text-muted); border-radius: 6px; padding: 6px 8px;">
+                                <span class="tui-purple"><b>Activity Log</b></span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Vern 5/15: MightyVern (codex)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;OK (codex, 5.6KB, 41s)</span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Vern 6/15: Academic Vern (claude)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;OK (claude, 3.9KB, 29s)</span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Vern 7/15: Startup Vern (claude)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;OK (claude, 2.8KB, 18s)</span><br>
+                                <span class="tui-accent">&gt;&gt;&gt; Vern 8/15: Architect Vern (claude)</span>
+                            </div>
+                        </div>
+                        <div class="tui-status">ctrl+c cancel</div>
                     </div>
                 </div>
 
@@ -1406,23 +1488,67 @@
                     </div>
                 </div>
 
-                <!-- Slide 7: Done / Results -->
+                <!-- Slide 7: Oracle Phase -->
+                <div class="tui-slide" data-label="Oracle Phase">
+                    <div class="tui-preview">
+                        <div class="tui-header">Architect applying the Oracle's vision...</div>
+                        <span class="tui-dim">&nbsp;&nbsp;Output: discovery/my-saas-app</span><br><br>
+                        <div style="display: flex; gap: 12px;">
+                            <div style="flex: 2; min-width: 0;">
+                                <span class="tui-purple"><b>Phase Progress</b></span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; Pipeline (5/5 steps)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; VernHole (14/15 succeeded)</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;&#10003; Oracle consulted</span><br>
+                                <span class="tui-purple">&nbsp;&nbsp;&#9673; Architect applying</span>
+                            </div>
+                            <div style="flex: 3; min-width: 0;">
+                                <span class="tui-purple"><b>Activity Log</b></span><br>
+                                <span class="tui-dim">&nbsp;&nbsp;Reading the VernHole synthesis and VTS tasks...</span><br>
+                                <span class="tui-ok">&nbsp;&nbsp;Oracle vision written to: oracle-vision.md</span><br>
+                                <span class="tui-accent">&nbsp;&nbsp;Architect Vern is rewriting VTS tasks...</span><br>
+                                <span class="tui-dim">&nbsp;&nbsp;<span class="tui-spinner">&#9673;</span> Architect applying changes...</span>
+                            </div>
+                        </div>
+                        <div class="tui-status">ctrl+c cancel</div>
+                    </div>
+                </div>
+
+                <!-- Slide 8: Done / Results -->
                 <div class="tui-slide" data-label="Results View">
                     <div class="tui-preview">
                         <div class="tui-header">Discovery Pipeline</div>
                         <span class="tui-ok"><b>Discovery complete!</b></span><br>
-                        <span class="tui-dim">Files created in: discovery/my-saas-app</span><br><br>
+                        <span class="tui-dim">Files created in: discovery/my-saas-app/output</span><br><br>
                         <span class="tui-purple"><b>Pipeline Summary</b></span><br>
                         <span>&nbsp;&nbsp;Steps: <span class="tui-ok">5/5 passed</span></span><br>
                         <span>&nbsp;&nbsp;VTS Tasks: <span class="tui-item">12 task files</span></span><br>
-                        <span>&nbsp;&nbsp;VernHole: <span class="tui-item">15/15 Verns</span></span><br>
+                        <span>&nbsp;&nbsp;VernHole: <span class="tui-item">15 Verns (14 succeeded, 1 failed)</span></span><br>
                         <span>&nbsp;&nbsp;Oracle: <span class="tui-ok">vision applied</span></span><br><br>
-                        <span class="tui-purple"><b>Activity Log</b></span><br>
+                        <span class="tui-purple"><b>Full Activity Log</b></span><br>
                         <span class="tui-ok">&nbsp;&nbsp;Pipeline: 5/5 steps OK (3m 12s)</span><br>
-                        <span class="tui-ok">&nbsp;&nbsp;VernHole: 15/15 Verns (4m 48s)</span><br>
+                        <span class="tui-purple">&nbsp;&nbsp;VernHole: 15 summoned, 14 succeeded (4m 48s)</span><br>
                         <span class="tui-ok">&nbsp;&nbsp;Oracle: vision generated (52s)</span><br>
                         <span class="tui-ok">&nbsp;&nbsp;Oracle: VTS rewritten (38s)</span><br>
-                        <div class="tui-status">j/k scroll &nbsp;&bull;&nbsp; c copy &nbsp;&bull;&nbsp; q/esc menu</div>
+                        <div class="tui-status">c copy &nbsp;&bull;&nbsp; q/esc menu</div>
+                    </div>
+                </div>
+
+                <!-- Slide 9: Settings -->
+                <div class="tui-slide" data-label="Settings">
+                    <div class="tui-preview">
+                        <div class="tui-header">Settings</div>
+                        <span class="tui-purple"><b>Current Config</b></span><br>
+                        <span>&nbsp;&nbsp;<span class="tui-purple">LLM Mode:</span> <span class="tui-accent">mixed_claude_fallback</span></span><br>
+                        <span>&nbsp;&nbsp;<span class="tui-purple">LLMs:</span> <span class="tui-ok">claude</span>&nbsp; <span class="tui-ok">codex</span>&nbsp; <span class="tui-ok">gemini</span>&nbsp; <span class="tui-dim">copilot</span></span><br>
+                        <span>&nbsp;&nbsp;<span class="tui-purple">Pipeline:</span> <span class="tui-accent">default</span></span><br>
+                        <span>&nbsp;&nbsp;<span class="tui-purple">Discovery:</span> <span class="tui-dim">~/ai-discovery</span></span><br><br>
+                        <span class="tui-item">&gt;</span> <b>[1] LLM Mode</b><br>
+                        <span>&nbsp;&nbsp;[2] LLM Availability</span><br>
+                        <span>&nbsp;&nbsp;[3] Pipeline Mode</span><br>
+                        <span>&nbsp;&nbsp;[4] Default Discovery Folder</span><br>
+                        <span>&nbsp;&nbsp;[s] Save to disk</span><br>
+                        <span>&nbsp;&nbsp;[q] Back</span><br>
+                        <div class="tui-status">j/k navigate &nbsp;&bull;&nbsp; enter select &nbsp;&bull;&nbsp; esc back</div>
                     </div>
                 </div>
 
@@ -1464,7 +1590,7 @@
             </div>
             <div class="tui-benefit">
                 <h4>Interactive TUI</h4>
-                <p>Guided wizards for discovery pipelines and VernHole councils. Live progress with spinners, step-by-step status, and parallel Vern tracking. All in your terminal.</p>
+                <p>Guided wizards for discovery pipelines and VernHole councils. Phase-aware split-panel views: step outline on the left, live activity log on the right. Progress bars, color-coded status, and copy-to-clipboard when done. All in your terminal.</p>
             </div>
             <div class="tui-benefit">
                 <h4>Same Engine, No Wrapper</h4>
@@ -1472,7 +1598,7 @@
             </div>
             <div class="tui-benefit">
                 <h4>Settings That Stick</h4>
-                <p>Configure your default LLM mode, pipeline preferences, and available LLMs once. The TUI settings screen saves to <code>~/.config/vern/config.json</code> and remembers.</p>
+                <p>Configure LLM mode, pipeline preferences, default discovery folder, and available LLMs once. The TUI settings screen saves to <code>~/.config/vern/config.json</code> and pre-fills your forms on every run.</p>
             </div>
             <div class="tui-benefit">
                 <h4>Works Everywhere</h4>
@@ -1588,77 +1714,7 @@ Config saved to ~/.claude/vern-bot-config.json</div>
             </div>
         </div>
 
-        <!-- 2. Pipelines -->
-        <div class="example-group">
-            <div class="pipeline-card">
-                <h3>Pipelines</h3>
-                <p style="color: var(--text-muted); margin-bottom: 16px;">Multi-LLM workflows that chain personas together.</p>
-
-                <h4 style="margin-bottom: 8px;">Discovery Pipeline</h4>
-                <div class="cmd">/vern:discovery &lt;prompt&gt;</div>
-                <p>Your idea goes through multiple passes across competing LLMs. Each pass builds on the last. The original prompt rides along the entire chain so nothing gets lost. Choose Default (5-step) or Expanded (7-step) mode.</p>
-
-                <p style="margin-top: 16px; margin-bottom: 8px; font-size: 0.9rem; color: var(--accent);"><strong>Default (5 steps)</strong></p>
-                <div class="pipeline-steps">
-                    <div class="step" style="border-color: var(--yellow);"><strong>Historian</strong><br><small>Input Pre-Step</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>MightyVern</strong><br><small>Analysis</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>Vernile</strong><br><small>Refinement</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>YOLO Vern</strong><br><small>Chaos Check</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>Architect Vern</strong><br><small>Breakdown &rarr; VTS</small></div>
-                </div>
-                <p style="margin-top: 8px; color: var(--text-muted); font-size: 0.85rem;"><em>Historian pre-step runs only when input files exist in the input folder.</em></p>
-
-                <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--purple);"><strong>Expanded (7 steps)</strong> &mdash; use <code>--expanded</code></p>
-                <div class="pipeline-steps">
-                    <div class="step" style="border-color: var(--yellow);"><strong>Historian</strong><br><small>Input Pre-Step</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>MightyVern</strong><br><small>Analysis</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>Vernile</strong><br><small>Refinement</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step" style="border-color: var(--purple);"><strong>Mediocre</strong><br><small>Reality Check</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>YOLO Vern</strong><br><small>Chaos Check</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step" style="border-color: var(--purple);"><strong>Startup Vern</strong><br><small>MVP Lens</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>MightyVern</strong><br><small>Consolidation</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step"><strong>Architect Vern</strong><br><small>Breakdown &rarr; VTS</small></div>
-                </div>
-                <p style="margin-top: 8px; color: var(--text-muted); font-size: 0.85rem;"><em>Historian pre-step runs only when input files exist in the input folder.</em></p>
-
-                <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--yellow);"><strong>Post-Pipeline (optional)</strong></p>
-                <div class="pipeline-steps">
-                    <div class="step" style="border-color: var(--magenta);"><strong>VernHole</strong><br><small>Council Brainstorm</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step" style="border-color: var(--green);"><strong>Oracle Vern</strong><br><small>Vision &amp; VTS Mods</small></div>
-                    <span class="step-arrow">&rarr;</span>
-                    <div class="step" style="border-color: var(--green);"><strong>Architect Vern</strong><br><small>Applies the Oracle's Vision (optional)</small></div>
-                </div>
-                <p style="margin-top: 20px; margin-bottom: 8px; font-size: 0.9rem; color: var(--green);"><strong>Error Handling &amp; Recovery</strong></p>
-                <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 8px;">Pipelines are failure-tolerant. A single LLM step failure won't kill your entire run.</p>
-                <ul style="color: var(--text-muted); font-size: 0.85rem; margin-left: 20px; line-height: 1.8;">
-                    <li><strong style="color: var(--text);">20-min timeout</strong> per step &mdash; configurable via config or <code>VERN_TIMEOUT</code> env var</li>
-                    <li><strong style="color: var(--text);"><code>--resume-from N</code></strong> &mdash; restart from step N after a failure</li>
-                    <li><strong style="color: var(--text);"><code>--max-retries N</code></strong> &mdash; retry failed steps (default: 2). Failed LLMs fall back based on your LLM mode (e.g. codex/gemini/copilot &rarr; claude in default mode)</li>
-                    <li><strong style="color: var(--text);">Pipeline log</strong> &mdash; <code>output/pipeline.log</code> with per-step status, timestamps, exit codes</li>
-                    <li><strong style="color: var(--text);">Status file</strong> &mdash; <code>output/pipeline-status.md</code> with human-readable progress summary, step results table, and resume hints</li>
-                    <li><strong style="color: var(--text);">Downstream guards</strong> &mdash; VTS, VernHole, Oracle auto-skip when upstream fails</li>
-                </ul>
-
-                <p style="margin-top: 16px; color: var(--text-muted); font-size: 0.9rem;">Configurable via <code>/vern:setup</code> &mdash; swap any persona or LLM at any step.</p>
-            </div>
-
-        </div>
-
-        <!-- 3. Discovery Pipeline -->
+        <!-- 2. Discovery Pipeline (examples) -->
         <div class="example-group">
             <h3>Discovery Pipeline</h3>
             <p class="group-desc">A structured multi-LLM chain that evolves your idea through 5 or 7 passes. Choose Default (5-step) or Expanded (7-step) mode. Each pass builds on the previous one, and your original prompt rides along the entire chain.</p>
@@ -1752,7 +1808,7 @@ Resuming from: step 3
             </div>
         </div>
 
-        <!-- 4. VernHole (Chaos Mode) -->
+        <!-- 3. VernHole (Chaos Mode) -->
         <div class="example-group">
             <h3>VernHole (Chaos Mode)</h3>
             <p class="group-desc">Choose a council tier and summon Verns to brainstorm your idea. Each gives their independent take, then a synthesis pass weaves the chaos into something useful.</p>
@@ -1793,7 +1849,7 @@ Synthesizing 15 perspectives into final report...</div>
             </div>
         </div>
 
-        <!-- 5. Single Persona Tasks -->
+        <!-- 4. Single Persona Tasks -->
         <div class="example-group">
             <h3>Single Persona Tasks</h3>
             <p class="group-desc">Use any persona directly for one-shot tasks. The format is <code>/vern:&lt;persona&gt; &lt;task&gt;</code>.</p>
@@ -1834,7 +1890,7 @@ Synthesizing 15 perspectives into final report...</div>
             </div>
         </div>
 
-        <!-- 6. When to Use What -->
+        <!-- 5. When to Use What -->
         <div class="example-group">
             <h3>When to Use What</h3>
             <p class="group-desc">Quick reference for picking the right tool.</p>

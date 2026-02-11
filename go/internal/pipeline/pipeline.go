@@ -224,6 +224,9 @@ func (p *Pipeline) execute(mode string) error {
 			if hErr != nil {
 				p.printf("    Historian failed: %v (continuing without index)\n", hErr)
 				p.log("Historian pre-step FAILED: %v", hErr)
+			} else if hResult.Skipped {
+				p.printf("    Historian: prompt only — nothing to index (skipped)\n")
+				p.log("Historian pre-step: prompt only, no files to index")
 			} else {
 				p.printf("    Historian complete (%s, %d chars, LLM: %s)\n",
 					hResult.Duration.Round(100*time.Millisecond), hResult.CharCount, hResult.LLMUsed)

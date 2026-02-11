@@ -6,20 +6,22 @@ func TestHoleUpdateProgress(t *testing.T) {
 	m := NewHoleModel("/tmp", "/tmp/agents")
 
 	tests := []struct {
-		line            string
-		wantTotal       int
-		wantCompleted   int
+		line          string
+		wantTotal     int
+		wantCompleted int
 	}{
-		{">>> Vern 1: Architect (claude)", 1, 0},
-		{"    OK (2.3s)", 1, 1},
-		{">>> Vern 2: Engineer (codex)", 2, 1},
-		{"    FALLBACK SUCCEEDED (3.1s)", 2, 2},
-		{">>> Vern 3: Validator (gemini)", 3, 2},
-		{"    OK (1.8s)", 3, 3},
-		{">>> Vern 4: Oracle (claude)", 4, 3},
-		{"    OK (2.1s)", 4, 4},
-		{">>> SYNTHESIZING council output", 4, 4},
-		{"    OK (1.5s)", 4, 5}, // synthesis counts as completion
+		// Verns are summoned in parallel — all appear quickly
+		{">>> Vern 1/4: Architect (claude)", 4, 0},
+		{">>> Vern 2/4: Engineer (codex)", 4, 0},
+		{">>> Vern 3/4: Validator (gemini)", 4, 0},
+		{">>> Vern 4/4: Oracle (claude)", 4, 0},
+		// Completions come back in any order
+		{"    OK (claude, 4800B, Vern 1/4)", 4, 1},
+		{"    OK (codex, 3200B, Vern 2/4)", 4, 2},
+		{"    FAILED (validator, exit 1, Vern 3/4) — excluding from synthesis", 4, 3},
+		{"    OK (claude, 5100B, Vern 4/4)", 4, 4},
+		// Synthesis lines don't change count
+		{">>> Synthesizing the chaos (3/4 Verns succeeded)...", 4, 4},
 	}
 
 	for _, tt := range tests {

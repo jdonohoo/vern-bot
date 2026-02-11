@@ -21,6 +21,9 @@ type Config struct {
 	LLMModes       map[string]LLMModeConfig    `json:"llm_modes"`
 	VernHole       VernHoleConfig              `json:"vernhole"`
 
+	// User preferences (persisted across sessions)
+	DefaultDiscoveryPath string               `json:"default_discovery_path,omitempty"`
+
 	// Backward compat: old config format
 	LegacyPipeline []PipelineStep              `json:"discovery_pipeline"`
 }

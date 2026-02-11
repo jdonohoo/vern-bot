@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -58,15 +59,26 @@ type HoleModel struct {
 	stepLog        []string
 	vernsCompleted int
 	totalVerns     int
+	statusMsg      string // transient feedback (e.g. "Copied to clipboard!")
 	err            error
 }
 
 func NewHoleModel(projectRoot, agentsDir string) HoleModel {
+	cfg := config.Load(projectRoot)
+
+	outputPath := "default"
+	customPath := ""
+	if cfg.DefaultDiscoveryPath != "" {
+		outputPath = "custom"
+		customPath = cfg.DefaultDiscoveryPath
+	}
+
 	vals := &holeVals{
 		council:    "full",
 		llmMode:    "mixed_claude_fallback",
 		singleLLM:  "claude",
-		outputPath: "default",
+		outputPath: outputPath,
+		customPath: customPath,
 		confirm:    true,
 	}
 
@@ -203,6 +215,10 @@ func (m HoleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateProgress(msg.line)
 		return m, m.waitForLog()
 
+	case holeStatusClearMsg:
+		m.statusMsg = ""
+		return m, nil
+
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
 		m.progress = progressModel.(progress.Model)
@@ -236,8 +252,21 @@ func (m HoleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case holeStateDone:
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if keyMsg.String() == "q" {
+			switch keyMsg.String() {
+			case "q":
 				return m, backToMenu
+			case "c":
+				text := m.resultContent()
+				if text != "" {
+					if err := copyToClipboard(text); err != nil {
+						m.statusMsg = "Copy failed: " + err.Error()
+					} else {
+						m.statusMsg = "Copied to clipboard!"
+					}
+					return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+						return holeStatusClearMsg{}
+					})
+				}
 			}
 		}
 		var cmd tea.Cmd
@@ -250,11 +279,15 @@ func (m HoleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *HoleModel) updateProgress(line string) {
 	upper := strings.ToUpper(line)
-	// Count total Verns from ">>> Vern N:" lines
+	// Parse total from ">>> Vern N/Total:" lines
 	if strings.HasPrefix(line, ">>> Vern ") {
-		m.totalVerns++
+		rest := strings.TrimPrefix(line, ">>> Vern ")
+		if _, total, _, _, ok := parseVernLine(rest); ok {
+			m.totalVerns = total
+		}
 	}
-	if strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED") {
+	// Count completions from OK/FAILED lines with "Vern N/" pattern
+	if strings.Contains(upper, "VERN ") && (strings.Contains(upper, "OK (") || strings.Contains(upper, "FAILED (")) {
 		m.vernsCompleted++
 	}
 }
@@ -347,6 +380,8 @@ type holeLogMsg struct {
 	line string
 }
 
+type holeStatusClearMsg struct{}
+
 func (m HoleModel) startHole() tea.Cmd {
 	return func() tea.Msg {
 		v := m.vals
@@ -401,6 +436,32 @@ func (m HoleModel) waitForLog() tea.Cmd {
 		}
 		return holeLogMsg{line: line}
 	}
+}
+
+// resultContent builds the full VernHole output as plain text for clipboard copy.
+func (m HoleModel) resultContent() string {
+	var b strings.Builder
+
+	b.WriteString("=== VERNHOLE COUNCIL RESULTS ===\n")
+	b.WriteString(fmt.Sprintf("Council: %s\n", m.vals.council))
+	b.WriteString(fmt.Sprintf("Output: %s\n\n", m.outputDir()))
+
+	// Include synthesis if available
+	synthPath := filepath.Join(m.outputDir(), "synthesis.md")
+	if data, err := os.ReadFile(synthPath); err == nil {
+		b.WriteString("--- Synthesis ---\n")
+		b.WriteString(string(data))
+		b.WriteString("\n")
+	}
+
+	if len(m.stepLog) > 0 {
+		b.WriteString("--- Activity Log ---\n")
+		for _, line := range m.stepLog {
+			b.WriteString(line + "\n")
+		}
+	}
+
+	return b.String()
 }
 
 // Cancel aborts any running VernHole goroutine.
@@ -461,6 +522,9 @@ func (m HoleModel) View() string {
 		}
 
 	case holeStateDone:
+		if m.statusMsg != "" {
+			b.WriteString(stepOKStyle.Render(m.statusMsg) + "\n")
+		}
 		b.WriteString(m.viewport.View())
 	}
 

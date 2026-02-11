@@ -15,8 +15,17 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/pipeline"
 )
+
+// vernStatus tracks an individual Vern's async state in the VernHole phase.
+type vernStatus struct {
+	num    int    // 1-based index
+	desc   string // e.g. "Opus excellence"
+	llm    string // e.g. "claude"
+	status string // "summoned", "ok", "failed"
+}
 
 type discoveryState int
 
@@ -70,14 +79,37 @@ type DiscoveryModel struct {
 	historianPhase        string // "pending", "running", "done", "failed", "skipped"
 	currentStep           int    // which pipeline step number is currently running
 	completedPipelineStep int    // highest completed pipeline step number
-	statusContent         string // pipeline-status.md content for status panel
+	statusContent         string // pipeline-status.md content (read at completion for done view)
+	statusMsg             string // transient feedback (e.g. "Copied to clipboard!")
 	err                   error
 	setupErr              error
+
+	// Phase tracking — screen redraws per phase
+	runningPhase  string // "pipeline", "vernhole", "oracle"
+	phaseLogStart int    // index into stepLog where current phase started
+
+	// VernHole phase tracking (async — all Verns run in parallel)
+	vernRoster     map[int]*vernStatus // keyed by Vern number (1-based)
+	vernsCompleted int
+	totalVerns     int
+
+	// Oracle phase tracking
+	oracleStep string // "consult", "apply"
 }
 
 func NewDiscoveryModel(projectRoot, agentsDir string) DiscoveryModel {
+	cfg := config.Load(projectRoot)
+
+	outputPath := "default"
+	customPath := ""
+	if cfg.DefaultDiscoveryPath != "" {
+		outputPath = "custom"
+		customPath = cfg.DefaultDiscoveryPath
+	}
+
 	vals := &discoveryVals{
-		outputPath:   "default",
+		outputPath:   outputPath,
+		customPath:   customPath,
 		llmMode:      "mixed_claude_fallback",
 		singleLLM:    "claude",
 		pipeline:     "default",
@@ -274,29 +306,76 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.waitForLog()
 		}
 
-		// Filter banner/noise lines
+		upper := strings.ToUpper(line)
+
+		// Detect phase transitions (before filtering, so state updates even for filtered lines)
+		if strings.Contains(upper, "ENTERING THE VERNHOLE") {
+			m.runningPhase = "vernhole"
+			m.phaseLogStart = len(m.stepLog)
+		} else if strings.Contains(upper, "CONSULTING THE ORACLE") {
+			m.runningPhase = "oracle"
+			m.phaseLogStart = len(m.stepLog)
+			m.oracleStep = "consult"
+		} else if strings.Contains(upper, "ORACLE APPLYING VISION") {
+			m.oracleStep = "apply"
+		}
+
+		// Filter banner/noise lines (after phase detection)
 		if isFilteredLogLine(line) {
 			return m, m.waitForLog()
 		}
 
-		// Track historian state
-		upper := strings.ToUpper(line)
-		if strings.Contains(upper, "INVOKING THE ANCIENT SECRETS OF THE HISTORIAN") {
-			m.historianPhase = "running"
-		} else if strings.Contains(upper, "HISTORIAN COMPLETE") || strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS") {
-			m.historianPhase = "done"
-		} else if strings.Contains(upper, "HISTORIAN FAILED") {
-			m.historianPhase = "failed"
+		// Pipeline phase: track historian and step progress
+		if m.runningPhase == "pipeline" {
+			if strings.Contains(upper, "INVOKING THE ANCIENT SECRETS OF THE HISTORIAN") {
+				m.historianPhase = "running"
+			} else if strings.Contains(upper, "HISTORIAN COMPLETE") || strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS") {
+				m.historianPhase = "done"
+			} else if strings.Contains(upper, "HISTORIAN: PROMPT ONLY") || strings.Contains(upper, "NOTHING TO INDEX") {
+				m.historianPhase = "done"
+			} else if strings.Contains(upper, "HISTORIAN FAILED") {
+				m.historianPhase = "failed"
+			}
+
+			if strings.HasPrefix(line, ">>> Pass ") {
+				rest := strings.TrimPrefix(line, ">>> Pass ")
+				if idx := strings.Index(rest, "/"); idx > 0 {
+					var n int
+					fmt.Sscanf(rest[:idx], "%d", &n)
+					if n > 0 {
+						m.currentStep = n
+					}
+				}
+			}
 		}
 
-		// Track current pipeline step from ">>> Pass N/M:" lines
-		if strings.HasPrefix(line, ">>> Pass ") {
-			rest := strings.TrimPrefix(line, ">>> Pass ")
-			if idx := strings.Index(rest, "/"); idx > 0 {
-				var n int
-				fmt.Sscanf(rest[:idx], "%d", &n)
-				if n > 0 {
-					m.currentStep = n
+		// VernHole phase: track Vern personas (async — all run in parallel)
+		if m.runningPhase == "vernhole" {
+			if strings.HasPrefix(line, ">>> Vern ") {
+				// Parse ">>> Vern N/Total: Description (llm)"
+				rest := strings.TrimPrefix(line, ">>> Vern ")
+				if num, total, desc, llmName, ok := parseVernLine(rest); ok {
+					if m.vernRoster == nil {
+						m.vernRoster = make(map[int]*vernStatus)
+					}
+					m.totalVerns = total
+					m.vernRoster[num] = &vernStatus{
+						num:    num,
+						desc:   desc,
+						llm:    llmName,
+						status: "summoned",
+					}
+				}
+			} else if strings.Contains(upper, "VERN ") && (strings.Contains(upper, "OK (") || strings.Contains(upper, "FAILED (")) {
+				// Parse "    OK (llm, NB, Vern N/Total)" or "    FAILED (id, exit N, Vern N/Total)"
+				if num := parseVernResultLine(line); num > 0 {
+					if vs, ok := m.vernRoster[num]; ok {
+						if strings.Contains(upper, "OK (") {
+							vs.status = "ok"
+						} else {
+							vs.status = "failed"
+						}
+					}
 				}
 			}
 		}
@@ -305,11 +384,8 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateProgress(line)
 		return m, m.waitForLog()
 
-	case discStatusTickMsg:
-		if m.state == discStateRunning {
-			m.readStatus()
-			return m, m.statusTick()
-		}
+	case discStatusClearMsg:
+		m.statusMsg = ""
 		return m, nil
 
 	case progress.FrameMsg:
@@ -367,8 +443,9 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.historianPhase = "skipped"
 			}
+			m.runningPhase = "pipeline"
 			m.vals.logCh = make(chan string, 100)
-			return m, tea.Batch(m.spinner.Tick, m.startPipeline(), m.waitForLog(), m.statusTick())
+			return m, tea.Batch(m.spinner.Tick, m.startPipeline(), m.waitForLog())
 		}
 		if m.configForm.State == huh.StateAborted {
 			return m, backToMenu
@@ -384,8 +461,21 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case discStateDone:
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if keyMsg.String() == "q" {
+			switch keyMsg.String() {
+			case "q":
 				return m, backToMenu
+			case "c":
+				text := m.resultContent()
+				if text != "" {
+					if err := copyToClipboard(text); err != nil {
+						m.statusMsg = "Copy failed: " + err.Error()
+					} else {
+						m.statusMsg = "Copied to clipboard!"
+					}
+					return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+						return discStatusClearMsg{}
+					})
+				}
 			}
 		}
 		var cmd tea.Cmd
@@ -398,19 +488,31 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *DiscoveryModel) updateProgress(line string) {
 	upper := strings.ToUpper(line)
-	if strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED") {
-		m.stepsCompleted++
-		m.completedPipelineStep = m.currentStep
-	} else if strings.Contains(upper, "HISTORIAN COMPLETE") ||
-		strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS") ||
-		strings.Contains(upper, "HISTORIAN FAILED") {
-		m.stepsCompleted++
+
+	switch m.runningPhase {
+	case "vernhole":
+		// Count completed Verns from roster (handles async completion)
+		completed := 0
+		for _, vs := range m.vernRoster {
+			if vs.status == "ok" || vs.status == "failed" {
+				completed++
+			}
+		}
+		m.vernsCompleted = completed
+	case "oracle":
+		// Oracle has no granular progress
+	default: // pipeline
+		if strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED") {
+			m.stepsCompleted++
+			m.completedPipelineStep = m.currentStep
+		} else if strings.Contains(upper, "HISTORIAN COMPLETE") ||
+			strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS") ||
+			strings.Contains(upper, "HISTORIAN: PROMPT ONLY") ||
+			strings.Contains(upper, "NOTHING TO INDEX") ||
+			strings.Contains(upper, "HISTORIAN FAILED") {
+			m.stepsCompleted++
+		}
 	}
-	pct := float64(m.stepsCompleted) / float64(m.totalSteps)
-	if pct > 1 {
-		pct = 1
-	}
-	m.progress.SetPercent(pct)
 }
 
 func (m *DiscoveryModel) initDoneViewport() {
@@ -450,6 +552,28 @@ func (m *DiscoveryModel) initDoneViewport() {
 	}
 
 	m.viewport.SetContent(content.String())
+}
+
+// resultContent builds the full pipeline output as plain text for clipboard copy.
+func (m DiscoveryModel) resultContent() string {
+	var b strings.Builder
+
+	b.WriteString("=== DISCOVERY PIPELINE RESULTS ===\n")
+	b.WriteString(fmt.Sprintf("Output: %s\n\n", m.discoveryDir()))
+
+	if m.statusContent != "" {
+		b.WriteString(stripMarkdown(m.statusContent))
+		b.WriteString("\n")
+	}
+
+	if len(m.stepLog) > 0 {
+		b.WriteString("--- Activity Log ---\n")
+		for _, line := range m.stepLog {
+			b.WriteString(line + "\n")
+		}
+	}
+
+	return b.String()
 }
 
 func (m DiscoveryModel) outputBase() string {
@@ -544,7 +668,7 @@ type pipelineLogMsg struct {
 	line string
 }
 
-type discStatusTickMsg time.Time
+type discStatusClearMsg struct{}
 
 func (m DiscoveryModel) startPipeline() tea.Cmd {
 	return func() tea.Msg {
@@ -603,18 +727,158 @@ func (m DiscoveryModel) waitForLog() tea.Cmd {
 	}
 }
 
-func (m DiscoveryModel) statusTick() tea.Cmd {
-	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
-		return discStatusTickMsg(t)
-	})
-}
-
 func (m *DiscoveryModel) readStatus() {
 	statusPath := filepath.Join(m.discoveryDir(), "output", "pipeline-status.md")
 	data, err := os.ReadFile(statusPath)
 	if err == nil {
 		m.statusContent = string(data)
 	}
+}
+
+// renderStepOutlinePanel renders the pipeline step outline in a bordered panel.
+func (m DiscoveryModel) renderStepOutlinePanel(width, height int) string {
+	var b strings.Builder
+
+	// Historian line
+	if m.historianPhase != "skipped" {
+		historianLabel := "Historian (pre-step)"
+		switch m.historianPhase {
+		case "done":
+			b.WriteString(stepOKStyle.Render("✓ "+historianLabel) + "\n")
+		case "running":
+			b.WriteString(m.spinner.View() + " " + llmStyle.Render(historianLabel) + "\n")
+		case "failed":
+			b.WriteString(stepFailStyle.Render("✗ "+historianLabel+" (failed)") + "\n")
+		default:
+			b.WriteString(logDimStyle.Render("· "+historianLabel) + "\n")
+		}
+	}
+
+	// Pipeline steps
+	for i, stepLine := range m.pipelineSteps {
+		stepNum := i + 1
+		if stepNum <= m.completedPipelineStep {
+			b.WriteString(stepOKStyle.Render("✓ "+stepLine) + "\n")
+		} else if stepNum == m.currentStep {
+			style := stepColors[(stepNum-1)%len(stepColors)]
+			b.WriteString(m.spinner.View() + " " + style.Render(stepLine) + "\n")
+		} else {
+			b.WriteString(logDimStyle.Render("· "+stepLine) + "\n")
+		}
+	}
+
+	return statusPanelStyle.Width(width).Height(height).Render(
+		panelTitleStyle.Render("Pipeline Steps") + "\n" + b.String(),
+	)
+}
+
+// renderVernOutlinePanel renders VernHole persona status in a bordered panel.
+// Verns run in parallel, so status is independent per-Vern (not sequential).
+func (m DiscoveryModel) renderVernOutlinePanel(width, height int) string {
+	var b strings.Builder
+
+	b.WriteString(fmt.Sprintf("Council:  %s\n", llmStyle.Render(councilLabel(m.vals.vernhole))))
+	b.WriteString(fmt.Sprintf("LLM Mode: %s\n", llmStyle.Render(m.vals.llmMode)))
+	if m.totalVerns > 0 {
+		b.WriteString(fmt.Sprintf("Progress: %s\n", llmStyle.Render(fmt.Sprintf("%d/%d complete", m.vernsCompleted, m.totalVerns))))
+	}
+	b.WriteString("\n")
+
+	// Show Verns sorted by number, with per-Vern status
+	for i := 1; i <= m.totalVerns; i++ {
+		vs, ok := m.vernRoster[i]
+		if !ok {
+			continue
+		}
+		label := fmt.Sprintf("%s (%s)", vs.desc, vs.llm)
+		switch vs.status {
+		case "ok":
+			b.WriteString(stepOKStyle.Render("✓ "+label) + "\n")
+		case "failed":
+			b.WriteString(stepFailStyle.Render("✗ "+label) + "\n")
+		default: // "summoned" — running in parallel
+			b.WriteString(logDimStyle.Render(m.spinner.View()+" "+label) + "\n")
+		}
+	}
+
+	return statusPanelStyle.Width(width).Height(height).Render(
+		panelTitleStyle.Render("VernHole Council") + "\n" + b.String(),
+	)
+}
+
+// renderOracleOutlinePanel renders Oracle phase status in a bordered panel.
+func (m DiscoveryModel) renderOracleOutlinePanel(width, height int) string {
+	var b strings.Builder
+
+	consultLabel := "Consult the Oracle"
+	applyLabel := "Apply via Architect"
+
+	switch m.oracleStep {
+	case "apply":
+		b.WriteString(stepOKStyle.Render("✓ "+consultLabel) + "\n")
+		b.WriteString(m.spinner.View() + " " + llmStyle.Render(applyLabel) + "\n")
+	case "consult":
+		b.WriteString(m.spinner.View() + " " + llmStyle.Render(consultLabel) + "\n")
+		if m.vals.oracleApply == "apply" {
+			b.WriteString(logDimStyle.Render("· "+applyLabel) + "\n")
+		}
+	default:
+		b.WriteString(logDimStyle.Render("· "+consultLabel) + "\n")
+		if m.vals.oracleApply == "apply" {
+			b.WriteString(logDimStyle.Render("· "+applyLabel) + "\n")
+		}
+	}
+
+	return statusPanelStyle.Width(width).Height(height).Render(
+		panelTitleStyle.Render("Oracle Vision") + "\n" + b.String(),
+	)
+}
+
+// parseVernLine parses "N/Total: Description (llm)" from a ">>> Vern " line.
+func parseVernLine(rest string) (num, total int, desc, llmName string, ok bool) {
+	// Format: "3/15: Needs 6 meetings and a committee first (claude)"
+	slashIdx := strings.Index(rest, "/")
+	if slashIdx < 1 {
+		return
+	}
+	colonIdx := strings.Index(rest, ":")
+	if colonIdx < slashIdx {
+		return
+	}
+	fmt.Sscanf(rest[:slashIdx], "%d", &num)
+	fmt.Sscanf(rest[slashIdx+1:colonIdx], "%d", &total)
+	if num == 0 || total == 0 {
+		return
+	}
+
+	afterColon := strings.TrimSpace(rest[colonIdx+1:])
+	// Extract LLM from trailing "(llm)"
+	if parenIdx := strings.LastIndex(afterColon, "("); parenIdx > 0 {
+		desc = strings.TrimSpace(afterColon[:parenIdx])
+		llmName = strings.TrimSuffix(strings.TrimSpace(afterColon[parenIdx+1:]), ")")
+	} else {
+		desc = afterColon
+	}
+	ok = true
+	return
+}
+
+// parseVernResultLine extracts the Vern number from an OK or FAILED line.
+// Format: "    OK (llm, NB, Vern N/Total)" or "    FAILED (id, exit N, Vern N/Total)"
+func parseVernResultLine(line string) int {
+	// Look for "Vern N/" pattern
+	idx := strings.Index(line, "Vern ")
+	if idx < 0 {
+		return 0
+	}
+	rest := line[idx+5:] // after "Vern "
+	slashIdx := strings.Index(rest, "/")
+	if slashIdx < 1 {
+		return 0
+	}
+	var num int
+	fmt.Sscanf(rest[:slashIdx], "%d", &num)
+	return num
 }
 
 // Cancel aborts any running pipeline goroutine.
@@ -666,12 +930,24 @@ func (m DiscoveryModel) View() string {
 		b.WriteString(m.configForm.View())
 
 	case discStateRunning:
-		label := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true).Render
 		cw := contentWidth(m.width)
 
-		b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Running discovery pipeline...")))
+		// Phase-specific title
+		switch m.runningPhase {
+		case "vernhole":
+			b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Summoning the VernHole council...")))
+		case "oracle":
+			if m.oracleStep == "apply" {
+				b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Architect applying the Oracle's vision...")))
+			} else {
+				b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Consulting the Oracle...")))
+			}
+		default:
+			b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Running discovery pipeline...")))
+		}
 
 		// Config line
+		label := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true).Render
 		mode := "default"
 		if m.vals.pipeline == "expanded" {
 			mode = "expanded"
@@ -680,91 +956,84 @@ func (m DiscoveryModel) View() string {
 			label("Pipeline:"), llmStyle.Render(mode),
 			label("LLM:"), llmStyle.Render(m.vals.llmMode),
 			label("Output:"), logDimStyle.Render(m.discoveryDir())))
-
-		// Step outline — only show when there's enough vertical space
-		outlineLines := len(m.pipelineSteps)
-		if m.historianPhase != "skipped" {
-			outlineLines++
-		}
-		// Need: 2 title + 1 config + 2 separators + outline + panels(8 min) + 2 progress = ~15 + outline
-		showOutline := (m.height - 15 - outlineLines) >= 8
-
-		if showOutline && (len(m.pipelineSteps) > 0 || m.historianPhase != "skipped") {
-			b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
-
-			// Historian line
-			if m.historianPhase != "skipped" {
-				historianLabel := "Historian (pre-step)"
-				switch m.historianPhase {
-				case "done":
-					b.WriteString("  " + stepOKStyle.Render("✓ "+historianLabel) + "\n")
-				case "running":
-					b.WriteString("  " + m.spinner.View() + " " + llmStyle.Render(historianLabel) + "\n")
-				case "failed":
-					b.WriteString("  " + stepFailStyle.Render("✗ "+historianLabel+" (failed)") + "\n")
-				default: // pending
-					b.WriteString("  " + logDimStyle.Render("· "+historianLabel) + "\n")
-				}
-			}
-
-			// Pipeline steps
-			for i, stepLine := range m.pipelineSteps {
-				stepNum := i + 1
-				if stepNum <= m.completedPipelineStep {
-					b.WriteString("  " + stepOKStyle.Render("✓ "+stepLine) + "\n")
-				} else if stepNum == m.currentStep {
-					style := stepColors[(stepNum-1)%len(stepColors)]
-					b.WriteString("  " + m.spinner.View() + " " + style.Render(stepLine) + "\n")
-				} else {
-					b.WriteString("  " + logDimStyle.Render("· "+stepLine) + "\n")
-				}
-			}
-		} else {
-			outlineLines = 0 // not shown, don't count
-		}
-
-		// Separator before panels/log
 		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
 
-		// Panels / activity log — reserve 2 lines for bottom progress bar
-		availHeight := m.height - 10 - outlineLines
-		if showOutline {
-			availHeight -= 2 // separators around outline
-		}
-		if availHeight < 6 {
-			availHeight = 6
+		// Chrome: title(2) + spinner(2) + config(1) + sep(1) + progress(2) + help(2) = 10
+		totalAvail := m.height - 10
+		if totalAvail < 10 {
+			totalAvail = 10
 		}
 
-		if cw >= splitPanelMinWidth && m.statusContent != "" {
+		// Current phase's log (from phase start)
+		phaseLog := m.stepLog[m.phaseLogStart:]
+
+		if cw >= splitPanelMinWidth {
+			// Split-panel layout: left=phase status panel, right=activity log
 			leftW := cw * 2 / 5
 			rightW := cw - leftW - 1
 
-			left := renderStatusPanel(m.statusContent, leftW, availHeight)
-			right := renderLogPanel(m.stepLog, rightW, availHeight)
+			var left string
+			switch m.runningPhase {
+			case "vernhole":
+				left = m.renderVernOutlinePanel(leftW, totalAvail)
+			case "oracle":
+				left = m.renderOracleOutlinePanel(leftW, totalAvail)
+			default:
+				left = m.renderStepOutlinePanel(leftW, totalAvail)
+			}
+			right := renderLogPanel(phaseLog, rightW, totalAvail)
 
 			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, left, right))
 		} else {
-			maxLines := availHeight
-			start := 0
-			if len(m.stepLog) > maxLines {
-				start = len(m.stepLog) - maxLines
+			// Narrow terminal: single column — just activity log
+			maxLines := totalAvail
+			if maxLines < 4 {
+				maxLines = 4
 			}
-			for _, line := range m.stepLog[start:] {
+			start := 0
+			if len(phaseLog) > maxLines {
+				start = len(phaseLog) - maxLines
+			}
+			for _, line := range phaseLog[start:] {
 				b.WriteString("  " + renderLogLine(line) + "\n")
 			}
 		}
 
-		// Progress bar — pinned at bottom, always visible
-		pct := float64(m.stepsCompleted) / float64(m.totalSteps)
-		if pct > 1 {
-			pct = 1
-		}
+		// Phase-specific progress bar
 		b.WriteString("\n")
-		b.WriteString(fmt.Sprintf("  %s %d/%d steps",
-			m.progress.ViewAs(pct),
-			m.stepsCompleted, m.totalSteps))
+		switch m.runningPhase {
+		case "vernhole":
+			if m.totalVerns > 0 {
+				pct := float64(m.vernsCompleted) / float64(m.totalVerns)
+				if pct > 1 {
+					pct = 1
+				}
+				b.WriteString(fmt.Sprintf("  %s %d/%d Verns",
+					m.progress.ViewAs(pct),
+					m.vernsCompleted, m.totalVerns))
+			} else {
+				b.WriteString(fmt.Sprintf("  %s Summoning council...", m.spinner.View()))
+			}
+		case "oracle":
+			if m.oracleStep == "apply" {
+				b.WriteString(fmt.Sprintf("  %s Architect applying changes...", m.spinner.View()))
+			} else {
+				b.WriteString(fmt.Sprintf("  %s Oracle working...", m.spinner.View()))
+			}
+		default:
+			pct := float64(m.stepsCompleted) / float64(m.totalSteps)
+			if pct > 1 {
+				pct = 1
+			}
+			b.WriteString(fmt.Sprintf("  %s %d/%d steps",
+				m.progress.ViewAs(pct),
+				m.stepsCompleted, m.totalSteps))
+		}
 
 	case discStateDone:
+		if m.statusMsg != "" {
+			b.WriteString(stepOKStyle.Render(m.statusMsg) + "\n")
+		}
 		b.WriteString(m.viewport.View())
 	}
 

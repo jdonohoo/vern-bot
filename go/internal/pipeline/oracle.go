@@ -165,7 +165,7 @@ func RunOracleApply(opts OracleApplyOptions) error {
 		return fmt.Errorf("no oracle vision file found at %s: %w", opts.VisionFile, err)
 	}
 
-	oracleLog(opts.OnLog, "=== APPLYING THE ORACLE'S VISION ===\n")
+	oracleLog(opts.OnLog, "=== ORACLE APPLYING VISION ===\n")
 	oracleLog(opts.OnLog, "Architect Vern is rewriting VTS tasks...\n")
 
 	// Build existing VTS contents

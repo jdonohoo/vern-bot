@@ -156,7 +156,7 @@ func (a App) activeKeyMap() help.KeyMap {
 		case discStateRunning:
 			return runningKeys
 		case discStateDone:
-			return doneKeys
+			return runDoneKeys
 		default:
 			return formKeys
 		}
@@ -165,7 +165,7 @@ func (a App) activeKeyMap() help.KeyMap {
 		case holeStateRunning:
 			return runningKeys
 		case holeStateDone:
-			return doneKeys
+			return runDoneKeys
 		default:
 			return formKeys
 		}

@@ -135,13 +135,14 @@ func RunVernHole(opts VernHoleOptions) error {
 				r.Output = result.Output
 				r.ExitCode = 0
 				r.Succeeded = true
+				vernOutput(&opts, "    OK (%s, %dB, Vern %d/%d)\n", vernLLM, len(result.Output), idx+1, numVerns)
 			} else {
 				exitCode := 1
 				if result != nil {
 					exitCode = result.ExitCode
 				}
 				r.ExitCode = exitCode
-				vernOutput(&opts, "    WARNING: %s failed (exit %d) — excluding from synthesis\n", vern.ID, exitCode)
+				vernOutput(&opts, "    FAILED (%s, exit %d, Vern %d/%d) — excluding from synthesis\n", vern.ID, exitCode, idx+1, numVerns)
 			}
 
 			results[idx] = r
@@ -207,7 +208,6 @@ func RunVernHole(opts VernHoleOptions) error {
 	vernOutput(&opts, "\n")
 	vernOutput(&opts, "=== THE VERNHOLE HAS SPOKEN ===\n")
 	vernOutput(&opts, "Files created in: %s\n", opts.OutputDir)
-	vernOutput(&opts, "Succeeded: %d/%d\n", succeededCount, numVerns)
 	if len(failedVerns) > 0 {
 		vernOutput(&opts, "Failed: %s\n", strings.Join(failedVerns, " "))
 	}

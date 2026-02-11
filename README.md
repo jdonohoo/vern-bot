@@ -149,7 +149,7 @@ vern tui
 
 ```
 ┌──────────────────────────────────┐
-│         VERN-BOT v2.3            │
+│         VERN-BOT v2.4            │
 │                                  │
 │  [1] Discovery Pipeline          │
 │  [2] VernHole Council            │
@@ -164,6 +164,15 @@ vern tui
 │  LLMs: claude codex gemini       │
 └──────────────────────────────────┘
 ```
+
+The TUI runs multi-phase discovery with a split-panel layout:
+
+- **Pipeline phase** — step outline (left) with live progress, activity log (right)
+- **VernHole phase** — per-Vern roster with async status indicators (green/red/gray), activity log
+- **Oracle phase** — consult → apply transitions with Architect working status
+- **Results view** — scrollable synthesis + full activity log, press `c` to copy
+
+Settings persist to `~/.config/vern/config.json` — LLM mode, pipeline preferences, default discovery folder, and LLM availability.
 
 Or run commands directly from the CLI:
 

@@ -29,15 +29,17 @@ const (
 	settingsActionMode settingsAction = iota
 	settingsActionLLMs
 	settingsActionPipeline
+	settingsActionDiscoveryPath
 )
 
 // settingsVals holds form-bound values on the heap so pointers survive
 // bubbletea's value-copy semantics.
 type settingsVals struct {
-	llmMode      string
-	singleLLM    string
-	enabledLLMs  []string
-	pipelineMode string
+	llmMode       string
+	singleLLM     string
+	enabledLLMs   []string
+	pipelineMode  string
+	discoveryPath string
 }
 
 // SettingsModel handles the settings screen.
@@ -88,6 +90,7 @@ var settingsMenuItems = []string{
 	"LLM Mode",
 	"LLM Availability",
 	"Pipeline Mode",
+	"Default Discovery Folder",
 	"Save to disk",
 	"Back",
 }
@@ -158,8 +161,10 @@ func (m SettingsModel) updateMenu(msg tea.Msg) (SettingsModel, tea.Cmd) {
 			return m.executeAction(1)
 		case "3":
 			return m.executeAction(2)
-		case "s":
+		case "4":
 			return m.executeAction(3)
+		case "s":
+			return m.executeAction(4)
 		case "q":
 			return m, backToMenu
 		}
@@ -193,13 +198,19 @@ func (m SettingsModel) executeAction(index int) (SettingsModel, tea.Cmd) {
 		m.state = settingsStateForm
 		return m, m.form.Init()
 	case 3:
+		m.action = settingsActionDiscoveryPath
+		v.discoveryPath = m.cfg.DefaultDiscoveryPath
+		m.form = m.buildDiscoveryPathForm()
+		m.state = settingsStateForm
+		return m, m.form.Init()
+	case 4:
 		m.saveErr = m.saveConfig()
 		if m.saveErr != nil {
 			m.state = settingsStateSaveErr
 		} else {
 			m.state = settingsStateSaved
 		}
-	case 4:
+	case 5:
 		return m, backToMenu
 	}
 	return m, nil
@@ -276,6 +287,20 @@ func (m *SettingsModel) buildPipelineForm() *huh.Form {
 	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
+func (m *SettingsModel) buildDiscoveryPathForm() *huh.Form {
+	w := contentWidth(m.width)
+	v := m.vals
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Default discovery folder").
+				Description("Leave empty to use ./discovery (current directory)").
+				Placeholder("~/ai-discovery").
+				Value(&v.discoveryPath),
+		),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
 func (m *SettingsModel) applyFormResult() {
 	v := m.vals
 	switch m.action {
@@ -300,6 +325,8 @@ func (m *SettingsModel) applyFormResult() {
 		}
 	case settingsActionPipeline:
 		m.cfg.PipelineMode = v.pipelineMode
+	case settingsActionDiscoveryPath:
+		m.cfg.DefaultDiscoveryPath = strings.TrimSpace(v.discoveryPath)
 	}
 }
 
@@ -359,7 +386,13 @@ func (m SettingsModel) configSummary() string {
 		}
 	}
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s  %s", label("Pipeline:"), val(pipelineMode)))
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Pipeline:"), val(pipelineMode)))
+
+	discPath := m.cfg.DefaultDiscoveryPath
+	if discPath == "" {
+		discPath = "./discovery (default)"
+	}
+	b.WriteString(fmt.Sprintf("  %s  %s", label("Discovery:"), val(discPath)))
 
 	return b.String()
 }
@@ -388,10 +421,10 @@ func (m SettingsModel) View() string {
 			}
 
 			number := fmt.Sprintf("[%d] ", i+1)
-			if i == 3 { // Save
+			if i == 4 { // Save
 				number = "[s] "
 			}
-			if i == 4 { // Back
+			if i == 5 { // Back
 				number = "[q] "
 			}
 

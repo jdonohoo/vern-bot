@@ -85,7 +85,7 @@ var (
 			Foreground(colorWarning)
 
 	logSynthStyle = lipgloss.NewStyle().
-			Foreground(colorMagenta)
+			Foreground(colorPrimary)
 
 	logDimStyle = lipgloss.NewStyle().
 			Foreground(colorMuted)
@@ -201,18 +201,23 @@ func renderLogLine(line string) string {
 		style := stepColors[idx%len(stepColors)]
 		return style.Render("  " + display)
 	case strings.HasPrefix(line, ">>>"):
-		if strings.Contains(upper, "FAILED") || strings.Contains(upper, "SKIPPING") {
+		// Phase changes — purple (check before FAILED since synthesis lines may contain "0 failed")
+		if strings.Contains(upper, "SYNTHESIZ") || strings.Contains(upper, "SPLITTING") || strings.Contains(upper, "ORACLE") {
+			return logSynthStyle.Render(line)
+		}
+		// Skipping — yellow warning, not red
+		if strings.Contains(upper, "SKIPPING") {
+			return logWarnStyle.Render(line)
+		}
+		// Actual failures — red
+		if strings.Contains(upper, "FAILED") {
 			return logFailStyle.Render(line)
-		}
-		if strings.Contains(upper, "SYNTHESIZ") {
-			return logSynthStyle.Render(line)
-		}
-		if strings.Contains(upper, "SPLITTING") || strings.Contains(upper, "ORACLE") {
-			return logSynthStyle.Render(line)
 		}
 		return logStepStyle.Render(line)
 	case strings.Contains(upper, "HISTORIAN COMPLETE") || strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS"):
 		return logOKStyle.Render(line)
+	case strings.Contains(upper, "HISTORIAN: PROMPT ONLY") || strings.Contains(upper, "NOTHING TO INDEX"):
+		return logWarnStyle.Render(line)
 	case strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED"):
 		return logOKStyle.Render(line)
 	case strings.Contains(upper, "FAILED") || strings.Contains(upper, "ERROR"):
@@ -233,8 +238,11 @@ func renderLogLine(line string) string {
 func isFilteredLogLine(line string) bool {
 	upper := strings.ToUpper(line)
 
-	// Banner lines (redundant with static header)
-	if strings.HasPrefix(line, "=== VERN") {
+	// Banner lines (redundant with TUI static headers / phase-aware view)
+	if strings.HasPrefix(line, "=== ") {
+		return true
+	}
+	if strings.HasPrefix(line, "Files created in:") {
 		return true
 	}
 	if strings.HasPrefix(line, "Prompt:") || strings.HasPrefix(line, "Pipeline:") || strings.HasPrefix(line, "Retries:") {

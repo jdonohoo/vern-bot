@@ -33,6 +33,7 @@ type HistorianResult struct {
 	Duration   time.Duration
 	LLMUsed    string
 	FellBack   bool // true if gemini wasn't available
+	Skipped    bool // true if no indexable files found (prompt-only)
 }
 
 // RunHistorian scans a directory, builds a prompt from its contents, calls an LLM
@@ -69,7 +70,12 @@ func RunHistorian(opts HistorianOptions) (*HistorianResult, error) {
 	}
 
 	if fileCount == 0 {
-		return nil, fmt.Errorf("no indexable files found in %s", opts.TargetDir)
+		logFn := opts.OnLog
+		if logFn == nil {
+			logFn = func(string) {}
+		}
+		logFn(fmt.Sprintf("Historian: prompt only — no files to index in %s (skipped)", opts.TargetDir))
+		return &HistorianResult{Skipped: true}, nil
 	}
 
 	// Resolve LLM: prefer gemini, fall back if unavailable
