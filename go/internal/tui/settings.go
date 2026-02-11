@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jdonohoo/vern-bot/go/internal/config"
 )
@@ -73,8 +74,9 @@ func (m *SettingsModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	cw := contentWidth(w)
+	fh := formHeight(h)
 	if m.form != nil {
-		m.form.WithWidth(cw).WithHeight(h)
+		m.form.WithWidth(cw).WithHeight(fh)
 	}
 }
 
@@ -83,11 +85,11 @@ func (m SettingsModel) Init() tea.Cmd {
 }
 
 var settingsMenuItems = []string{
-	"Change LLM Mode",
-	"Toggle LLM availability",
-	"Change default pipeline mode",
-	"Save config",
-	"Back to menu",
+	"LLM Mode",
+	"LLM Availability",
+	"Pipeline Mode",
+	"Save to disk",
+	"Back",
 }
 
 func (m SettingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -149,41 +151,56 @@ func (m SettingsModel) updateMenu(msg tea.Msg) (SettingsModel, tea.Cmd) {
 				m.cursor++
 			}
 		case "enter":
-			v := m.vals
-			switch m.cursor {
-			case 0:
-				m.action = settingsActionMode
-				v.llmMode = m.cfg.LLMMode
-				v.singleLLM = "claude"
-				m.form = m.buildModeForm()
-				m.state = settingsStateForm
-				return m, m.form.Init()
-			case 1:
-				m.action = settingsActionLLMs
-				v.enabledLLMs = m.currentEnabledLLMs()
-				m.form = m.buildLLMToggleForm()
-				m.state = settingsStateForm
-				return m, m.form.Init()
-			case 2:
-				m.action = settingsActionPipeline
-				v.pipelineMode = m.cfg.PipelineMode
-				if v.pipelineMode == "" {
-					v.pipelineMode = "default"
-				}
-				m.form = m.buildPipelineForm()
-				m.state = settingsStateForm
-				return m, m.form.Init()
-			case 3:
-				m.saveErr = m.saveConfig()
-				if m.saveErr != nil {
-					m.state = settingsStateSaveErr
-				} else {
-					m.state = settingsStateSaved
-				}
-			case 4:
-				return m, backToMenu
-			}
+			return m.executeAction(m.cursor)
+		case "1":
+			return m.executeAction(0)
+		case "2":
+			return m.executeAction(1)
+		case "3":
+			return m.executeAction(2)
+		case "s":
+			return m.executeAction(3)
+		case "q":
+			return m, backToMenu
 		}
+	}
+	return m, nil
+}
+
+func (m SettingsModel) executeAction(index int) (SettingsModel, tea.Cmd) {
+	v := m.vals
+	switch index {
+	case 0:
+		m.action = settingsActionMode
+		v.llmMode = m.cfg.LLMMode
+		v.singleLLM = "claude"
+		m.form = m.buildModeForm()
+		m.state = settingsStateForm
+		return m, m.form.Init()
+	case 1:
+		m.action = settingsActionLLMs
+		v.enabledLLMs = m.currentEnabledLLMs()
+		m.form = m.buildLLMToggleForm()
+		m.state = settingsStateForm
+		return m, m.form.Init()
+	case 2:
+		m.action = settingsActionPipeline
+		v.pipelineMode = m.cfg.PipelineMode
+		if v.pipelineMode == "" {
+			v.pipelineMode = "default"
+		}
+		m.form = m.buildPipelineForm()
+		m.state = settingsStateForm
+		return m, m.form.Init()
+	case 3:
+		m.saveErr = m.saveConfig()
+		if m.saveErr != nil {
+			m.state = settingsStateSaveErr
+		} else {
+			m.state = settingsStateSaved
+		}
+	case 4:
+		return m, backToMenu
 	}
 	return m, nil
 }
@@ -206,7 +223,7 @@ func (m *SettingsModel) buildModeForm() *huh.Form {
 				Height(len(SingleLLMOptions)+1).
 				Value(&v.singleLLM),
 		).WithHideFunc(func() bool { return v.llmMode != "single_llm" }),
-	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
 func (m *SettingsModel) buildLLMToggleForm() *huh.Form {
@@ -242,7 +259,7 @@ func (m *SettingsModel) buildLLMToggleForm() *huh.Form {
 					return fmt.Errorf("claude must be enabled")
 				}),
 		),
-	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
 func (m *SettingsModel) buildPipelineForm() *huh.Form {
@@ -256,7 +273,7 @@ func (m *SettingsModel) buildPipelineForm() *huh.Form {
 				Height(len(PipelineOptions)+1).
 				Value(&v.pipelineMode),
 		),
-	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
 func (m *SettingsModel) applyFormResult() {
@@ -317,6 +334,36 @@ func (m SettingsModel) saveConfig() error {
 	return nil
 }
 
+func (m SettingsModel) configSummary() string {
+	label := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true).Render
+	val := lipgloss.NewStyle().Foreground(colorSecondary).Render
+
+	llmMode := m.cfg.LLMMode
+	if llmMode == "" {
+		llmMode = "mixed_claude_fallback"
+	}
+	pipelineMode := m.cfg.PipelineMode
+	if pipelineMode == "" {
+		pipelineMode = "default"
+	}
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("LLM Mode:"), val(llmMode)))
+
+	b.WriteString(fmt.Sprintf("  %s      ", label("LLMs:")))
+	for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
+		if enabled, ok := m.cfg.LLMs[name]; ok && enabled {
+			b.WriteString(stepOKStyle.Render(name) + "  ")
+		} else {
+			b.WriteString(logDimStyle.Render(name) + "  ")
+		}
+	}
+	b.WriteString("\n")
+	b.WriteString(fmt.Sprintf("  %s  %s", label("Pipeline:"), val(pipelineMode)))
+
+	return b.String()
+}
+
 func (m SettingsModel) View() string {
 	var b strings.Builder
 
@@ -325,18 +372,12 @@ func (m SettingsModel) View() string {
 
 	switch m.state {
 	case settingsStateMenu:
-		// Show current config summary
-		b.WriteString(fmt.Sprintf("  LLM Mode: %s\n", llmStyle.Render(m.cfg.LLMMode)))
-		b.WriteString("  LLMs: ")
-		for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
-			if enabled, ok := m.cfg.LLMs[name]; ok && enabled {
-				b.WriteString(stepOKStyle.Render(name+" ") + " ")
-			} else {
-				b.WriteString(subtitleStyle.Render(name+" ") + " ")
-			}
-		}
-		b.WriteString(fmt.Sprintf("\n  Pipeline: %s\n", m.cfg.PipelineMode))
-		b.WriteString("\n")
+		// Config summary in bordered panel
+		cw := contentWidth(m.width)
+		b.WriteString(statusPanelStyle.Width(cw).Render(
+			panelTitleStyle.Render("Current Config") + "\n" + m.configSummary(),
+		))
+		b.WriteString("\n\n")
 
 		for i, item := range settingsMenuItems {
 			prefix := "  "
@@ -345,7 +386,16 @@ func (m SettingsModel) View() string {
 				prefix = "> "
 				style = menuSelectedStyle
 			}
-			b.WriteString(style.Render(prefix + item))
+
+			number := fmt.Sprintf("[%d] ", i+1)
+			if i == 3 { // Save
+				number = "[s] "
+			}
+			if i == 4 { // Back
+				number = "[q] "
+			}
+
+			b.WriteString(style.Render(prefix + number + item))
 			b.WriteString("\n")
 		}
 
@@ -358,16 +408,16 @@ func (m SettingsModel) View() string {
 		if home, err := os.UserHomeDir(); err == nil {
 			configPath = filepath.Join(home, ".config", "vern", "config.json")
 		}
-		b.WriteString(fmt.Sprintf("\n\nSaved to: %s\n", configPath))
+		b.WriteString(fmt.Sprintf("\n\n  Saved to: %s\n", logDimStyle.Render(configPath)))
 		b.WriteString("\n")
-		b.WriteString(subtitleStyle.Render("Press Enter to continue"))
+		b.WriteString(subtitleStyle.Render("  Press Enter to continue"))
 
 	case settingsStateSaveErr:
 		b.WriteString(stepFailStyle.Render("Failed to save config"))
 		b.WriteString("\n\n")
 		b.WriteString(fmt.Sprintf("  %s\n", m.saveErr.Error()))
 		b.WriteString("\n")
-		b.WriteString(subtitleStyle.Render("Press Enter to go back"))
+		b.WriteString(subtitleStyle.Render("  Press Enter to go back"))
 	}
 
 	return b.String()

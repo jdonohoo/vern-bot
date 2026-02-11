@@ -3,9 +3,13 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -41,6 +45,8 @@ type HoleModel struct {
 	state       holeState
 	form        *huh.Form
 	spinner     spinner.Model
+	progress    progress.Model
+	viewport    viewport.Model
 	projectRoot string
 	agentsDir   string
 	width       int
@@ -48,9 +54,11 @@ type HoleModel struct {
 	vals        *holeVals
 
 	// Execution state
-	running bool
-	stepLog []string
-	err     error
+	running        bool
+	stepLog        []string
+	vernsCompleted int
+	totalVerns     int
+	err            error
 }
 
 func NewHoleModel(projectRoot, agentsDir string) HoleModel {
@@ -73,6 +81,13 @@ func NewHoleModel(projectRoot, agentsDir string) HoleModel {
 	s.Spinner = spinner.Dot
 	m.spinner = s
 
+	p := progress.New(
+		progress.WithSolidFill(string(colorSecondary)),
+		progress.WithWidth(40),
+		progress.WithoutPercentage(),
+	)
+	m.progress = p
+
 	m.form = m.buildForm()
 
 	return m
@@ -83,8 +98,14 @@ func (m *HoleModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	cw := contentWidth(w)
+	fh := formHeight(h)
 	if m.form != nil {
-		m.form.WithWidth(cw).WithHeight(h)
+		m.form.WithWidth(cw).WithHeight(fh)
+	}
+	m.viewport.Width = cw
+	m.viewport.Height = h - 6
+	if m.viewport.Height < 5 {
+		m.viewport.Height = 5
 	}
 }
 
@@ -153,7 +174,7 @@ func (m *HoleModel) buildForm() *huh.Form {
 				Negative("Cancel").
 				Value(&v.confirm),
 		),
-	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
 func (m HoleModel) Init() tea.Cmd {
@@ -164,6 +185,9 @@ func (m HoleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.String() == "esc" && !m.running {
+			if m.state == holeStateDone {
+				return m, backToMenu
+			}
 			return m, backToMenu
 		}
 
@@ -171,11 +195,18 @@ func (m HoleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = holeStateDone
 		m.running = false
 		m.err = msg.err
-		return m, nil
+		m.initDoneViewport()
+		return m, tea.DisableMouse
 
 	case holeLogMsg:
 		m.stepLog = append(m.stepLog, msg.line)
+		m.updateProgress(msg.line)
 		return m, m.waitForLog()
+
+	case progress.FrameMsg:
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		return m, cmd
 	}
 
 	switch m.state {
@@ -205,13 +236,68 @@ func (m HoleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case holeStateDone:
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if keyMsg.String() == "enter" || keyMsg.String() == "q" || keyMsg.String() == "esc" {
+			if keyMsg.String() == "q" {
 				return m, backToMenu
 			}
 		}
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
+}
+
+func (m *HoleModel) updateProgress(line string) {
+	upper := strings.ToUpper(line)
+	// Count total Verns from ">>> Vern N:" lines
+	if strings.HasPrefix(line, ">>> Vern ") {
+		m.totalVerns++
+	}
+	if strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED") {
+		m.vernsCompleted++
+	}
+}
+
+func (m *HoleModel) initDoneViewport() {
+	cw := contentWidth(m.width)
+	vpHeight := m.height - 6
+	if vpHeight < 5 {
+		vpHeight = 5
+	}
+	m.viewport = viewport.New(cw, vpHeight)
+	m.viewport.MouseWheelEnabled = true
+
+	var content strings.Builder
+	if m.err != nil {
+		content.WriteString(stepFailStyle.Render("VernHole failed: " + m.err.Error()))
+		content.WriteString("\n\n")
+	} else {
+		content.WriteString(stepOKStyle.Render("The VernHole has spoken!"))
+		content.WriteString(fmt.Sprintf("\n\nFiles created in: %s\n", m.outputDir()))
+		content.WriteString("\n")
+	}
+
+	// Try to read synthesis
+	synthPath := filepath.Join(m.outputDir(), "synthesis.md")
+	if data, err := os.ReadFile(synthPath); err == nil {
+		content.WriteString(logHeaderStyle.Render("Synthesis"))
+		content.WriteString("\n")
+		content.WriteString(string(data))
+		content.WriteString("\n")
+	}
+
+	// Show full log
+	if len(m.stepLog) > 0 {
+		content.WriteString(logHeaderStyle.Render("Activity Log"))
+		content.WriteString("\n")
+		for _, line := range m.stepLog {
+			content.WriteString(renderLogLine(line))
+			content.WriteString("\n")
+		}
+	}
+
+	m.viewport.SetContent(content.String())
 }
 
 func (m HoleModel) outputDir() string {
@@ -338,23 +424,32 @@ func (m HoleModel) View() string {
 		b.WriteString(fmt.Sprintf("%s %s\n", m.spinner.View(), logHeaderStyle.Render("Summoning the VernHole council...")))
 		b.WriteString(fmt.Sprintf("  Output: %s\n\n", logDimStyle.Render(m.outputDir())))
 
+		// Progress bar
+		if m.totalVerns > 0 {
+			pct := float64(m.vernsCompleted) / float64(m.totalVerns)
+			if pct > 1 {
+				pct = 1
+			}
+			b.WriteString(fmt.Sprintf("  %s %d/%d Verns\n\n",
+				progressStyle.Render(m.progress.ViewAs(pct)),
+				m.vernsCompleted, m.totalVerns))
+		}
+
 		cw := contentWidth(m.width)
-		availHeight := m.height - 10
+		availHeight := m.height - 12
 		if availHeight < 8 {
 			availHeight = 8
 		}
 
 		if cw >= splitPanelMinWidth && len(m.stepLog) > 3 {
-			// Two-panel layout: status left, log right
 			leftW := cw * 2 / 5
 			rightW := cw - leftW - 1
 
-			left := renderVernStatusPanel(m.stepLog, m.vals.council, m.llmModeLabel(), leftW)
+			left := renderVernStatusPanel(m.vals.council, m.llmModeLabel(), m.vernsCompleted, m.totalVerns, leftW)
 			right := renderLogPanel(m.stepLog, rightW, availHeight)
 
 			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, left, right))
 		} else {
-			// Single-column: scrolling log
 			maxLines := availHeight
 			start := 0
 			if len(m.stepLog) > maxLines {
@@ -366,14 +461,7 @@ func (m HoleModel) View() string {
 		}
 
 	case holeStateDone:
-		if m.err != nil {
-			b.WriteString(stepFailStyle.Render("VernHole failed: " + m.err.Error()))
-		} else {
-			b.WriteString(stepOKStyle.Render("The VernHole has spoken!"))
-			b.WriteString(fmt.Sprintf("\n\nFiles created in: %s\n", m.outputDir()))
-		}
-		b.WriteString("\n\n")
-		b.WriteString(subtitleStyle.Render("Press Enter or q to return to menu"))
+		b.WriteString(m.viewport.View())
 	}
 
 	return b.String()

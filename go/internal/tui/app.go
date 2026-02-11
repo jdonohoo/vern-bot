@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -19,6 +20,7 @@ const (
 	ScreenDiscovery
 	ScreenHole
 	ScreenRun
+	ScreenOracle
 	ScreenSettings
 )
 
@@ -29,7 +31,9 @@ type App struct {
 	discovery       DiscoveryModel
 	hole            HoleModel
 	run             RunModel
+	oracle          OracleModel
 	settings        SettingsModel
+	help            help.Model
 	width           int
 	height          int
 	projectRoot     string
@@ -45,8 +49,10 @@ func NewApp(projectRoot, agentsDir, version string) App {
 		menu:           NewMenuModel(),
 		discovery:      NewDiscoveryModel(projectRoot, agentsDir),
 		hole:           NewHoleModel(projectRoot, agentsDir),
-		run:            NewRunModel(agentsDir),
+		run:            NewRunModel(projectRoot, agentsDir),
+		oracle:         NewOracleModel(projectRoot, agentsDir),
 		settings:       NewSettingsModel(projectRoot),
+		help:           newHelpModel(),
 		projectRoot:    projectRoot,
 		agentsDir:      agentsDir,
 		currentVersion: version,
@@ -123,9 +129,66 @@ func (a *App) propagateSize() {
 		a.hole.SetSize(a.width, a.height)
 	case ScreenRun:
 		a.run.SetSize(a.width, a.height)
+	case ScreenOracle:
+		a.oracle.SetSize(a.width, a.height)
 	case ScreenSettings:
 		a.settings.SetSize(a.width, a.height)
 	}
+}
+
+// activeKeyMap returns the help.KeyMap for the current screen/state.
+func (a App) activeKeyMap() help.KeyMap {
+	switch a.screen {
+	case ScreenMenu:
+		return menuKeys
+	case ScreenDiscovery:
+		switch a.discovery.state {
+		case discStateEditFiles:
+			return editFilesKeys
+		case discStateRunning:
+			return runningKeys
+		case discStateDone:
+			return doneKeys
+		default:
+			return formKeys
+		}
+	case ScreenHole:
+		switch a.hole.state {
+		case holeStateRunning:
+			return runningKeys
+		case holeStateDone:
+			return doneKeys
+		default:
+			return formKeys
+		}
+	case ScreenRun:
+		switch a.run.state {
+		case runStateRunning:
+			return runningKeys
+		case runStateDone:
+			if a.run.err != nil {
+				return runRetryKeys
+			}
+			return runDoneKeys
+		default:
+			return formKeys
+		}
+	case ScreenOracle:
+		switch a.oracle.state {
+		case oracleStateRunning:
+			return runningKeys
+		case oracleStateDone:
+			return oracleDoneKeys
+		default:
+			return formKeys
+		}
+	case ScreenSettings:
+		if a.settings.state == settingsStateMenu {
+			return settingsMenuKeys
+		}
+		return formKeys
+	}
+	return menuKeys
 }
 
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -133,6 +196,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
+		a.help.Width = contentWidth(a.width)
 		a.propagateSize()
 
 	case tea.KeyMsg:
@@ -145,7 +209,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case backToMenuMsg:
 		a.screen = ScreenMenu
 		a.menu = NewMenuModel()
-		return a, nil
+		return a, tea.EnableMouseCellMotion
 
 	case updateAvailableMsg:
 		a.updateAvailable = msg.latestVersion
@@ -175,17 +239,23 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.hole.Init()
 			case 2:
 				a.screen = ScreenRun
-				a.run = NewRunModel(a.agentsDir)
+				a.run = NewRunModel(a.projectRoot, a.agentsDir)
 				a.run.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.run.Init()
 			case 3:
+				a.screen = ScreenOracle
+				a.oracle = NewOracleModel(a.projectRoot, a.agentsDir)
+				a.oracle.SetSize(a.width, a.height)
+				a.menu.chosen = -1
+				return a, a.oracle.Init()
+			case 4:
 				a.screen = ScreenSettings
 				a.settings = NewSettingsModel(a.projectRoot)
 				a.settings.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.settings.Init()
-			case 4:
+			case 5:
 				return a, tea.Quit
 			}
 			a.menu.chosen = -1
@@ -205,6 +275,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		newRun, runCmd := a.run.Update(msg)
 		a.run = newRun.(RunModel)
 		cmd = runCmd
+
+	case ScreenOracle:
+		newOracle, oracleCmd := a.oracle.Update(msg)
+		a.oracle = newOracle.(OracleModel)
+		cmd = oracleCmd
 
 	case ScreenSettings:
 		newSettings, settingsCmd := a.settings.Update(msg)
@@ -226,6 +301,8 @@ func (a App) View() string {
 		content = a.hole.View()
 	case ScreenRun:
 		content = a.run.View()
+	case ScreenOracle:
+		content = a.oracle.View()
 	case ScreenSettings:
 		content = a.settings.View()
 	default:
@@ -236,13 +313,20 @@ func (a App) View() string {
 	w := contentWidth(a.width)
 	styled := lipgloss.NewStyle().MaxWidth(w).Render(content)
 
+	// Help bar
+	helpView := helpBarStyle.Render(a.help.View(a.activeKeyMap()))
+
 	// Center in terminal
 	if a.width > 0 && a.height > 0 {
-		contentHeight := a.height
+		// Reserve lines for help bar + optional update banner
+		reserved := 2
 		if a.updateAvailable != "" {
-			contentHeight-- // reserve bottom line for update banner
+			reserved++
 		}
+		contentHeight := a.height - reserved
+
 		output := lipgloss.Place(a.width, contentHeight, lipgloss.Center, lipgloss.Center, styled)
+		output += "\n" + lipgloss.PlaceHorizontal(a.width, lipgloss.Center, helpView)
 
 		if a.updateAvailable != "" {
 			banner := updateStyle.Render(
@@ -252,7 +336,7 @@ func (a App) View() string {
 		}
 		return output
 	}
-	return styled
+	return styled + "\n" + helpView
 }
 
 type backToMenuMsg struct{}
@@ -270,12 +354,14 @@ func (a *App) cancelActiveScreen() {
 		a.hole.Cancel()
 	case ScreenRun:
 		a.run.Cancel()
+	case ScreenOracle:
+		a.oracle.Cancel()
 	}
 }
 
 // Run launches the Bubble Tea TUI.
 func Run(projectRoot, agentsDir, version string) error {
-	p := tea.NewProgram(NewApp(projectRoot, agentsDir, version), tea.WithAltScreen())
+	p := tea.NewProgram(NewApp(projectRoot, agentsDir, version), tea.WithAltScreen(), tea.WithMouseCellMotion())
 	_, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("TUI error: %w", err)

@@ -106,6 +106,18 @@ var (
 			Bold(true).
 			MarginBottom(1)
 
+	// Help bar styles
+	helpKeyStyle = lipgloss.NewStyle().Foreground(colorSecondary)
+
+	helpDescStyle = lipgloss.NewStyle().Foreground(colorMuted)
+
+	helpSepStyle = lipgloss.NewStyle().Foreground(colorMuted)
+
+	helpBarStyle = lipgloss.NewStyle().MarginTop(1)
+
+	// Progress bar styles
+	progressStyle = lipgloss.NewStyle().MarginBottom(1)
+
 	// Max/min content width for responsive layout.
 	// contentWidth() computes the actual width for the current terminal.
 	maxContentWidth = 160
@@ -113,6 +125,11 @@ var (
 
 	// Minimum width to trigger split-panel layout
 	splitPanelMinWidth = 80
+
+	// Lines consumed by screen title + help bar chrome outside huh forms.
+	// Each screen renders ~4 lines of title/spacing above the form, and
+	// the App renders ~2 lines of help bar below.
+	formChromeLines = 6
 )
 
 // contentWidth returns the usable content width for the given terminal width.
@@ -130,6 +147,16 @@ func contentWidth(termWidth int) int {
 		w = maxContentWidth
 	}
 	return w
+}
+
+// formHeight returns the height available for huh forms, subtracting
+// the screen title and help bar chrome from the raw terminal height.
+func formHeight(termHeight int) int {
+	h := termHeight - formChromeLines
+	if h < 10 {
+		h = 10
+	}
+	return h
 }
 
 // textareaLines returns the number of lines for a textarea based on terminal height.
@@ -214,57 +241,40 @@ func renderLogPanel(stepLog []string, width, maxLines int) string {
 	)
 }
 
-// renderStatusPanel renders the pipeline status content into a bordered panel.
-func renderStatusPanel(content string, width int) string {
-	// Strip markdown formatting for clean terminal display
+// stripMarkdown removes common markdown formatting for clean terminal display.
+func stripMarkdown(content string) string {
 	content = strings.ReplaceAll(content, "**", "")
 	content = strings.ReplaceAll(content, "## ", "")
 	content = strings.ReplaceAll(content, "# ", "")
 	content = strings.ReplaceAll(content, "~~", "")
-	// Remove separator lines (|---|---|...)
 	var filtered []string
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" && len(filtered) > 0 && filtered[len(filtered)-1] == "" {
-			continue // collapse blank lines
+			continue
 		}
 		if strings.Count(trimmed, "-") > len(trimmed)/2 && strings.Contains(trimmed, "|") {
-			continue // skip table separator rows
+			continue
 		}
 		filtered = append(filtered, line)
 	}
+	return strings.Join(filtered, "\n")
+}
+
+// renderStatusPanel renders the pipeline status content into a bordered panel.
+func renderStatusPanel(content string, width int) string {
 	return statusPanelStyle.Width(width).Render(
-		panelTitleStyle.Render("Pipeline Status") + "\n" + strings.Join(filtered, "\n"),
+		panelTitleStyle.Render("Pipeline Status") + "\n" + stripMarkdown(content),
 	)
 }
 
 // renderVernStatusPanel renders VernHole progress into a bordered panel.
-func renderVernStatusPanel(stepLog []string, council string, llmMode string, width int) string {
+func renderVernStatusPanel(council string, llmMode string, vernsCompleted int, totalVerns int, width int) string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Council:  %s\n", llmStyle.Render(council)))
 	b.WriteString(fmt.Sprintf("LLM Mode: %s\n\n", llmStyle.Render(llmMode)))
 
-	// Count completed and running Verns from log
-	succeeded, failed, running := 0, 0, 0
-	for _, line := range stepLog {
-		upper := strings.ToUpper(line)
-		if strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED") {
-			succeeded++
-		} else if strings.Contains(upper, "FAILED") && strings.HasPrefix(line, "    ") {
-			failed++
-		} else if strings.HasPrefix(line, ">>> Vern ") {
-			running++
-		}
-	}
-	total := succeeded + failed
-	if running > total {
-		total = running
-	}
-
-	b.WriteString(fmt.Sprintf("Progress: %s\n", llmStyle.Render(fmt.Sprintf("%d/%d Verns", succeeded, total))))
-	if failed > 0 {
-		b.WriteString(fmt.Sprintf("Failed:   %s\n", stepFailStyle.Render(fmt.Sprintf("%d", failed))))
-	}
+	b.WriteString(fmt.Sprintf("Progress: %s\n", llmStyle.Render(fmt.Sprintf("%d/%d Verns", vernsCompleted, totalVerns))))
 
 	return statusPanelStyle.Width(width).Render(
 		panelTitleStyle.Render("VernHole Status") + "\n" + b.String(),

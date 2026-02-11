@@ -580,93 +580,27 @@ func (p *Pipeline) runVernHole() {
 
 func (p *Pipeline) runOracle(vernholeDir string) {
 	opts := p.opts
-	synthesisFile := filepath.Join(vernholeDir, "synthesis.md")
-
-	data, err := os.ReadFile(synthesisFile)
-	if err != nil {
-		p.printf(">>> Skipping Oracle (no synthesis file)\n")
-		return
-	}
+	vtsDir := filepath.Join(opts.DiscoveryDir, "output", "vts")
+	oracleVisionFile := filepath.Join(opts.DiscoveryDir, "oracle-vision.md")
 
 	p.printf("\n")
-	p.printf("=== CONSULTING THE ORACLE ===\n")
-	p.printf("Reading the VernHole synthesis and VTS tasks...\n")
-
-	// Build VTS task contents
-	vtsDir := filepath.Join(opts.DiscoveryDir, "output", "vts")
-	var vtsIndex, vtsContents strings.Builder
-
-	entries, _ := os.ReadDir(vtsDir)
-	for _, e := range entries {
-		if !strings.HasPrefix(e.Name(), "vts-") || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		vtsIndex.WriteString(fmt.Sprintf("\n- %s", e.Name()))
-		vtsData, _ := os.ReadFile(filepath.Join(vtsDir, e.Name()))
-		vtsContents.WriteString(fmt.Sprintf("\n\n=== %s ===\n%s", e.Name(), string(vtsData)))
-	}
-
-	oraclePrompt := fmt.Sprintf(`You are Oracle Vern. The ancient seer who reads the patterns in the Vern council's chaos.
-
-Review these VTS tasks in light of the Vern council's synthesis. Recommend modifications: new tasks to add, tasks to modify, tasks to remove, dependency changes, complexity reassessments, and missing acceptance criteria.
-
-Output as a structured vision document with these sections:
-# Oracle Vision
-
-## Summary
-Brief overview of recommended changes.
-
-## New Tasks
-(Use ### TASK N+1: Title format — same format as the architect breakdown so it can be parsed by the VTS post-processor)
-
-## Modified Tasks
-### VTS-NNN: New Title (was: Old Title)
-**Changes:** What changed and why
-**Description:** ...
-**Acceptance Criteria:** ...
-**Complexity:** ...
-**Dependencies:** ...
-
-## Removed Tasks
-- VTS-NNN: Reason for removal
-
-## Dependency Changes
-- Describe any dependency modifications
-
-## Risk Assessment
-Remaining risks after your recommended modifications.
-
-ORIGINAL IDEA:
-%s
-
-VTS TASK INDEX:
-%s
-
-VTS TASK FILES:
-%s
-
-VERNHOLE SYNTHESIS:
-%s`, p.fullPrompt, vtsIndex.String(), vtsContents.String(), string(data))
-
-	oracleLLM := p.cfg.GetSynthesisLLM()
-	oracleVisionFile := filepath.Join(opts.DiscoveryDir, "oracle-vision.md")
-	result, err := llm.Run(llm.RunOptions{
-		Ctx:        opts.Ctx,
-		LLM:        oracleLLM,
-		Prompt:     oraclePrompt,
-		OutputFile: oracleVisionFile,
-		Persona:    "oracle",
-		Timeout:    time.Duration(opts.Timeout) * time.Second,
-		AgentsDir:  opts.AgentsDir,
+	err := RunOracleConsult(OracleConsultOptions{
+		Ctx:          opts.Ctx,
+		Idea:         p.fullPrompt,
+		SynthesisDir: vernholeDir,
+		VTSDir:       vtsDir,
+		OutputFile:   oracleVisionFile,
+		AgentsDir:    opts.AgentsDir,
+		SynthesisLLM: p.cfg.GetSynthesisLLM(),
+		Timeout:      opts.Timeout,
+		OnLog:        opts.OnLog,
 	})
-
-	if err != nil || result.ExitCode != 0 {
+	if err != nil {
 		p.printf("\nWARNING: Oracle step failed\n")
 		p.log("Oracle: FAILED")
 		return
 	}
 
-	p.printf("\nOracle vision written to: %s\n", oracleVisionFile)
 	p.log("Oracle: OK")
 
 	// Auto-apply: Architect Vern rewrites VTS based on Oracle's vision
@@ -677,68 +611,25 @@ VERNHOLE SYNTHESIS:
 
 func (p *Pipeline) applyOracleVision(oracleVisionFile string) {
 	opts := p.opts
+	vtsDir := filepath.Join(opts.DiscoveryDir, "output", "vts")
 
 	p.printf("\n")
-	p.printf("=== APPLYING THE ORACLE'S VISION ===\n")
-	p.printf("Architect Vern is rewriting VTS tasks...\n")
-
-	oracleData, _ := os.ReadFile(oracleVisionFile)
-
-	// Build existing VTS contents
-	vtsDir := filepath.Join(opts.DiscoveryDir, "output", "vts")
-	var vtsContents strings.Builder
-	entries, _ := os.ReadDir(vtsDir)
-	for _, e := range entries {
-		if !strings.HasPrefix(e.Name(), "vts-") || !strings.HasSuffix(e.Name(), ".md") {
-			continue
-		}
-		data, _ := os.ReadFile(filepath.Join(vtsDir, e.Name()))
-		vtsContents.WriteString(fmt.Sprintf("\n\n=== %s ===\n%s", e.Name(), string(data)))
-	}
-
-	architectPrompt := fmt.Sprintf(`You are Architect Vern. The Oracle has spoken. Apply the Oracle's vision to produce an updated task breakdown.
-
-Read the Oracle's vision and the existing VTS tasks. Produce a complete, updated task breakdown incorporating the Oracle's recommendations (new tasks, modified tasks, removed tasks, dependency changes).
-
-Format each task with an h3 header exactly like this: ### TASK 1: Title Here. Include for each task: **Description:** what needs to be done, **Acceptance Criteria:** bullet list, **Complexity:** S|M|L|XL, **Dependencies:** Task N references or None, **Files:** list of files likely touched.
-
-ORACLE'S VISION:
-%s
-
-EXISTING VTS TASKS:
-%s
-
-Produce the complete updated task breakdown. Include ALL tasks (not just changed ones).`, string(oracleData), vtsContents.String())
-
-	applyLLM := p.cfg.GetSynthesisLLM()
-	updatedFile := filepath.Join(opts.DiscoveryDir, "output", "oracle-architect-breakdown.md")
-	result, err := llm.Run(llm.RunOptions{
-		Ctx:        opts.Ctx,
-		LLM:        applyLLM,
-		Prompt:     architectPrompt,
-		OutputFile: updatedFile,
-		Persona:    "architect",
-		Timeout:    time.Duration(opts.Timeout) * time.Second,
-		AgentsDir:  opts.AgentsDir,
+	err := RunOracleApply(OracleApplyOptions{
+		Ctx:          opts.Ctx,
+		VisionFile:   oracleVisionFile,
+		VTSDir:       vtsDir,
+		OutputFile:   filepath.Join(opts.DiscoveryDir, "output", "oracle-architect-breakdown.md"),
+		AgentsDir:    opts.AgentsDir,
+		SynthesisLLM: p.cfg.GetSynthesisLLM(),
+		Timeout:      opts.Timeout,
+		OnLog:        opts.OnLog,
 	})
-
-	if err != nil || result.ExitCode != 0 || IsFailedOutput(updatedFile) {
+	if err != nil {
 		p.printf("\nWARNING: Oracle apply step failed\n")
 		p.log("Oracle apply: FAILED")
 		return
 	}
 
-	// Clear old VTS files and re-process
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "vts-") && strings.HasSuffix(e.Name(), ".md") {
-			os.Remove(filepath.Join(vtsDir, e.Name()))
-		}
-	}
-
-	p.printf("\n>>> Re-splitting updated architect breakdown into VTS task files...\n")
-	p.processVTS(updatedFile, vtsDir, "oracle")
-
-	p.printf("\nOracle's vision applied. Updated VTS files in: %s\n", vtsDir)
 	p.log("Oracle apply: OK")
 }
 

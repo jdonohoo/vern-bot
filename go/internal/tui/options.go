@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/huh"
@@ -76,6 +78,13 @@ var OutputPathOptions = []huh.Option[string]{
 	huh.NewOption("Custom path", "custom"),
 }
 
+// RunOutputOptions are the output path choices for the single LLM run screen.
+var RunOutputOptions = []huh.Option[string]{
+	huh.NewOption("No file output (display only)", "none"),
+	huh.NewOption("Current directory", "default"),
+	huh.NewOption("Custom path", "custom"),
+}
+
 // validateName rejects path-traversal characters in a discovery folder name.
 func validateName(s string) error {
 	if strings.TrimSpace(s) == "" {
@@ -85,6 +94,29 @@ func validateName(s string) error {
 		return fmt.Errorf("name cannot contain '..', '/' or '\\'")
 	}
 	return nil
+}
+
+// copyToClipboard writes text to the system clipboard.
+func copyToClipboard(text string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "linux":
+		if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		} else if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "--clipboard", "--input")
+		} else {
+			return fmt.Errorf("no clipboard tool found (install xclip or xsel)")
+		}
+	case "windows":
+		cmd = exec.Command("clip")
+	default:
+		return fmt.Errorf("clipboard not supported on %s", runtime.GOOS)
+	}
+	cmd.Stdin = strings.NewReader(text)
+	return cmd.Run()
 }
 
 // councilLabel returns the display label for a council value.

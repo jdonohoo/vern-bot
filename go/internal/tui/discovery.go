@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -50,6 +52,8 @@ type DiscoveryModel struct {
 	setupForm   *huh.Form
 	configForm  *huh.Form
 	spinner     spinner.Model
+	progress    progress.Model
+	viewport    viewport.Model
 	projectRoot string
 	agentsDir   string
 	width       int
@@ -57,11 +61,13 @@ type DiscoveryModel struct {
 	vals        *discoveryVals
 
 	// Execution state
-	running       bool
-	stepLog       []string
-	statusContent string // pipeline-status.md content for status panel
-	err           error
-	setupErr      error
+	running        bool
+	stepLog        []string
+	stepsCompleted int
+	totalSteps     int
+	statusContent  string // pipeline-status.md content for status panel
+	err            error
+	setupErr       error
 }
 
 func NewDiscoveryModel(projectRoot, agentsDir string) DiscoveryModel {
@@ -87,6 +93,13 @@ func NewDiscoveryModel(projectRoot, agentsDir string) DiscoveryModel {
 	s.Spinner = spinner.Dot
 	m.spinner = s
 
+	p := progress.New(
+		progress.WithSolidFill(string(colorSecondary)),
+		progress.WithWidth(40),
+		progress.WithoutPercentage(),
+	)
+	m.progress = p
+
 	m.setupForm = m.buildSetupForm()
 	m.configForm = m.buildConfigForm()
 
@@ -98,11 +111,17 @@ func (m *DiscoveryModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	cw := contentWidth(w)
+	fh := formHeight(h)
 	if m.setupForm != nil {
-		m.setupForm.WithWidth(cw).WithHeight(h)
+		m.setupForm.WithWidth(cw).WithHeight(fh)
 	}
 	if m.configForm != nil {
-		m.configForm.WithWidth(cw).WithHeight(h)
+		m.configForm.WithWidth(cw).WithHeight(fh)
+	}
+	m.viewport.Width = cw
+	m.viewport.Height = h - 6
+	if m.viewport.Height < 5 {
+		m.viewport.Height = 5
 	}
 }
 
@@ -146,7 +165,7 @@ func (m *DiscoveryModel) buildSetupForm() *huh.Form {
 				Placeholder("./discovery").
 				Value(&v.customPath),
 		).WithHideFunc(func() bool { return v.outputPath != "custom" }),
-	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
 func (m *DiscoveryModel) buildConfigForm() *huh.Form {
@@ -207,7 +226,7 @@ func (m *DiscoveryModel) buildConfigForm() *huh.Form {
 				Negative("Cancel").
 				Value(&v.confirm),
 		),
-	).WithTheme(VernTheme()).WithWidth(w).WithHeight(m.height)
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
 func (m DiscoveryModel) Init() tea.Cmd {
@@ -218,6 +237,9 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.String() == "esc" && !m.running {
+			if m.state == discStateDone {
+				return m, backToMenu
+			}
 			return m, backToMenu
 		}
 
@@ -225,12 +247,13 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = discStateDone
 		m.running = false
 		m.err = msg.err
-		// Final status read
 		m.readStatus()
-		return m, nil
+		m.initDoneViewport()
+		return m, tea.DisableMouse
 
 	case pipelineLogMsg:
 		m.stepLog = append(m.stepLog, msg.line)
+		m.updateProgress(msg.line)
 		return m, m.waitForLog()
 
 	case discStatusTickMsg:
@@ -239,6 +262,11 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.statusTick()
 		}
 		return m, nil
+
+	case progress.FrameMsg:
+		progressModel, cmd := m.progress.Update(msg)
+		m.progress = progressModel.(progress.Model)
+		return m, cmd
 	}
 
 	switch m.state {
@@ -280,6 +308,10 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.state = discStateRunning
 			m.running = true
+			m.totalSteps = 5
+			if m.vals.pipeline == "expanded" {
+				m.totalSteps = 7
+			}
 			m.vals.logCh = make(chan string, 100)
 			return m, tea.Batch(m.spinner.Tick, m.startPipeline(), m.waitForLog(), m.statusTick())
 		}
@@ -289,19 +321,75 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case discStateRunning:
+		var cmds []tea.Cmd
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
 
 	case discStateDone:
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			if keyMsg.String() == "enter" || keyMsg.String() == "q" || keyMsg.String() == "esc" {
+			if keyMsg.String() == "q" {
 				return m, backToMenu
 			}
 		}
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
+}
+
+func (m *DiscoveryModel) updateProgress(line string) {
+	upper := strings.ToUpper(line)
+	if strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED") {
+		m.stepsCompleted++
+		pct := float64(m.stepsCompleted) / float64(m.totalSteps)
+		if pct > 1 {
+			pct = 1
+		}
+		m.progress.SetPercent(pct)
+	}
+}
+
+func (m *DiscoveryModel) initDoneViewport() {
+	cw := contentWidth(m.width)
+	vpHeight := m.height - 6
+	if vpHeight < 5 {
+		vpHeight = 5
+	}
+	m.viewport = viewport.New(cw, vpHeight)
+	m.viewport.MouseWheelEnabled = true
+
+	var content strings.Builder
+	if m.err != nil {
+		content.WriteString(stepFailStyle.Render("Pipeline failed: " + m.err.Error()))
+		content.WriteString("\n\n")
+	} else {
+		content.WriteString(stepOKStyle.Render("Discovery pipeline complete!"))
+		content.WriteString(fmt.Sprintf("\n\nOutput: %s\n", m.discoveryDir()))
+		content.WriteString("\n")
+	}
+
+	if m.statusContent != "" {
+		content.WriteString(logHeaderStyle.Render("Pipeline Status"))
+		content.WriteString("\n")
+		content.WriteString(stripMarkdown(m.statusContent))
+		content.WriteString("\n")
+	}
+
+	// Show full log
+	if len(m.stepLog) > 0 {
+		content.WriteString(logHeaderStyle.Render("Activity Log"))
+		content.WriteString("\n")
+		for _, line := range m.stepLog {
+			content.WriteString(renderLogLine(line))
+			content.WriteString("\n")
+		}
+	}
+
+	m.viewport.SetContent(content.String())
 }
 
 func (m DiscoveryModel) outputBase() string {
@@ -515,6 +603,15 @@ func (m DiscoveryModel) View() string {
 
 		b.WriteString(fmt.Sprintf("%s %s\n\n", m.spinner.View(), logHeaderStyle.Render("Running discovery pipeline...")))
 
+		// Progress bar
+		pct := float64(m.stepsCompleted) / float64(m.totalSteps)
+		if pct > 1 {
+			pct = 1
+		}
+		b.WriteString(fmt.Sprintf("  %s %d/%d steps\n\n",
+			progressStyle.Render(m.progress.ViewAs(pct)),
+			m.stepsCompleted, m.totalSteps))
+
 		// Prompt section
 		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Prompt:"), logDimStyle.Render("input/prompt.md")))
 		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Output:"), logDimStyle.Render(m.discoveryDir())))
@@ -532,13 +629,12 @@ func (m DiscoveryModel) View() string {
 			label("LLM:"), llmStyle.Render(m.vals.llmMode)))
 
 		cw := contentWidth(m.width)
-		availHeight := m.height - 10
+		availHeight := m.height - 14
 		if availHeight < 8 {
 			availHeight = 8
 		}
 
 		if cw >= splitPanelMinWidth && m.statusContent != "" {
-			// Two-panel layout: status left, log right
 			leftW := cw * 2 / 5
 			rightW := cw - leftW - 1
 
@@ -547,7 +643,6 @@ func (m DiscoveryModel) View() string {
 
 			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, left, right))
 		} else {
-			// Single-column: scrolling log only
 			maxLines := availHeight
 			start := 0
 			if len(m.stepLog) > maxLines {
@@ -559,14 +654,7 @@ func (m DiscoveryModel) View() string {
 		}
 
 	case discStateDone:
-		if m.err != nil {
-			b.WriteString(stepFailStyle.Render("Pipeline failed: " + m.err.Error()))
-		} else {
-			b.WriteString(stepOKStyle.Render("Discovery pipeline complete!"))
-			b.WriteString(fmt.Sprintf("\n\nOutput: %s\n", m.discoveryDir()))
-		}
-		b.WriteString("\n\n")
-		b.WriteString(subtitleStyle.Render("Press Enter or q to return to menu"))
+		b.WriteString(m.viewport.View())
 	}
 
 	return b.String()

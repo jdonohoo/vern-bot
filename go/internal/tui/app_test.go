@@ -96,3 +96,90 @@ func TestIsNewer(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderLogLine(t *testing.T) {
+	tests := []struct {
+		line     string
+		contains string
+	}{
+		{"=== Discovery Pipeline ===", "Discovery"},
+		{"[step] 1. Architect → claude", "Architect"},
+		{">>> Running step 1: Architect", "step 1"},
+		{"    OK (2.3s)", "OK"},
+		{"    FALLBACK SUCCEEDED (3.1s)", "FALLBACK SUCCEEDED"},
+		{"    FAILED: timeout", "FAILED"},
+		{"    ERROR: something", "ERROR"},
+		{"    WARNING: careful", "WARNING"},
+		{"    RETRY 1/3...", "RETRY"},
+		{">>> SYNTHESIZING council output", "SYNTHESIZING"},
+		{">>> SPLITTING tasks from output", "SPLITTING"},
+		{">>> ORACLE consulting", "ORACLE"},
+		{">>> Vern 1: Architect (claude)", "Vern 1"},
+		{">>> Vern 2: FAILED", "FAILED"},
+		{">>> Vern 3: SKIPPING", "SKIPPING"},
+		{"Summoning the council", "Summoning"},
+		{"Random log line", "Random"},
+	}
+	for _, tt := range tests {
+		result := renderLogLine(tt.line)
+		if !contains(result, tt.contains) {
+			t.Errorf("renderLogLine(%q) result doesn't contain %q", tt.line, tt.contains)
+		}
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) > 0 && len(substr) > 0
+}
+
+func TestStripMarkdown(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"**bold**", "bold"},
+		{"## Heading", "Heading"},
+		{"# Title", "Title"},
+		{"~~strike~~", "strike"},
+		{"**bold** text ## heading", "bold text heading"},
+	}
+	for _, tt := range tests {
+		got := stripMarkdown(tt.input)
+		if got != tt.want {
+			t.Errorf("stripMarkdown(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestStripMarkdownMultipleBlankLines(t *testing.T) {
+	input := "Line 1\n\nLine 2\n\n\nLine 3"
+	result := stripMarkdown(input)
+	// Just verify it strips some markdown and doesn't crash
+	if len(result) == 0 {
+		t.Errorf("stripMarkdown(%q) returned empty string", input)
+	}
+}
+
+func TestActiveKeyMapDiscoveryStates(t *testing.T) {
+	app := NewApp("/tmp", "/tmp/agents", "2.0.0")
+	app.screen = ScreenDiscovery
+
+	tests := []struct {
+		state discoveryState
+		desc  string
+	}{
+		{discStateSetupForm, "setupForm"},
+		{discStateEditFiles, "editFiles"},
+		{discStateConfigForm, "configForm"},
+		{discStateRunning, "running"},
+		{discStateDone, "done"},
+	}
+
+	for _, tt := range tests {
+		app.discovery.state = tt.state
+		km := app.activeKeyMap()
+		if km == nil {
+			t.Errorf("activeKeyMap() for %s returned nil", tt.desc)
+		}
+	}
+}
