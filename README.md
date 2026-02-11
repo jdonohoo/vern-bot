@@ -58,6 +58,7 @@ Now available as a **standalone terminal app** — no Claude Code required.
 | "Haven't we solved this before?" | `/vern:retro` |
 | "What did the council actually say?" | `/vern:oracle` |
 | "Index these 50 input files" | `/vern:historian` |
+| "Create a custom persona" | `/vern:generate` |
 | "I want chaos/creativity" | `/vern:hole` |
 | "Full project discovery" | `/vern:discovery` |
 | "What commands are there?" | `/vern:help` |
@@ -269,6 +270,8 @@ Or use the shorthand router:
 | `/vern:hole` | Summon a VernHole council tier to brainstorm your idea |
 | `/vern:oracle` | Consult Oracle Vern — synthesize council wisdom into VTS modifications |
 | `/vern:historian` | Index a directory of input files into a structured concept map |
+| `/vern:generate` | Generate a new Vern persona using AI |
+| `/vern:oracle-consult` | Run Oracle consult/apply on existing VernHole output |
 | `/vern:setup` | Configure LLMs, pipeline personas, preferences |
 | `/vern:help` | Show all available commands and personas |
 
@@ -469,7 +472,7 @@ vern-bot/
 │   ├── help.md               # /vern:help command reference
 │   ├── setup.md              # /vern:setup configuration
 │   └── {persona}.md          # Per-persona command files
-├── skills/                    # 19 skill definitions
+├── skills/                    # 22 skill definitions
 │   ├── mediocre/SKILL.md
 │   ├── great/SKILL.md
 │   ├── nyquil/SKILL.md
@@ -486,13 +489,15 @@ vern-bot/
 │   ├── ux/SKILL.md
 │   ├── retro/SKILL.md
 │   ├── oracle/SKILL.md
+│   ├── oracle-consult/SKILL.md
 │   ├── historian/SKILL.md
+│   ├── generate/SKILL.md
 │   ├── hole/SKILL.md
 │   ├── discovery/SKILL.md
 │   └── new-idea/SKILL.md
-├── go/                        # Compiled CLI (vern run, discovery, hole, tui, setup)
+├── go/                        # Compiled CLI (vern run, discovery, hole, historian, generate, oracle, tui, setup)
 │   ├── cmd/vern/             # Cobra CLI entry points
-│   ├── internal/             # Config, LLM runner, VTS, pipeline, council, TUI
+│   ├── internal/             # Config, LLM runner, VTS, pipeline, council, TUI, generate
 │   ├── go.mod
 │   └── go.sum
 ├── bin/                       # Shell wrappers (delegate to Go CLI binary)
@@ -526,12 +531,15 @@ cd go && go test ./...
 
 ### Subcommands
 ```bash
-vern run <llm> <prompt>      # Single LLM run
-vern discovery <prompt>       # Full discovery pipeline
-vern hole <idea>              # VernHole council
-vern historian <directory>    # Index a directory into a concept map
-vern tui                      # Interactive terminal UI
-vern setup                    # First-run configuration wizard
+vern run <llm> <prompt>              # Single LLM run
+vern discovery <prompt>               # Full discovery pipeline
+vern hole <idea>                      # VernHole council
+vern historian <directory>            # Index a directory into a concept map
+vern generate <name> <description>   # Generate a new Vern persona using AI
+vern oracle consult <idea>            # Generate Oracle vision from VernHole output
+vern oracle apply                     # Apply Oracle vision to rewrite VTS tasks
+vern tui                              # Interactive terminal UI
+vern setup                            # First-run configuration wizard
 ```
 
 ### Release

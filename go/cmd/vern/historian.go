@@ -13,9 +13,9 @@ import (
 var historianCmd = &cobra.Command{
 	Use:   "historian <directory>",
 	Short: "Index a directory of input files into a structured concept map",
-	Long: `Historian Vern reads everything. Point it at a directory and it will
-ingest all readable files (.md, .txt, .json, .yaml, .yml), build a structured
-concept map with source references, and write input-history.md.
+	Long: `Historian Vern reads everything. Point it at a directory and the LLM will
+crawl the filesystem, read all files, build a structured concept map with source
+references, and write input-history.md.
 
 Uses Gemini by default for its 2M context window. Falls back to the configured
 fallback LLM if Gemini is not available.`,

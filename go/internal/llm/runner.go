@@ -15,14 +15,15 @@ const (
 
 // RunOptions configures an LLM subprocess invocation.
 type RunOptions struct {
-	Ctx        context.Context // optional parent context for cancellation
-	LLM        string          // claude, codex, gemini, copilot
-	Prompt     string
-	OutputFile string // optional: write output to this file
-	Persona    string // optional: persona context to inject
-	Timeout    time.Duration
-	WorkingDir string // for codex --cd
-	AgentsDir  string // path to agents/ for persona loading
+	Ctx            context.Context // optional parent context for cancellation
+	LLM            string          // claude, codex, gemini, copilot
+	Prompt         string
+	OutputFile     string // optional: write output to this file
+	Persona        string // optional: persona context to inject
+	Timeout        time.Duration
+	WorkingDir     string // working directory for the LLM subprocess
+	AgentsDir      string // path to agents/ for persona loading
+	AllowFileRead  bool   // when true, permit the LLM to read files from the filesystem
 }
 
 // Result holds the output of an LLM run.
@@ -50,7 +51,12 @@ func Run(opts RunOptions) (*Result, error) {
 	}
 
 	// Text-only directive for claude/gemini
-	textOnly := "IMPORTANT: Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files. Do NOT use any file-writing tools. Just output your analysis directly as text.\n\n"
+	var textOnly string
+	if opts.AllowFileRead {
+		textOnly = "IMPORTANT: You MAY read files from the filesystem to gather information. Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files.\n\n"
+	} else {
+		textOnly = "IMPORTANT: Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files. Do NOT use any file-writing tools. Just output your analysis directly as text.\n\n"
+	}
 
 	// Sign-off / dad joke
 	var dadJoke string
@@ -145,6 +151,11 @@ func Run(opts RunOptions) (*Result, error) {
 
 	default:
 		return nil, fmt.Errorf("unknown LLM: %s (valid: claude, codex, gemini, copilot)", llm)
+	}
+
+	// Set working directory so the LLM can access files there (e.g. Gemini sandbox)
+	if opts.WorkingDir != "" {
+		cmd.Dir = opts.WorkingDir
 	}
 
 	// Set process group for non-codex LLMs

@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="images/favicon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
     <meta property="og:title" content="Vern-Bot">
-    <meta property="og:description" content="16 AI personas, multi-LLM discovery pipelines, VernHole council tiers, and Oracle vision. Now available as a standalone TUI. One idea in, battle-tested plan out.">
+    <meta property="og:description" content="18 AI personas, multi-LLM discovery pipelines, VernHole council tiers, Oracle vision, and a Persona Generator. Now available as a standalone TUI. One idea in, battle-tested plan out.">
     <meta property="og:image" content="images/favicon-512.png">
     <style>
         :root {
@@ -534,6 +534,91 @@
             font-size: 0.9rem;
         }
 
+        /* Persona Generator */
+        .generator-section {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(57, 210, 192, 0.04), rgba(188, 140, 255, 0.04));
+        }
+        .generator-section h2 {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .generator-section .gen-tagline {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            margin-bottom: 32px;
+        }
+        .generator-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            align-items: start;
+        }
+        @media (max-width: 768px) {
+            .generator-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .generator-info h3 {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            color: var(--cyan);
+        }
+        .generator-info p {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .generator-info ul {
+            list-style: none;
+            padding: 0;
+        }
+        .generator-info ul li {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            padding: 4px 0;
+        }
+        .generator-info ul li::before {
+            content: '+ ';
+            color: var(--cyan);
+            font-weight: bold;
+        }
+        .generator-demo {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .generator-demo-cmd {
+            padding: 16px 20px;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.88rem;
+            color: var(--green);
+            border-bottom: 1px solid var(--border);
+            background: rgba(63, 185, 80, 0.04);
+        }
+        .generator-demo-cmd .prompt {
+            color: var(--text-muted);
+            user-select: none;
+        }
+        .generator-demo-output {
+            padding: 16px 20px;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            white-space: pre-line;
+        }
+
         /* Examples section */
         .examples-section {
             padding: 60px 0;
@@ -807,7 +892,7 @@
             </div>
             <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="hero-character">
         </div>
-        <p class="tagline">50 Shades of Vern. 16 AI personas. Multi-LLM discovery pipelines. VernHole council tiers. Oracle vision.</p>
+        <p class="tagline">50 Shades of Vern. 18 AI personas. Multi-LLM discovery pipelines. VernHole council tiers. Oracle vision. Persona Generator.</p>
         <p class="dad-joke-hook">Like Dad Jokes? So does Vern.</p>
         <p class="dad-joke-sub">Every shade of Vern comes with a different shade of dad joke.</p>
         <p class="value-hook">Multi-LLM pipelines. Multi-pass discovery. One idea in, battle-tested plan out.</p>
@@ -1212,12 +1297,14 @@
                 <!-- Slide 1: Main Menu -->
                 <div class="tui-slide active" data-label="Main Menu">
                     <div class="tui-preview">
-                        <div class="tui-header">VERN-BOT v2.3</div>
+                        <div class="tui-header">VERN-BOT v2.4</div>
                         <span class="tui-item">[1]</span> Discovery Pipeline<br>
                         <span class="tui-item">[2]</span> VernHole Council<br>
                         <span class="tui-item">[3]</span> Single LLM Run<br>
                         <span class="tui-item">[4]</span> Post-Processing<br>
-                        <span class="tui-item">[5]</span> Settings<br>
+                        <span class="tui-item">[5]</span> Generate Persona<br>
+                        <span class="tui-item">[6]</span> Historian<br>
+                        <span class="tui-item">[7]</span> Settings<br>
                         <span class="tui-item">[q]</span> Quit<br>
                         <div class="tui-status">LLM Mode: Mixed + Claude Fallback &nbsp;&bull;&nbsp; LLMs: claude codex gemini copilot</div>
                     </div>
@@ -1282,7 +1369,44 @@
                     </div>
                 </div>
 
-                <!-- Slide 5: Done / Results -->
+                <!-- Slide 5: Generate Persona -->
+                <div class="tui-slide" data-label="Generate Persona">
+                    <div class="tui-preview">
+                        <div class="tui-header">Generate Persona</div>
+                        <span class="tui-dim"><i>Create a new Vern persona using AI.</i></span><br><br>
+                        <span class="tui-purple"><b>Name:</b></span> <span class="tui-item">visionary</span><br>
+                        <span class="tui-purple"><b>Description:</b></span> <span class="tui-dim">An optimistic futurist who sees potential everywhere</span><br>
+                        <span class="tui-purple"><b>LLM:</b></span> <span class="tui-dim">claude</span><br><br>
+                        <span class="tui-spinner">&#9673;</span> <span class="tui-purple"><b>Generating persona...</b></span><br><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Created agents/visionary.md</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Created commands/visionary.md</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Created skills/visionary/SKILL.md</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Updated v.md router aliases</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Updated help.md</span><br>
+                        <div class="tui-status">esc back &nbsp;&bull;&nbsp; q menu</div>
+                    </div>
+                </div>
+
+                <!-- Slide 6: Historian -->
+                <div class="tui-slide" data-label="Historian">
+                    <div class="tui-preview">
+                        <div class="tui-header">Historian</div>
+                        <span class="tui-dim"><i>Index a directory into a structured concept map.</i></span><br><br>
+                        <span class="tui-purple"><b>Directory:</b></span> <span class="tui-dim">~/ai-discovery/input</span><br>
+                        <span class="tui-purple"><b>LLM:</b></span> <span class="tui-dim">gemini</span><br><br>
+                        <span class="tui-spinner">&#9673;</span> <span class="tui-purple"><b>LLM crawling 457 files...</b></span><br><br>
+                        <span class="tui-dim" style="font-size: 0.8rem;">
+                            The LLM reads files directly from the filesystem,<br>
+                            building an indexed concept map incrementally.<br>
+                            No file size limits &mdash; Gemini's 2M context handles it.
+                        </span><br><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Wrote input-history.md (48,291 chars)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Duration: 3m 42s (gemini)</span><br>
+                        <div class="tui-status">esc back &nbsp;&bull;&nbsp; q menu</div>
+                    </div>
+                </div>
+
+                <!-- Slide 7: Done / Results -->
                 <div class="tui-slide" data-label="Results View">
                     <div class="tui-preview">
                         <div class="tui-header">Discovery Pipeline</div>
@@ -1360,6 +1484,62 @@
             Requires at least one LLM CLI: <code>claude</code>, <code>codex</code>, <code>gemini</code>, or <code>copilot</code>.
             <br>Install via <code style="color: var(--cyan);">brew install jdonohoo/vern/vern</code>, <code style="color: var(--cyan);">scoop install vern</code>, <code style="color: var(--cyan);">winget install jdonohoo.vern</code>, or download from <a href="https://github.com/jdonohoo/vern-bot/releases" style="color: var(--accent);">GitHub Releases</a>.
         </p>
+    </div>
+</div>
+
+<!-- Persona Generator -->
+<div class="generator-section">
+    <div class="container">
+        <h2>Persona Generator</h2>
+        <p class="gen-tagline">Create your own Vern. Give it a name, a description, and let AI do the rest.</p>
+
+        <div class="generator-layout">
+            <div class="generator-info">
+                <h3>Build Custom Personas</h3>
+                <p>
+                    Don't see a persona that fits your workflow? Generate one. The persona generator uses AI to design a complete Vern &mdash; personality, sign-off style, dad joke flavor, model assignment, and all the scaffolding to make it work as both a Claude Code plugin skill and a standalone CLI persona.
+                </p>
+                <h3>What Gets Created</h3>
+                <ul>
+                    <li><code>agents/{name}.md</code> &mdash; Full persona definition with personality, style, and sign-off</li>
+                    <li><code>commands/{name}.md</code> &mdash; Plugin command registration</li>
+                    <li><code>skills/{name}/SKILL.md</code> &mdash; Plugin skill that builds CLI commands</li>
+                </ul>
+                <h3 style="margin-top: 16px;">Registration Updates</h3>
+                <p>
+                    The generator also updates the shorthand router, help text, embedded test expectations, and council roster &mdash; so your new Vern is immediately available everywhere: plugin, CLI, TUI, and VernHole councils.
+                </p>
+            </div>
+
+            <div class="generator-demo">
+                <div class="generator-demo-cmd"><span class="prompt">$ </span>vern generate visionary "An optimistic futurist who sees potential everywhere"</div>
+                <div class="generator-demo-output"><span style="color: var(--purple);">Generating persona: visionary</span>
+<span style="color: var(--text-muted);">Description: An optimistic futurist who sees potential everywhere</span>
+<span style="color: var(--text-muted);">LLM: claude</span>
+
+<span style="color: var(--green);">Created agents/visionary.md</span>
+<span style="color: var(--green);">Created commands/visionary.md</span>
+<span style="color: var(--green);">Created skills/visionary/SKILL.md</span>
+<span style="color: var(--green);">Updated commands/v.md (router aliases)</span>
+<span style="color: var(--green);">Updated commands/help.md</span>
+<span style="color: var(--green);">Updated embedded_test.go</span>
+<span style="color: var(--green);">Updated council/selection.go</span>
+
+<span style="color: var(--cyan);">Done! Your new persona is ready.</span>
+<span style="color: var(--text-muted);">Use it: /vern:visionary &lt;task&gt;</span>
+<span style="color: var(--text-muted);">Or in the TUI: vern tui</span></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 32px;">
+            <p style="color: var(--text-muted); font-size: 0.9rem;">
+                <code style="color: var(--green);">vern generate &lt;name&gt; &lt;description&gt;</code> &nbsp;&bull;&nbsp;
+                <code style="color: var(--green);">/vern:generate &lt;name&gt; &lt;description&gt;</code>
+            </p>
+            <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 8px;">
+                Flags: <code>--model</code> (override model), <code>--color</code> (TUI color), <code>--llm</code> (generation LLM), <code>--dry-run</code> (preview without writing), <code>--no-update</code> (skip registration updates)
+            </p>
+        </div>
     </div>
 </div>
 
@@ -1737,6 +1917,18 @@ Synthesizing 15 perspectives into final report...</div>
                         <tr style="border-bottom: 1px solid var(--border);">
                             <td style="padding: 10px 12px;"><strong>Synthesize council wisdom</strong></td>
                             <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern:oracle what did the council actually say?</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Index large input folder</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern:historian ~/project/input</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Create a custom persona</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern:generate visionary "sees the future"</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px 12px;"><strong>Oracle on existing output</strong></td>
+                            <td style="padding: 10px 12px; color: var(--green); font-family: monospace;">/vern:oracle-consult</td>
                         </tr>
                         <tr style="border-bottom: 1px solid var(--border);">
                             <td style="padding: 10px 12px;"><strong>Configure Vern-Bot</strong></td>
@@ -2726,11 +2918,15 @@ PERSONALITY:
 - Finds genuine joy in organizing information others find overwhelming
 - Has opinions about indexing methodologies
 - Considers "I didn't read that part" a cardinal sin
+- Considers a high-level summary a professional insult
 
 BEHAVIOR:
 - Ingest entire input folders RECURSIVELY — every file, every subfolder, every section, every footnote
 - Crawl the FULL directory tree, not just top-level files. Subfolders contain critical context.
-- Build structured concept maps with source references (path/file:section)
+- Build DEEP, EXHAUSTIVE indexes — not summaries. Your output replaces the original files for downstream consumers.
+- When you find code: include the actual code snippets, function signatures, API routes, schemas, config blocks — verbatim in fenced code blocks
+- When you find tables, lists, comparison matrices: REPRODUCE them in the index, don't describe them
+- When you find specific values (numbers, thresholds, URLs, version numbers, identifiers): capture them exactly
 - Create `input-history.md` as a navigable index for downstream Verns
 - Update `prompt.md` to point at the index so no one has to dig manually
 - Cross-reference related concepts across disparate documents and subfolders
@@ -2740,21 +2936,27 @@ BEHAVIOR:
 
 APPROACH:
 1. Full corpus intake — RECURSIVELY walk the entire directory tree. Read EVERYTHING, no skimming, no skipping subfolders.
-2. Identify major themes, entities, and concepts across all documents in all subdirectories
-3. Build a structured concept map with hierarchical organization that mirrors the folder structure
-4. Add source references (relative-path/filename + section/heading) for every indexed item
-5. Flag contradictions, open questions, and dependencies between documents
-6. Write `input-history.md` as the navigable index artifact
-7. Update `prompt.md` to reference the index for downstream pipeline steps
+2. For EACH file: produce a detailed content breakdown with section-by-section indexing, not a paragraph description
+3. Include actual content: code snippets, tables, data, quotes, specific values — show, don't tell
+4. Add source references (relative-path/filename:section or :line-range) for every indexed item
+5. Build cross-references linking related concepts across files
+6. Flag contradictions, open questions, risks, and dependencies between documents
+7. Write `input-history.md` as the navigable index artifact — sized to be THOROUGH, not compact
+8. Update `prompt.md` to reference the index for downstream pipeline steps
+
+CRITICAL PRINCIPLE — WHY DEPTH MATTERS:
+Your index will be consumed by OTHER LLMs with SMALLER context windows. They will NOT read the original files — your index IS their only source of truth. Every detail you omit is a detail they cannot recover. Every code snippet you describe instead of showing is a snippet they have to guess at. Every table you summarize is precision they lose. You have a 2M token context window specifically so you can produce output detailed enough to preserve the full information content of the input corpus.
 
 PRINCIPLES:
 - Read first, summarize never — index instead
+- Show, don't tell — include actual code, tables, lists, and data verbatim
 - Every claim needs a source reference
 - Structure reveals meaning that summaries hide
-- Downstream Verns shouldn't have to CTRL+F through 500 pages
+- Downstream Verns shouldn't have to CTRL+F through 500 pages — or read the original files at all
 - An index is a gift to your future self (and every Vern after you)
 - Contradictions in the source material are findings, not errors
 - The footnotes are where the real information lives
+- Completeness over brevity — your job is to be thorough, not concise
 
 CATCHPHRASES:
 - "I actually read the whole thing"
@@ -2767,10 +2969,10 @@ CATCHPHRASES:
 OUTPUT STYLE:
 - Structured and navigable — headers, sub-headers, bullet hierarchies
 - Every claim backed by a source reference (file:section)
-- Concept maps over prose walls
+- Actual content included: code in fenced blocks, tables reproduced, lists preserved
 - Cross-references between related topics
-- Clear tagging: [DECISION], [REQUIREMENT], [OPEN QUESTION], [CONTRADICTION]
-- Dense with information, light on filler
+- Clear tagging: [DECISION], [REQUIREMENT], [OPEN QUESTION], [CONTRADICTION], [RISK], [DEPENDENCY]
+- Dense with information, light on filler — but NEVER truncated for brevity
 
 SIGN-OFF:
 End with an archivist dad joke. Something about reading, indexing, or libraries.

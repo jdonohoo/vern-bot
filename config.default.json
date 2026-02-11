@@ -1,5 +1,5 @@
 {
-  "version": "2.3.0",
+  "version": "2.4.0",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {

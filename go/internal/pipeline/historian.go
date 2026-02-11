@@ -44,36 +44,22 @@ func RunHistorian(opts HistorianOptions) (*HistorianResult, error) {
 		opts.Timeout = 600 // 10 minutes
 	}
 
-	// Recursively scan target directory for readable files
-	var fileContents strings.Builder
-	fileCount := 0
+	// Resolve absolute path for the target directory
+	absDir, absErr := filepath.Abs(opts.TargetDir)
+	if absErr != nil {
+		absDir = opts.TargetDir
+	}
 
+	// Lightweight walk: count files without reading contents
+	fileCount := 0
 	err := filepath.WalkDir(opts.TargetDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil // skip unreadable entries
-		}
-		if d.IsDir() {
+		if err != nil || d.IsDir() {
 			return nil
 		}
 		name := d.Name()
-		// Skip the output file itself and prompt.md
 		if name == "input-history.md" || name == "prompt.md" {
 			return nil
 		}
-		ext := strings.ToLower(filepath.Ext(name))
-		if ext != ".md" && ext != ".txt" && ext != ".json" && ext != ".yaml" && ext != ".yml" {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		// Use relative path so the LLM sees the folder structure
-		relPath, relErr := filepath.Rel(opts.TargetDir, path)
-		if relErr != nil {
-			relPath = name
-		}
-		fileContents.WriteString(fmt.Sprintf("\n\n=== %s ===\n%s\n", relPath, string(data)))
 		fileCount++
 		return nil
 	})
@@ -100,35 +86,77 @@ func RunHistorian(opts HistorianOptions) (*HistorianResult, error) {
 		logFn("For best results: install the Gemini CLI (https://ai.google.dev/gemini-api/docs/downloads/cli)")
 	}
 
-	logFn(fmt.Sprintf("Indexing %d files from %s using %s...", fileCount, opts.TargetDir, llmName))
+	logFn(fmt.Sprintf("Indexing %d files from %s using %s (LLM will crawl directory)...", fileCount, absDir, llmName))
 
-	// Build the Historian prompt
-	prompt := fmt.Sprintf(`You are Historian Vern. You read everything. Your job is to ingest the following collection of documents — including files from subdirectories — and produce a structured index called input-history.md.
+	// Build the Historian prompt — instructs the LLM to crawl the directory itself
+	prompt := fmt.Sprintf(`You are Historian Vern. You read everything. Your job is to produce a DEEP, EXHAUSTIVE index — not a summary.
 
-The documents below were crawled recursively from the target directory and its subfolders. File paths are relative to the root directory (e.g. "subfolder/file.md"). Preserve the folder structure in your index.
+## TASK
 
-Your output MUST be a navigable concept map with:
-1. A table of contents listing every source document, organized by directory structure
-2. Major themes and concepts identified across all documents and subfolders, with source references (relative-path/filename + section/heading)
-3. Key decisions, requirements, constraints, and open questions tagged as [DECISION], [REQUIREMENT], [OPEN QUESTION], [CONTRADICTION]
-4. Cross-references between related concepts across different documents and subdirectories
-5. Any contradictions or gaps between documents
+Recursively read and index ALL files in this directory:
+  %s
 
-Format as clean, structured markdown with headers, sub-headers, and bullet hierarchies.
-Every claim must include a source reference in (path/filename:section) format.
+There are approximately %d indexable files. Read ALL of them. Skip only input-history.md and prompt.md.
 
-Here are %d documents to index:
-%s`, fileCount, fileContents.String())
+Do NOT try to read all files at once — crawl the directory structure, read files individually or in small batches, and compile your index incrementally.
+
+## PURPOSE
+
+This index (input-history.md) will be consumed by OTHER LLMs with SMALLER context windows. They will NOT read the original files. Your index IS their only source of truth. If you leave something out, it is lost. If you summarize too aggressively, downstream LLMs will make decisions based on incomplete information.
+
+You have a 2M token context window. USE IT. Produce a large, detailed, thorough index. Err on the side of too much detail, not too little.
+
+## OUTPUT REQUIREMENTS
+
+### 1. File Inventory
+- List EVERY file found, organized by directory structure
+- For each file: relative path, file type, approximate size/length, and a 1-2 sentence description of what it contains
+
+### 2. Deep Content Index (the core of your output)
+For each file, produce a DETAILED breakdown — not a summary. Include:
+- **Section-by-section content** with source references (relative-path/filename:section-heading or line range)
+- **Code snippets**: When you encounter code, function signatures, API endpoints, config blocks, SQL schemas, or implementation details — INCLUDE THEM VERBATIM in fenced code blocks with the source reference. Do not describe code in prose when you can show it.
+- **Tables and lists**: If the source contains tables, data lists, comparison matrices, or structured data — REPRODUCE THEM in your index. These are high-value reference material.
+- **Specific numbers, metrics, thresholds, limits, config values** — capture them exactly, not approximately
+- **Names, identifiers, URLs, file paths, version numbers** referenced in the documents — these are facts that downstream LLMs will need to look up
+
+### 3. Semantic Tags
+Tag key items inline as they appear:
+- [DECISION] — choices that were made and their rationale
+- [REQUIREMENT] — hard constraints, must-haves, acceptance criteria
+- [OPEN QUESTION] — unresolved items, things marked as TBD or TODO
+- [CONTRADICTION] — places where documents disagree with each other
+- [RISK] — identified risks, concerns, failure modes
+- [DEPENDENCY] — external dependencies, blockers, prerequisites
+
+### 4. Cross-References
+- Link related concepts across different files (e.g., "see also: path/other-file.md:section")
+- Identify when multiple files discuss the same topic and note where they agree/disagree
+
+### 5. Contradictions and Gaps
+- Dedicated section listing contradictions between documents with exact source references for both sides
+- Note gaps — topics that seem important but have no coverage, or questions raised but never answered
+
+## FORMAT RULES
+
+- Use clean structured markdown with headers, sub-headers, and bullet hierarchies
+- EVERY claim, fact, or data point MUST include a source reference: (relative-path/filename:section) or (relative-path/filename:L42) for specific lines
+- Prefer showing over telling — include the actual content (code, tables, lists, quotes) rather than describing it
+- Use fenced code blocks with language tags when including code
+- Do NOT editorialize or add your own opinions about the content — index what IS there
+- Do NOT truncate, abbreviate, or skip files because the output is getting long — completeness is the entire point`, absDir, fileCount)
 
 	start := time.Now()
 
 	result, err := llm.Run(llm.RunOptions{
-		Ctx:       opts.Ctx,
-		LLM:       llmName,
-		Prompt:    prompt,
-		Persona:   "historian",
-		Timeout:   time.Duration(opts.Timeout) * time.Second,
-		AgentsDir: opts.AgentsDir,
+		Ctx:           opts.Ctx,
+		LLM:           llmName,
+		Prompt:        prompt,
+		Persona:       "historian",
+		Timeout:       time.Duration(opts.Timeout) * time.Second,
+		AgentsDir:     opts.AgentsDir,
+		AllowFileRead: true,
+		WorkingDir:    absDir,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("historian LLM call failed: %w", err)
