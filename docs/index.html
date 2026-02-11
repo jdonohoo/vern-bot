@@ -70,6 +70,7 @@
         .hero-character {
             width: 280px;
             height: auto;
+            margin-left: 75px;
             filter: drop-shadow(0 0 40px rgba(188, 140, 255, 0.25));
             animation: heroFloat 6s ease-in-out infinite;
         }
@@ -758,6 +759,7 @@
             width: 200px;
             height: auto;
             margin-bottom: 4px;
+            margin-left: 75px;
         }
         .footer-title {
             font-size: 2.5rem;
@@ -803,6 +805,27 @@
             font-style: italic;
             font-size: 0.9rem;
         }
+        .dad-joke-carousel {
+            min-height: 3.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dad-joke-carousel .dad-joke {
+            transition: opacity 0.5s ease;
+            opacity: 1;
+        }
+        .dad-joke-carousel .dad-joke.fade-out {
+            opacity: 0;
+        }
+        .dad-joke-carousel .dad-joke-attr {
+            display: block;
+            font-style: normal;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-top: 4px;
+        }
 
         /* GitHub CTA */
         .github-cta {
@@ -835,6 +858,32 @@
         }
         .github-link { display: inline-flex; align-items: center; gap: 6px; }
         .github-link svg { width: 18px; height: 18px; fill: currentColor; vertical-align: middle; }
+
+        .social-links {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 12px;
+        }
+        .social-links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+        .social-links a:hover {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .social-links a svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
 
         /* Agent modal */
         .agent-modal-overlay {
@@ -932,11 +981,13 @@
             </div>
             <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="hero-character">
         </div>
-        <p class="tagline">Multi-LLM discovery pipelines. Competing AI personas. VernHole council tiers. Oracle vision. Persona Generator.</p>
+        <p class="tagline">50 Shades of Vern. Multiple personalities — and none of them are sorry.</p>
         <p class="dad-joke-hook">Like Dad Jokes? So does Vern.</p>
-        <p class="dad-joke-sub">Every shade of Vern comes with a different shade of dad joke.</p>
-        <p class="value-hook">Multi-LLM pipelines. Multi-pass discovery. One idea in, battle-tested plan out.</p>
-        <p class="value-hook-sub">Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.</p>
+        <div class="dad-joke-carousel">
+            <p class="dad-joke" id="hero-dad-joke"></p>
+        </div>
+        <p class="value-hook">Stop asking one AI for the answer. Make them argue about it.</p>
+        <p class="value-hook-sub">Your idea runs a gauntlet of competing models and personas. Each one challenges, refines, and tears apart the last. What survives is worth building.</p>
     </div>
 </div>
 
@@ -945,6 +996,17 @@
         <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         Check us out on GitHub
     </a>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px;">&#11088; Drop us a star or leave feedback — the Verns live for it.</p>
+    <div class="social-links">
+        <a href="https://www.linkedin.com/in/jdonohoo/" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            Justin Donohoo
+        </a>
+        <a href="https://x.com/justindonohoo" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            @justindonohoo
+        </a>
+    </div>
 </div>
 
 <!-- Personas first -->
@@ -2073,14 +2135,25 @@ Synthesizing 15 perspectives into final report...</div>
     <div class="container">
         <img src="images/vern-bot-logo.png" alt="Vern-Bot" class="footer-logo">
         <div class="footer-title">Vern-Bot</div>
-        <p class="footer-sub">AI discovery pipelines with personality disorders.</p>
+        <p class="footer-sub">Multiple personalities — and none of them are sorry.</p>
         <a href="https://github.com/jdonohoo/vern-bot" class="footer-github">
             <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
             Check us out on GitHub
         </a>
-        <div class="install-cmd">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Or go standalone: <code style="color: var(--cyan);">brew install jdonohoo/vern/vern</code> | <code style="color: var(--cyan);">scoop install vern</code> | <code style="color: var(--cyan);">winget install jdonohoo.vern</code></p>
-        <p class="dad-joke">Why did the mass of Verns cross the road? To get to the other paradigm.</p>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px;">&#11088; Drop us a star or leave feedback — the Verns live for it.</p>
+        <div class="social-links" style="margin-top: 16px; margin-bottom: 8px;">
+            <a href="https://www.linkedin.com/in/jdonohoo/" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                Justin Donohoo
+            </a>
+            <a href="https://x.com/justindonohoo" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                @justindonohoo
+            </a>
+        </div>
+        <div class="dad-joke-carousel">
+            <p class="dad-joke" id="footer-dad-joke"></p>
+        </div>
     </div>
 </footer>
 
@@ -3187,6 +3260,50 @@ Takes the VTS tasks and makes them happen. Assigns each task to the right Vern f
     // Init
     labelEl.textContent = slides[0].getAttribute('data-label') || '';
     resetAuto();
+})();
+</script>
+
+<script>
+(function() {
+    const jokes = [
+        { text: "Bugs don\u2019t exist in my code. They know better.", attr: "Mighty Vern" },
+        { text: "I once wrote a function so elegant, the linter apologized.", attr: "Vernile the Great" },
+        { text: "Why write tests when you can write apologies?", attr: "YOLO Vern" },
+        { text: "I\u2019ve drawn 47 diagrams. We haven\u2019t written a line of code. This is progress.", attr: "Architect Vern" },
+        { text: "It\u2019s not technical debt if you never plan to pay it back.", attr: "Vern the Mediocre" },
+        { text: "My code review has a bibliography.", attr: "Academic Vern" },
+        { text: "We don\u2019t call it tech debt. We call it planned deprecation with strategic remediation timeline.", attr: "Enterprise Vern" },
+        { text: "Best practices? You mean most popular mistakes.", attr: "Inverse Vern" },
+        { text: "Have you ever really looked at a for loop? Like, really looked at it?", attr: "Ketamine Vern" },
+        { text: "The bug is in... line... zzz ...42. I was right.", attr: "NyQuil Vern" },
+        { text: "We didn\u2019t have CI/CD. We had Carl, and he deployed on Fridays.", attr: "Retro Vern" },
+        { text: "Our MVP is so minimum it\u2019s just a landing page with a waitlist for another landing page.", attr: "Startup Vern" },
+        { text: "Segfault? More like a seg-OPPORTUNITY!", attr: "Optimist Vern" },
+        { text: "I put rate limiting on my doorbell. You can never be too careful.", attr: "Paranoid Vern" },
+        { text: "The modal said \u2018Are you sure?\u2019 The user was never sure again.", attr: "UX Vern" },
+        { text: "I foresaw this bug three sprints ago. Nobody listened. They never listen.", attr: "Oracle Vern" },
+        { text: "I\u2019ve indexed your README. It contradicts your actual code in 14 places.", attr: "Historian Vern" },
+        { text: "I asked 15 Verns for their opinion. Got 23 answers.", attr: "VernHole" }
+    ];
+    function initCarousel(elId, offset) {
+        var idx = (Math.floor(Math.random() * jokes.length) + offset) % jokes.length;
+        var el = document.getElementById(elId);
+        if (!el) return;
+        function render() {
+            el.innerHTML = jokes[idx].text + '<span class="dad-joke-attr">\u2014 ' + jokes[idx].attr + '</span>';
+        }
+        render();
+        setInterval(function() {
+            el.classList.add('fade-out');
+            setTimeout(function() {
+                idx = (idx + 1) % jokes.length;
+                render();
+                el.classList.remove('fade-out');
+            }, 500);
+        }, 6000);
+    }
+    initCarousel('hero-dad-joke', 0);
+    initCarousel('footer-dad-joke', 9);
 })();
 </script>
 
