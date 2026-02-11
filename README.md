@@ -6,7 +6,7 @@
 
 https://jdonohoo.github.io/vern-bot/
 
-A Claude Code plugin and standalone CLI. 18 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole council tiers, Oracle vision, Historian indexing, and a full multi-LLM discovery pipeline.
+AI discovery pipelines with personality disorders. Multi-LLM orchestration, competing AI personas, VernHole council tiers, Oracle vision, Historian indexing, and chaos-to-clarity workflows.
 
 Now available as a **standalone terminal app** — no Claude Code required.
 

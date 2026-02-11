@@ -1,18 +1,18 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "vern",
-  "description": "50 Shades of Vern. A Claude Code plugin with multiple personalities — and none of them are sorry.",
+  "description": "AI discovery pipelines with personality disorders. Multi-LLM orchestration, competing AI personas, and chaos-to-clarity workflows.",
   "owner": {
     "name": "Justin Donohoo",
     "email": "jdonohoo@gmail.com"
   },
   "metadata": {
-    "description": "50 Shades of Vern. A Claude Code plugin with multiple personalities — and none of them are sorry."
+    "description": "50 Shades of Vern. AI discovery pipelines with personality disorders."
   },
   "plugins": [
     {
       "name": "vern",
-      "description": "18 AI personas, multi-LLM discovery pipelines, VernHole council tiers, Historian indexing, and Oracle vision. One idea in, battle-tested plan out. Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.",
+      "description": "Multi-LLM discovery pipelines, competing AI personas, VernHole council tiers, Historian indexing, and Oracle vision. One idea in, battle-tested plan out. Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.",
       "version": "2.4.2",
       "author": {
         "name": "Justin Donohoo"
