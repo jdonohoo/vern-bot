@@ -1,0 +1,32 @@
+#!/bin/bash
+#
+# vern-historian: Index a directory of input files into a structured concept map
+#
+# Delegates to the Go vern CLI binary. Auto-downloads if not present.
+#
+# Usage: vern-historian <directory> [flags]
+#
+# Flags:
+#   --llm <name>       Override LLM (default: gemini)
+#   --timeout <secs>   Timeout in seconds (default: 600)
+#
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERN_CLI="$SCRIPT_DIR/../go/bin/vern"
+
+# Auto-download if Go binary doesn't exist
+if [ ! -x "$VERN_CLI" ]; then
+    if command -v go &>/dev/null && [ -f "$SCRIPT_DIR/../go/cmd/vern/main.go" ]; then
+        echo "[vern-historian] Building vern CLI from source..." >&2
+        (cd "$SCRIPT_DIR/../go" && go build -o bin/vern ./cmd/vern) 2>/dev/null
+    fi
+    if [ ! -x "$VERN_CLI" ] && [ -x "$SCRIPT_DIR/install-vern-cli" ]; then
+        "$SCRIPT_DIR/install-vern-cli"
+    fi
+    if [ ! -x "$VERN_CLI" ]; then
+        echo "[vern-historian] Error: vern CLI not available. Run: cd go && go build -o bin/vern ./cmd/vern" >&2
+        exit 1
+    fi
+fi
+
+exec "$VERN_CLI" historian "$@"

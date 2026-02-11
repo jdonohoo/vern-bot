@@ -21,6 +21,8 @@ const (
 	ScreenHole
 	ScreenRun
 	ScreenOracle
+	ScreenGenerate
+	ScreenHistorian
 	ScreenSettings
 )
 
@@ -32,6 +34,8 @@ type App struct {
 	hole            HoleModel
 	run             RunModel
 	oracle          OracleModel
+	generate        GenerateModel
+	historian       HistorianModel
 	settings        SettingsModel
 	help            help.Model
 	width           int
@@ -131,6 +135,10 @@ func (a *App) propagateSize() {
 		a.run.SetSize(a.width, a.height)
 	case ScreenOracle:
 		a.oracle.SetSize(a.width, a.height)
+	case ScreenGenerate:
+		a.generate.SetSize(a.width, a.height)
+	case ScreenHistorian:
+		a.historian.SetSize(a.width, a.height)
 	case ScreenSettings:
 		a.settings.SetSize(a.width, a.height)
 	}
@@ -179,6 +187,30 @@ func (a App) activeKeyMap() help.KeyMap {
 			return runningKeys
 		case oracleStateDone:
 			return oracleDoneKeys
+		default:
+			return formKeys
+		}
+	case ScreenGenerate:
+		switch a.generate.state {
+		case genStateRunning:
+			return runningKeys
+		case genStateDone:
+			if a.generate.err != nil {
+				return runRetryKeys
+			}
+			return doneKeys
+		default:
+			return formKeys
+		}
+	case ScreenHistorian:
+		switch a.historian.state {
+		case histStateRunning:
+			return runningKeys
+		case histStateDone:
+			if a.historian.err != nil {
+				return runRetryKeys
+			}
+			return doneKeys
 		default:
 			return formKeys
 		}
@@ -250,12 +282,24 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.menu.chosen = -1
 				return a, a.oracle.Init()
 			case 4:
+				a.screen = ScreenGenerate
+				a.generate = NewGenerateModel(a.projectRoot, a.agentsDir)
+				a.generate.SetSize(a.width, a.height)
+				a.menu.chosen = -1
+				return a, a.generate.Init()
+			case 5:
+				a.screen = ScreenHistorian
+				a.historian = NewHistorianModel(a.projectRoot, a.agentsDir)
+				a.historian.SetSize(a.width, a.height)
+				a.menu.chosen = -1
+				return a, a.historian.Init()
+			case 6:
 				a.screen = ScreenSettings
 				a.settings = NewSettingsModel(a.projectRoot)
 				a.settings.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.settings.Init()
-			case 5:
+			case 7:
 				return a, tea.Quit
 			}
 			a.menu.chosen = -1
@@ -281,6 +325,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.oracle = newOracle.(OracleModel)
 		cmd = oracleCmd
 
+	case ScreenGenerate:
+		newGen, genCmd := a.generate.Update(msg)
+		a.generate = newGen.(GenerateModel)
+		cmd = genCmd
+
+	case ScreenHistorian:
+		newHist, histCmd := a.historian.Update(msg)
+		a.historian = newHist.(HistorianModel)
+		cmd = histCmd
+
 	case ScreenSettings:
 		newSettings, settingsCmd := a.settings.Update(msg)
 		a.settings = newSettings.(SettingsModel)
@@ -303,6 +357,10 @@ func (a App) View() string {
 		content = a.run.View()
 	case ScreenOracle:
 		content = a.oracle.View()
+	case ScreenGenerate:
+		content = a.generate.View()
+	case ScreenHistorian:
+		content = a.historian.View()
 	case ScreenSettings:
 		content = a.settings.View()
 	default:
@@ -356,6 +414,10 @@ func (a *App) cancelActiveScreen() {
 		a.run.Cancel()
 	case ScreenOracle:
 		a.oracle.Cancel()
+	case ScreenGenerate:
+		a.generate.Cancel()
+	case ScreenHistorian:
+		a.historian.Cancel()
 	}
 }
 

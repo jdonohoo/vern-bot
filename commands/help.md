@@ -19,19 +19,21 @@ CORE PERSONAS
   /vern:mighty <task>      Codex   - Comprehensive code gen, raw power
 
 SPECIALIST PERSONAS
-  /vern:architect <task>   Opus    - Systems design, scalable architecture
-  /vern:inverse <task>     Sonnet  - Devil's advocate, contrarian takes
-  /vern:paranoid <task>    Sonnet  - Risk assessment, failure modes
-  /vern:optimist <task>    Haiku   - Encouragement, can-do energy
   /vern:academic <task>    Opus    - Evidence-based, cites sources
-  /vern:startup <task>     Sonnet  - MVP thinking, lean approach
+  /vern:architect <task>   Opus    - Systems design, scalable architecture
   /vern:enterprise <task>  Opus    - Governance, compliance, process
-  /vern:ux <task>          Opus    - User experience, empathy-driven design
-  /vern:retro <task>       Sonnet  - Historical perspective, proven tech
+  /vern:historian <task> Gemini-3- The one who actually reads the whole thing
+  /vern:inverse <task>     Sonnet  - Devil's advocate, contrarian takes
+  /vern:optimist <task>    Haiku   - Encouragement, can-do energy
   /vern:oracle <task>      Opus    - Reads the council's wisdom, recommends VTS changes
+  /vern:paranoid <task>    Sonnet  - Risk assessment, failure modes
+  /vern:retro <task>       Sonnet  - Historical perspective, proven tech
+  /vern:startup <task>     Sonnet  - MVP thinking, lean approach
+  /vern:ux <task>          Opus    - User experience, empathy-driven design
 
 WORKFLOWS & PIPELINES
   /vern:discovery <prompt> Full multi-LLM discovery pipeline (5 or 7 steps)
+  /vern:generate <name>    Generate a new Vern persona using AI
   /vern:new-idea <name>    Create discovery folder with input/output structure
   /vern:hole <idea>        Summon random Verns to brainstorm your idea
 
@@ -42,7 +44,7 @@ SHORTHAND ROUTER
   /vern:v <alias> <task>   Route to any persona by short alias
 
   Aliases: med, great, nq, ket, yolo, mighty, arch, inv, para, opt,
-           acad, su, ent, ux, ret, orc, hole, disco, new, setup
+           acad, su, ent, ux, ret, orc, hole, disco, new, gen, setup, his
 
 EXAMPLES
   /vern:mediocre fix the broken login redirect

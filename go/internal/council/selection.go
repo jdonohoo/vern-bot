@@ -27,6 +27,7 @@ func ScanRoster(agentsDir string) []Vern {
 	skip := map[string]bool{
 		"vernhole-orchestrator": true,
 		"oracle":               true,
+		"historian":            true,
 	}
 
 	entries, err := os.ReadDir(agentsDir)

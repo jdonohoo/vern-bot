@@ -6,11 +6,11 @@
 
 https://jdonohoo.github.io/vern-bot/
 
-A Claude Code plugin and standalone CLI. 16 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole council tiers, Oracle vision, and a full multi-LLM discovery pipeline.
+A Claude Code plugin and standalone CLI. 18 AI personas with different personalities, models, and approaches to problem-solving. Plus VernHole council tiers, Oracle vision, Historian indexing, and a full multi-LLM discovery pipeline.
 
 Now available as a **standalone terminal app** — no Claude Code required.
 
-## The 16 Personas
+## The 18 Personas
 
 ### Core Personas
 | Command | Model | Best For |
@@ -35,6 +35,7 @@ Now available as a **standalone terminal app** — no Claude Code required.
 | `/vern:ux` | Opus | User experience, empathy-driven design, journey mapping |
 | `/vern:retro` | Sonnet | Historical perspective, proven tech, cutting through hype |
 | `/vern:oracle` | Opus | Reads the council's wisdom, recommends VTS task changes |
+| `/vern:historian` | Gemini | Indexes massive input folders into structured concept maps |
 
 ### When to Use Each
 
@@ -56,6 +57,7 @@ Now available as a **standalone terminal app** — no Claude Code required.
 | "Can a real person use this?" | `/vern:ux` |
 | "Haven't we solved this before?" | `/vern:retro` |
 | "What did the council actually say?" | `/vern:oracle` |
+| "Index these 50 input files" | `/vern:historian` |
 | "I want chaos/creativity" | `/vern:hole` |
 | "Full project discovery" | `/vern:discovery` |
 | "What commands are there?" | `/vern:help` |
@@ -146,13 +148,15 @@ vern tui
 
 ```
 ┌──────────────────────────────────┐
-│         VERN-BOT v2.2            │
+│         VERN-BOT v2.3            │
 │                                  │
 │  [1] Discovery Pipeline          │
 │  [2] VernHole Council            │
 │  [3] Single LLM Run             │
 │  [4] Post-Processing             │
-│  [5] Settings                    │
+│  [5] Generate Persona            │
+│  [6] Historian                   │
+│  [7] Settings                    │
 │  [q] Quit                        │
 │                                  │
 │  LLM Mode: Mixed + Claude FB    │
@@ -264,6 +268,7 @@ Or use the shorthand router:
 | `/vern:discovery` | Full pipeline: Default (5-step) or Expanded (7-step) multi-LLM discovery + council + Oracle |
 | `/vern:hole` | Summon a VernHole council tier to brainstorm your idea |
 | `/vern:oracle` | Consult Oracle Vern — synthesize council wisdom into VTS modifications |
+| `/vern:historian` | Index a directory of input files into a structured concept map |
 | `/vern:setup` | Configure LLMs, pipeline personas, preferences |
 | `/vern:help` | Show all available commands and personas |
 
@@ -296,6 +301,9 @@ Two ways to use it:
 #### Default Pipeline (5 steps)
 
 ```
+[Input Files?] → Historian (Gemini) → input-history.md
+                          │
+                          ▼
 Codex (Analysis) → Claude (Refinement) → Gemini (Chaos Check)
                           │
                           ▼
@@ -308,6 +316,9 @@ Codex (Analysis) → Claude (Refinement) → Gemini (Chaos Check)
 #### Expanded Pipeline (7 steps) — use `--expanded` flag
 
 ```
+[Input Files?] → Historian (Gemini) → input-history.md
+                          │
+                          ▼
 Codex (Analysis) → Claude (Refinement) → Claude (Reality Check)
                                                   │
                                                   ▼
@@ -319,6 +330,8 @@ Codex (Analysis) → Claude (Refinement) → Claude (Reality Check)
                           ▼
                   Architect Vern (Breakdown) → VTS Tasks
 ```
+
+The **Historian pre-step** runs automatically when input files exist. It uses Gemini (2M context window) to index all input materials into `input-history.md`, which downstream steps then reference. If Gemini is unavailable, it falls back to the configured fallback LLM.
 
 The expanded pipeline inserts **Vern the Mediocre** (Reality Check) and **Startup Vern** (MVP Lens) before consolidation for more thorough analysis.
 
@@ -376,6 +389,7 @@ Pipeline → VTS Tasks → VernHole Council → Oracle Vision → Auto-Apply (op
 discovery/{name}/
 ├── input/
 │   ├── prompt.md              # Your idea description
+│   ├── input-history.md       # Historian's index (auto-generated)
 │   └── {reference files}      # Specs, designs, code, anything
 ├── output/
 │   ├── 01-mighty-initial-analysis.md
@@ -414,7 +428,7 @@ Choose a council tier — from the focused **Council of the Three Hammers** (3 V
 | **The Full Vern Experience** | All | 15 | every summonable persona |
 | **Fate's Hand** | Random | 3–15 | random count, random selection |
 
-Oracle is excluded from all council rosters (15 summonable personas).
+Oracle and Historian are excluded from all council rosters (15 summonable personas).
 
 ## Requirements
 
@@ -431,7 +445,7 @@ vern-bot/
 ├── .claude-plugin/
 │   ├── plugin.json          # Plugin metadata
 │   └── marketplace.json     # Marketplace manifest
-├── agents/                   # 17 agent definitions (16 personas + orchestrator)
+├── agents/                   # 18 agent definitions (16 personas + orchestrator + historian)
 │   ├── mediocre.md
 │   ├── great.md
 │   ├── nyquil.md
@@ -448,6 +462,7 @@ vern-bot/
 │   ├── ux.md
 │   ├── retro.md
 │   ├── oracle.md
+│   ├── historian.md
 │   └── vernhole-orchestrator.md
 ├── commands/                  # 22 command definitions (16 personas + 6 workflows/utility)
 │   ├── v.md                  # /vern:v shorthand router
@@ -471,6 +486,7 @@ vern-bot/
 │   ├── ux/SKILL.md
 │   ├── retro/SKILL.md
 │   ├── oracle/SKILL.md
+│   ├── historian/SKILL.md
 │   ├── hole/SKILL.md
 │   ├── discovery/SKILL.md
 │   └── new-idea/SKILL.md
@@ -486,6 +502,7 @@ vern-bot/
 │   ├── vern-discovery.cmd    # Full discovery pipeline wrapper (Windows)
 │   ├── vernhole              # VernHole chaos mode wrapper (bash)
 │   ├── vernhole.cmd          # VernHole chaos mode wrapper (Windows)
+│   ├── vern-historian        # Historian indexing wrapper (bash)
 │   ├── install-vern-cli      # Auto-download CLI binary from GitHub releases (bash)
 │   └── install-vern-cli.cmd  # Auto-download CLI binary from GitHub releases (Windows)
 ├── discovery/                 # Discovery pipeline output
@@ -512,6 +529,7 @@ cd go && go test ./...
 vern run <llm> <prompt>      # Single LLM run
 vern discovery <prompt>       # Full discovery pipeline
 vern hole <idea>              # VernHole council
+vern historian <directory>    # Index a directory into a concept map
 vern tui                      # Interactive terminal UI
 vern setup                    # First-run configuration wizard
 ```

@@ -25,16 +25,17 @@ Parse the first argument to determine which Vern persona to invoke:
 ### Specialist Personas
 | Alias | Skill | Description |
 |-------|-------|-------------|
-| `architect` / `arch` / `ar` | `/vern:architect` | Systems design, blueprints before builds |
-| `inverse` / `inv` / `i` | `/vern:inverse` | Contrarian takes only |
-| `paranoid` / `para` / `p` | `/vern:paranoid` | What could go wrong? Everything. |
-| `optimist` / `opt` / `o` | `/vern:optimist` | Everything will be fine! |
 | `academic` / `acad` / `a` | `/vern:academic` | Needs more research, cites sources |
-| `startup` / `su` / `s` | `/vern:startup` | MVP or die trying |
+| `architect` / `arch` / `ar` | `/vern:architect` | Systems design, blueprints before builds |
 | `enterprise` / `ent` / `e` | `/vern:enterprise` | Needs 6 meetings first |
-| `ux` / `u` | `/vern:ux` | Cool architecture, but can the user find the button? |
-| `retro` / `ret` / `r` | `/vern:retro` | We solved this with cron in 2004 |
+| `historian` / `his` | `/vern:historian` | The one who actually reads the whole thing |
+| `inverse` / `inv` / `i` | `/vern:inverse` | Contrarian takes only |
+| `optimist` / `opt` / `o` | `/vern:optimist` | Everything will be fine! |
 | `oracle` / `orc` / `ora` | `/vern:oracle` | Reads the council's wisdom, recommends VTS changes |
+| `paranoid` / `para` / `p` | `/vern:paranoid` | What could go wrong? Everything. |
+| `retro` / `ret` / `r` | `/vern:retro` | We solved this with cron in 2004 |
+| `startup` / `su` / `s` | `/vern:startup` | MVP or die trying |
+| `ux` / `u` | `/vern:ux` | Cool architecture, but can the user find the button? |
 
 ### Workflows & Pipelines
 | Alias | Skill | Description |
@@ -42,6 +43,7 @@ Parse the first argument to determine which Vern persona to invoke:
 | `setup` | `/vern:setup` | Configure LLMs, pipeline personas, preferences |
 | `new-idea` / `new` / `ni` | `/vern:new-idea` | Create a discovery folder with input/output structure |
 | `discovery` / `disco` / `d` | `/vern:discovery` | Full discovery pipeline |
+| `generate` / `gen` | `/vern:generate` | Generate a new Vern persona using AI |
 | `hole` / `khole` / `vh` | `/vern:hole` | VernHole - random Vern passes |
 
 If no persona specified, default to `/vern:great`.
@@ -50,26 +52,28 @@ If no persona specified, default to `/vern:great`.
 
 Route the alias to the matching skill and pass the remaining arguments as the task:
 
-- `mediocre` / `med` / `m` → invoke `/vern:mediocre`
-- `great` / `vernile` / `g` → invoke `/vern:great`
-- `nyquil` / `nq` / `n` → invoke `/vern:nyquil`
-- `ketamine` / `ket` / `k` → invoke `/vern:ketamine`
-- `yolo` / `y` → invoke `/vern:yolo`
-- `mighty` / `codex` / `c` → invoke `/vern:mighty`
-- `architect` / `arch` / `ar` → invoke `/vern:architect`
-- `inverse` / `inv` / `i` → invoke `/vern:inverse`
-- `paranoid` / `para` / `p` → invoke `/vern:paranoid`
-- `optimist` / `opt` / `o` → invoke `/vern:optimist`
 - `academic` / `acad` / `a` → invoke `/vern:academic`
-- `startup` / `su` / `s` → invoke `/vern:startup`
-- `enterprise` / `ent` / `e` → invoke `/vern:enterprise`
-- `ux` / `u` → invoke `/vern:ux`
-- `retro` / `ret` / `r` → invoke `/vern:retro`
-- `oracle` / `orc` / `ora` → invoke `/vern:oracle`
-- `hole` / `khole` / `vh` → invoke `/vern:hole`
-- `new-idea` / `new` / `ni` → invoke `/vern:new-idea`
+- `architect` / `arch` / `ar` → invoke `/vern:architect`
 - `discovery` / `disco` / `d` → invoke `/vern:discovery`
-- `setup` → invoke `/vern:setup`
+- `enterprise` / `ent` / `e` → invoke `/vern:enterprise`
+- `generate` / `gen` → invoke `/vern:generate`
+- `great` / `vernile` / `g` → invoke `/vern:great`
 - `help` / `h` / `?` → invoke `/vern:help`
+- `historian` / `his` → invoke `/vern:historian`
+- `hole` / `khole` / `vh` → invoke `/vern:hole`
+- `inverse` / `inv` / `i` → invoke `/vern:inverse`
+- `ketamine` / `ket` / `k` → invoke `/vern:ketamine`
+- `mediocre` / `med` / `m` → invoke `/vern:mediocre`
+- `mighty` / `codex` / `c` → invoke `/vern:mighty`
+- `new-idea` / `new` / `ni` → invoke `/vern:new-idea`
+- `nyquil` / `nq` / `n` → invoke `/vern:nyquil`
+- `optimist` / `opt` / `o` → invoke `/vern:optimist`
+- `oracle` / `orc` / `ora` → invoke `/vern:oracle`
+- `paranoid` / `para` / `p` → invoke `/vern:paranoid`
+- `retro` / `ret` / `r` → invoke `/vern:retro`
+- `setup` → invoke `/vern:setup`
+- `startup` / `su` / `s` → invoke `/vern:startup`
+- `ux` / `u` → invoke `/vern:ux`
+- `yolo` / `y` → invoke `/vern:yolo`
 
 Begin with: $ARGUMENTS

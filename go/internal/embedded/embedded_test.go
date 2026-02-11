@@ -7,10 +7,10 @@ import (
 )
 
 var expectedAgents = []string{
-	"academic", "architect", "enterprise", "great", "inverse",
-	"ketamine", "mediocre", "mighty", "nyquil", "optimist",
-	"oracle", "paranoid", "retro", "startup", "ux",
-	"vernhole-orchestrator", "yolo",
+	"academic", "architect", "enterprise", "great", "historian", 
+	"inverse", "ketamine", "mediocre", "mighty", "nyquil", 
+	"optimist", "oracle", "paranoid", "retro", "startup", 
+	"ux", "vernhole-orchestrator", "yolo",
 }
 
 func TestListAgentsReturnsAll(t *testing.T) {

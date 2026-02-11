@@ -27,7 +27,7 @@ var menuKeys = menuKeyMap{
 	Up:     key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("j/k", "navigate")),
 	Down:   key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("", "")),
 	Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
-	Number: key.NewBinding(key.WithKeys("1", "2", "3", "4", "5"), key.WithHelp("1-5", "jump")),
+	Number: key.NewBinding(key.WithKeys("1", "2", "3", "4", "5", "6", "7"), key.WithHelp("1-7", "jump")),
 	Quit:   key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 }
 

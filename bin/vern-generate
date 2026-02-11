@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# vern-generate: Generate a new Vern persona using AI
+#
+# Delegates to the Go vern CLI binary. Auto-builds if not present.
+#
+# Usage: vern-generate <name> "<description>" [flags]
+#
+# Flags:
+#   --model <tier>     Override model tier (opus/sonnet/haiku)
+#   --color <color>    Override TUI color
+#   --llm <llm>        LLM for generation (default: claude)
+#   --dry-run          Print generated content without writing
+#   --no-update        Write core files only, skip registration updates
+#
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERN_CLI="$SCRIPT_DIR/../go/bin/vern"
+
+# Auto-download if Go binary doesn't exist
+if [ ! -x "$VERN_CLI" ]; then
+    if command -v go &>/dev/null && [ -f "$SCRIPT_DIR/../go/cmd/vern/main.go" ]; then
+        echo "[vern-generate] Building vern CLI from source..." >&2
+        (cd "$SCRIPT_DIR/../go" && go build -o bin/vern ./cmd/vern) 2>/dev/null
+    fi
+    if [ ! -x "$VERN_CLI" ] && [ -x "$SCRIPT_DIR/install-vern-cli" ]; then
+        "$SCRIPT_DIR/install-vern-cli"
+    fi
+    if [ ! -x "$VERN_CLI" ]; then
+        echo "[vern-generate] Error: vern CLI not available. Run: cd go && go build -o bin/vern ./cmd/vern" >&2
+        exit 1
+    fi
+fi
+
+exec "$VERN_CLI" generate "$@"

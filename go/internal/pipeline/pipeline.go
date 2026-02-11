@@ -198,6 +198,50 @@ func (p *Pipeline) execute(mode string) error {
 		p.fullPrompt += "\n\n=== INPUT MATERIALS ===\n" + inputContext + "\n=== END INPUT MATERIALS ==="
 	}
 
+	// Historian pre-step: if input files exist, run Historian to index them
+	if inputContext != "" && opts.ReadInput {
+		historianOut := filepath.Join(inputDir, "input-history.md")
+
+		// Skip if already indexed (resume support)
+		if _, statErr := os.Stat(historianOut); os.IsNotExist(statErr) {
+			p.printf("\n>>> Invoking the ancient secrets of the Historian...\n")
+			p.log("Historian pre-step: indexing input files")
+
+			promptFile := filepath.Join(inputDir, "prompt.md")
+
+			hResult, hErr := RunHistorian(HistorianOptions{
+				Ctx:        opts.Ctx,
+				TargetDir:  inputDir,
+				OutputFile: historianOut,
+				PromptFile: promptFile,
+				AgentsDir:  opts.AgentsDir,
+				Timeout:    opts.Timeout,
+				OnLog:      opts.OnLog,
+			})
+
+			if hErr != nil {
+				p.printf("    Historian failed: %v (continuing without index)\n", hErr)
+				p.log("Historian pre-step FAILED: %v", hErr)
+			} else {
+				p.printf("    Historian complete (%s, %d chars, LLM: %s)\n",
+					hResult.Duration.Round(100*time.Millisecond), hResult.CharCount, hResult.LLMUsed)
+				if hResult.FellBack {
+					p.printf("    WARNING: Gemini not installed -- used %s fallback.\n", hResult.LLMUsed)
+					p.printf("    The Historian needs Gemini's 2M context window for large inputs.\n")
+					p.printf("    Index may be incomplete. Install Gemini CLI for best results.\n")
+				}
+				p.log("Historian pre-step OK: %d chars in %s", hResult.CharCount, hResult.Duration)
+
+				// Re-read input context to include the new input-history.md
+				inputContext = p.buildInputContext(inputDir)
+				p.fullPrompt = opts.Idea + "\n\n=== INPUT MATERIALS ===\n" + inputContext + "\n=== END INPUT MATERIALS ==="
+			}
+		} else {
+			p.printf("Historian index already exists, skipping pre-step.\n")
+			p.log("Historian pre-step: SKIPPED (input-history.md already exists)")
+		}
+	}
+
 	// Set working dir for codex
 	os.Setenv("VERN_WORKING_DIR", opts.DiscoveryDir)
 
