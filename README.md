@@ -81,6 +81,23 @@ brew install vern
 
 To update later: `brew upgrade vern`
 
+#### Scoop (Windows)
+
+```powershell
+scoop bucket add vern https://github.com/jdonohoo/homebrew-vern
+scoop install vern
+```
+
+To update later: `scoop update vern`
+
+#### Winget (Windows)
+
+```powershell
+winget install jdonohoo.vern
+```
+
+To update later: `winget upgrade jdonohoo.vern`
+
 #### Manual Download
 
 Download the latest binary from [GitHub Releases](https://github.com/jdonohoo/vern-bot/releases):

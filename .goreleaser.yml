@@ -44,6 +44,27 @@ brews:
     test: |
       system "#{bin}/vern", "--help"
 
+scoops:
+  - repository:
+      owner: jdonohoo
+      name: homebrew-vern
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://jdonohoo.github.io/vern-bot/"
+    description: "16 AI personas, multi-LLM discovery pipelines, and VernHole councils. One idea in, battle-tested plan out."
+    license: MIT
+
+winget:
+  - name: vern
+    publisher: jdonohoo
+    short_description: "Multi-LLM discovery pipeline with 16 AI personas"
+    license: MIT
+    publisher_url: "https://jdonohoo.github.io/vern-bot/"
+    homepage: "https://jdonohoo.github.io/vern-bot/"
+    repository:
+      owner: jdonohoo
+      name: homebrew-vern
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+
 changelog:
   sort: asc
   filters:

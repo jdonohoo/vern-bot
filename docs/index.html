@@ -1311,8 +1311,16 @@
         </div>
 
         <div style="text-align: center; margin: 32px 0;">
-            <h3 style="margin-bottom: 16px; font-size: 1.2rem;">Install with Homebrew</h3>
+            <h3 style="margin-bottom: 16px; font-size: 1.2rem;">Install with Homebrew (macOS / Linux)</h3>
             <div class="install-cmd">brew tap jdonohoo/vern<br>brew install vern</div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Then run <code style="color: var(--cyan);">vern tui</code> to launch the interactive terminal UI.</p>
+        </div>
+
+        <div style="text-align: center; margin: 32px 0;">
+            <h3 style="margin-bottom: 16px; font-size: 1.2rem;">Install on Windows</h3>
+            <div class="install-cmd">scoop bucket add vern https://github.com/jdonohoo/homebrew-vern<br>scoop install vern</div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px;">or</p>
+            <div class="install-cmd">winget install jdonohoo.vern</div>
             <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Then run <code style="color: var(--cyan);">vern tui</code> to launch the interactive terminal UI.</p>
         </div>
 
@@ -1347,7 +1355,7 @@
 
         <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 24px;">
             Requires at least one LLM CLI: <code>claude</code>, <code>codex</code>, <code>gemini</code>, or <code>copilot</code>.
-            <br>Install via <code style="color: var(--cyan);">brew install jdonohoo/vern/vern</code> or download from <a href="https://github.com/jdonohoo/vern-bot/releases" style="color: var(--accent);">GitHub Releases</a>.
+            <br>Install via <code style="color: var(--cyan);">brew install jdonohoo/vern/vern</code>, <code style="color: var(--cyan);">scoop install vern</code>, <code style="color: var(--cyan);">winget install jdonohoo.vern</code>, or download from <a href="https://github.com/jdonohoo/vern-bot/releases" style="color: var(--accent);">GitHub Releases</a>.
         </p>
     </div>
 </div>
@@ -1747,7 +1755,7 @@ Synthesizing 15 perspectives into final report...</div>
             Check us out on GitHub
         </a>
         <div class="install-cmd">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Or go standalone: <code style="color: var(--cyan);">brew install jdonohoo/vern/vern && vern tui</code></p>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Or go standalone: <code style="color: var(--cyan);">brew install jdonohoo/vern/vern</code> | <code style="color: var(--cyan);">scoop install vern</code> | <code style="color: var(--cyan);">winget install jdonohoo.vern</code></p>
         <p class="dad-joke">Why did the mass of Verns cross the road? To get to the other paradigm.</p>
     </div>
 </footer>
