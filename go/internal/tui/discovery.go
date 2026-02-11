@@ -31,19 +31,20 @@ const (
 // discoveryVals holds form-bound values on the heap so pointers survive
 // bubbletea's value-copy semantics.
 type discoveryVals struct {
-	idea       string
-	name       string
-	outputPath string
-	customPath string
-	llmMode    string
-	singleLLM  string
-	pipeline    string
-	vernhole    string
-	oracle      bool
-	oracleApply string
-	confirm     bool
-	cancel     context.CancelFunc
-	logCh      chan string
+	idea         string
+	name         string
+	outputPath   string
+	customPath   string
+	llmMode      string
+	singleLLM    string
+	pipeline     string
+	runHistorian bool
+	vernhole     string
+	oracle       bool
+	oracleApply  string
+	confirm      bool
+	cancel       context.CancelFunc
+	logCh        chan string
 }
 
 // DiscoveryModel handles the discovery pipeline wizard.
@@ -61,25 +62,30 @@ type DiscoveryModel struct {
 	vals        *discoveryVals
 
 	// Execution state
-	running        bool
-	stepLog        []string
-	stepsCompleted int
-	totalSteps     int
-	statusContent  string // pipeline-status.md content for status panel
-	err            error
-	setupErr       error
+	running               bool
+	stepLog               []string
+	pipelineSteps         []string // step definitions captured from "[step] N. Name → llm"
+	stepsCompleted        int
+	totalSteps            int
+	historianPhase        string // "pending", "running", "done", "failed", "skipped"
+	currentStep           int    // which pipeline step number is currently running
+	completedPipelineStep int    // highest completed pipeline step number
+	statusContent         string // pipeline-status.md content for status panel
+	err                   error
+	setupErr              error
 }
 
 func NewDiscoveryModel(projectRoot, agentsDir string) DiscoveryModel {
 	vals := &discoveryVals{
-		outputPath:  "default",
-		llmMode:     "mixed_claude_fallback",
-		singleLLM:   "claude",
-		pipeline:    "default",
-		vernhole:    "full",
-		oracle:      true,
-		oracleApply: "vision",
-		confirm:     true,
+		outputPath:   "default",
+		llmMode:      "mixed_claude_fallback",
+		singleLLM:    "claude",
+		pipeline:     "default",
+		runHistorian: true,
+		vernhole:     "full",
+		oracle:       true,
+		oracleApply:  "vision",
+		confirm:      true,
 	}
 
 	m := DiscoveryModel{
@@ -194,6 +200,14 @@ func (m *DiscoveryModel) buildConfigForm() *huh.Form {
 				Value(&v.pipeline),
 		),
 		huh.NewGroup(
+			huh.NewConfirm().
+				Title("Run Historian to index input files?").
+				Description("Uses Gemini's 2M context to create a deep index for downstream steps").
+				Affirmative("Yes (Recommended)").
+				Negative("Skip").
+				Value(&v.runHistorian),
+		),
+		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Run VernHole council after pipeline?").
 				Options(VernHoleOptions...).
@@ -252,8 +266,43 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.DisableMouse
 
 	case pipelineLogMsg:
-		m.stepLog = append(m.stepLog, msg.line)
-		m.updateProgress(msg.line)
+		line := msg.line
+
+		// Capture step list lines for the outline (don't show in activity log)
+		if strings.HasPrefix(line, "[step] ") {
+			m.pipelineSteps = append(m.pipelineSteps, strings.TrimPrefix(line, "[step] "))
+			return m, m.waitForLog()
+		}
+
+		// Filter banner/noise lines
+		if isFilteredLogLine(line) {
+			return m, m.waitForLog()
+		}
+
+		// Track historian state
+		upper := strings.ToUpper(line)
+		if strings.Contains(upper, "INVOKING THE ANCIENT SECRETS OF THE HISTORIAN") {
+			m.historianPhase = "running"
+		} else if strings.Contains(upper, "HISTORIAN COMPLETE") || strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS") {
+			m.historianPhase = "done"
+		} else if strings.Contains(upper, "HISTORIAN FAILED") {
+			m.historianPhase = "failed"
+		}
+
+		// Track current pipeline step from ">>> Pass N/M:" lines
+		if strings.HasPrefix(line, ">>> Pass ") {
+			rest := strings.TrimPrefix(line, ">>> Pass ")
+			if idx := strings.Index(rest, "/"); idx > 0 {
+				var n int
+				fmt.Sscanf(rest[:idx], "%d", &n)
+				if n > 0 {
+					m.currentStep = n
+				}
+			}
+		}
+
+		m.stepLog = append(m.stepLog, line)
+		m.updateProgress(line)
 		return m, m.waitForLog()
 
 	case discStatusTickMsg:
@@ -312,6 +361,12 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.vals.pipeline == "expanded" {
 				m.totalSteps = 7
 			}
+			if m.vals.runHistorian {
+				m.totalSteps++ // +1 for historian pre-step
+				m.historianPhase = "pending"
+			} else {
+				m.historianPhase = "skipped"
+			}
 			m.vals.logCh = make(chan string, 100)
 			return m, tea.Batch(m.spinner.Tick, m.startPipeline(), m.waitForLog(), m.statusTick())
 		}
@@ -345,12 +400,17 @@ func (m *DiscoveryModel) updateProgress(line string) {
 	upper := strings.ToUpper(line)
 	if strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED") {
 		m.stepsCompleted++
-		pct := float64(m.stepsCompleted) / float64(m.totalSteps)
-		if pct > 1 {
-			pct = 1
-		}
-		m.progress.SetPercent(pct)
+		m.completedPipelineStep = m.currentStep
+	} else if strings.Contains(upper, "HISTORIAN COMPLETE") ||
+		strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS") ||
+		strings.Contains(upper, "HISTORIAN FAILED") {
+		m.stepsCompleted++
 	}
+	pct := float64(m.stepsCompleted) / float64(m.totalSteps)
+	if pct > 1 {
+		pct = 1
+	}
+	m.progress.SetPercent(pct)
 }
 
 func (m *DiscoveryModel) initDoneViewport() {
@@ -454,8 +514,14 @@ func (m DiscoveryModel) confirmSummary() string {
 		llmDesc = "single_llm (" + v.singleLLM + ")"
 	}
 
+	hist := "Yes"
+	if !v.runHistorian {
+		hist = "Skipped"
+	}
+
 	b.WriteString(fmt.Sprintf("  %s    %s\n", label("Pipeline:"), val(mode)))
 	b.WriteString(fmt.Sprintf("  %s    %s\n", label("LLM Mode:"), val(llmDesc)))
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Historian:"), val(hist)))
 	b.WriteString(fmt.Sprintf("  %s    %s\n", label("VernHole:"), val(council)))
 
 	if v.vernhole != "" && v.oracle {
@@ -492,16 +558,17 @@ func (m DiscoveryModel) startPipeline() tea.Cmd {
 		dir := m.discoveryDir()
 
 		opts := pipeline.Options{
-			Ctx:          ctx,
-			Idea:         v.idea,
-			DiscoveryDir: dir,
-			BatchMode:    true,
-			ReadInput:    true,
-			Expanded:     v.pipeline == "expanded",
-			AgentsDir:    m.agentsDir,
-			ProjectRoot:  m.projectRoot,
-			LLMMode:      v.llmMode,
-			SingleLLM:    v.singleLLM,
+			Ctx:           ctx,
+			Idea:          v.idea,
+			DiscoveryDir:  dir,
+			BatchMode:     true,
+			ReadInput:     true,
+			SkipHistorian: !v.runHistorian,
+			Expanded:      v.pipeline == "expanded",
+			AgentsDir:     m.agentsDir,
+			ProjectRoot:   m.projectRoot,
+			LLMMode:       v.llmMode,
+			SingleLLM:     v.singleLLM,
 			OnLog: func(line string) {
 				select {
 				case v.logCh <- line:
@@ -612,26 +679,57 @@ func (m DiscoveryModel) View() string {
 			progressStyle.Render(m.progress.ViewAs(pct)),
 			m.stepsCompleted, m.totalSteps))
 
-		// Prompt section
-		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Prompt:"), logDimStyle.Render("input/prompt.md")))
-		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Output:"), logDimStyle.Render(m.discoveryDir())))
-
-		// Separator
-		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 40)) + "\n")
-
 		// Config section
 		mode := "default"
 		if m.vals.pipeline == "expanded" {
 			mode = "expanded"
 		}
-		b.WriteString(fmt.Sprintf("  %s    %s  |  %s  %s\n\n",
+		b.WriteString(fmt.Sprintf("  %s  %s  |  %s  %s  |  %s  %s\n",
 			label("Pipeline:"), llmStyle.Render(mode),
-			label("LLM:"), llmStyle.Render(m.vals.llmMode)))
+			label("LLM:"), llmStyle.Render(m.vals.llmMode),
+			label("Output:"), logDimStyle.Render(m.discoveryDir())))
 
+		// Separator
+		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
+
+		// Step outline
+		outlineLines := 0
+		if m.historianPhase != "skipped" {
+			historianLabel := "Historian (pre-step)"
+			switch m.historianPhase {
+			case "done":
+				b.WriteString("  " + stepOKStyle.Render("✓ "+historianLabel) + "\n")
+			case "running":
+				b.WriteString("  " + m.spinner.View() + " " + llmStyle.Render(historianLabel) + "\n")
+			case "failed":
+				b.WriteString("  " + stepFailStyle.Render("✗ "+historianLabel+" (failed)") + "\n")
+			default: // pending
+				b.WriteString("  " + logDimStyle.Render("· "+historianLabel) + "\n")
+			}
+			outlineLines++
+		}
+
+		for i, stepLine := range m.pipelineSteps {
+			stepNum := i + 1
+			if stepNum <= m.completedPipelineStep {
+				b.WriteString("  " + stepOKStyle.Render("✓ "+stepLine) + "\n")
+			} else if stepNum == m.currentStep {
+				style := stepColors[(stepNum-1)%len(stepColors)]
+				b.WriteString("  " + m.spinner.View() + " " + style.Render(stepLine) + "\n")
+			} else {
+				b.WriteString("  " + logDimStyle.Render("· "+stepLine) + "\n")
+			}
+			outlineLines++
+		}
+
+		// Separator before activity log
+		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
+
+		// Activity log
 		cw := contentWidth(m.width)
-		availHeight := m.height - 14
-		if availHeight < 8 {
-			availHeight = 8
+		availHeight := m.height - 14 - outlineLines
+		if availHeight < 4 {
+			availHeight = 4
 		}
 
 		if cw >= splitPanelMinWidth && m.statusContent != "" {

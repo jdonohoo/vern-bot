@@ -1,8 +1,10 @@
 package llm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -24,6 +26,7 @@ type RunOptions struct {
 	WorkingDir     string // working directory for the LLM subprocess
 	AgentsDir      string // path to agents/ for persona loading
 	AllowFileRead  bool   // when true, permit the LLM to read files from the filesystem
+	QuietStderr    bool   // when true, discard stderr (TUI mode — prevents display corruption)
 }
 
 // Result holds the output of an LLM run.
@@ -158,10 +161,21 @@ func Run(opts RunOptions) (*Result, error) {
 		cmd.Dir = opts.WorkingDir
 	}
 
+	// Capture stdout only — let stderr pass through to the terminal so the user
+	// sees progress/errors but they don't pollute the captured output.
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	if opts.QuietStderr {
+		cmd.Stderr = io.Discard
+	} else {
+		cmd.Stderr = os.Stderr
+	}
+
 	// Set process group for non-codex LLMs
 	setProcGroup(cmd)
 
-	output, err = cmd.CombinedOutput()
+	err = cmd.Run()
+	output = stdoutBuf.Bytes()
 	duration := time.Since(start)
 
 	exitCode := exitCodeFromErr(err)

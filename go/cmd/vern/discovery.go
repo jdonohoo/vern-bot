@@ -18,6 +18,7 @@ var discoveryCmd = &cobra.Command{
 Flags:
   --batch              Non-interactive mode (for skill/plugin use)
   --skip-input         Don't read input/ files as context
+  --skip-historian     Skip the Historian pre-step
   --vernhole N         Run VernHole with N verns after pipeline
   --vernhole-council   Use a named council tier
   --oracle             Run Oracle Vern after VernHole
@@ -35,6 +36,7 @@ Flags:
 var (
 	discBatch         bool
 	discSkipInput     bool
+	discSkipHistorian bool
 	discVernhole      int
 	discCouncil       string
 	discOracle        bool
@@ -50,6 +52,7 @@ var (
 func init() {
 	discoveryCmd.Flags().BoolVar(&discBatch, "batch", false, "Non-interactive mode")
 	discoveryCmd.Flags().BoolVar(&discSkipInput, "skip-input", false, "Don't read input/ files as context")
+	discoveryCmd.Flags().BoolVar(&discSkipHistorian, "skip-historian", false, "Skip the Historian pre-step (indexing input files)")
 	discoveryCmd.Flags().IntVar(&discVernhole, "vernhole", 0, "Run VernHole with N verns after pipeline")
 	discoveryCmd.Flags().StringVar(&discCouncil, "vernhole-council", "", "Use a named VernHole council tier")
 	discoveryCmd.Flags().BoolVar(&discOracle, "oracle", false, "Run Oracle Vern after VernHole")
@@ -107,6 +110,7 @@ func runDiscovery(cmd *cobra.Command, args []string) error {
 		DiscoveryDir:      discoveryDir,
 		BatchMode:         discBatch,
 		ReadInput:         !discSkipInput,
+		SkipHistorian:     discSkipHistorian,
 		Expanded:          discExpanded,
 		ResumeFrom:        discResumeFrom,
 		MaxRetries:        discMaxRetries,

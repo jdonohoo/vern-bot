@@ -21,6 +21,7 @@ type Options struct {
 	DiscoveryDir      string
 	BatchMode         bool
 	ReadInput         bool
+	SkipHistorian     bool
 	Expanded          bool
 	ResumeFrom        int
 	MaxRetries        int
@@ -199,7 +200,7 @@ func (p *Pipeline) execute(mode string) error {
 	}
 
 	// Historian pre-step: if input files exist, run Historian to index them
-	if inputContext != "" && opts.ReadInput {
+	if inputContext != "" && opts.ReadInput && !opts.SkipHistorian {
 		historianOut := filepath.Join(inputDir, "input-history.md")
 
 		// Skip if already indexed (resume support)
@@ -210,13 +211,14 @@ func (p *Pipeline) execute(mode string) error {
 			promptFile := filepath.Join(inputDir, "prompt.md")
 
 			hResult, hErr := RunHistorian(HistorianOptions{
-				Ctx:        opts.Ctx,
-				TargetDir:  inputDir,
-				OutputFile: historianOut,
-				PromptFile: promptFile,
-				AgentsDir:  opts.AgentsDir,
-				Timeout:    opts.Timeout,
-				OnLog:      opts.OnLog,
+				Ctx:          opts.Ctx,
+				TargetDir:    inputDir,
+				OutputFile:   historianOut,
+				PromptFile:   promptFile,
+				AgentsDir:    opts.AgentsDir,
+				Timeout:      opts.Timeout,
+				OnLog:        opts.OnLog,
+				QuietStderr:  opts.OnLog != nil,
 			})
 
 			if hErr != nil {
@@ -307,13 +309,14 @@ func (p *Pipeline) execute(mode string) error {
 			}
 
 			result, _ := llm.Run(llm.RunOptions{
-				Ctx:        opts.Ctx,
-				LLM:        retryLLM,
-				Prompt:     runPrompt,
-				OutputFile: outputFile,
-				Persona:    retryPersona,
-				Timeout:    time.Duration(opts.Timeout) * time.Second,
-				AgentsDir:  opts.AgentsDir,
+				Ctx:         opts.Ctx,
+				LLM:         retryLLM,
+				Prompt:      runPrompt,
+				OutputFile:  outputFile,
+				Persona:     retryPersona,
+				Timeout:     time.Duration(opts.Timeout) * time.Second,
+				AgentsDir:   opts.AgentsDir,
+				QuietStderr: opts.OnLog != nil,
 			})
 
 			lastExitCode = result.ExitCode
@@ -344,13 +347,14 @@ func (p *Pipeline) execute(mode string) error {
 			fellBack = true
 
 			result, _ := llm.Run(llm.RunOptions{
-				Ctx:        opts.Ctx,
-				LLM:        fallbackLLM,
-				Prompt:     runPrompt,
-				OutputFile: outputFile,
-				Persona:    retryPersona,
-				Timeout:    time.Duration(opts.Timeout) * time.Second,
-				AgentsDir:  opts.AgentsDir,
+				Ctx:         opts.Ctx,
+				LLM:         fallbackLLM,
+				Prompt:      runPrompt,
+				OutputFile:  outputFile,
+				Persona:     retryPersona,
+				Timeout:     time.Duration(opts.Timeout) * time.Second,
+				AgentsDir:   opts.AgentsDir,
+				QuietStderr: opts.OnLog != nil,
 			})
 
 			attemptCount++

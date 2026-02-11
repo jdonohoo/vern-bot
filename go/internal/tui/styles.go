@@ -211,6 +211,8 @@ func renderLogLine(line string) string {
 			return logSynthStyle.Render(line)
 		}
 		return logStepStyle.Render(line)
+	case strings.Contains(upper, "HISTORIAN COMPLETE") || strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS"):
+		return logOKStyle.Render(line)
 	case strings.Contains(upper, "OK (") || strings.Contains(upper, "FALLBACK SUCCEEDED"):
 		return logOKStyle.Render(line)
 	case strings.Contains(upper, "FAILED") || strings.Contains(upper, "ERROR"):
@@ -224,6 +226,41 @@ func renderLogLine(line string) string {
 	default:
 		return logDimStyle.Render(line)
 	}
+}
+
+// isFilteredLogLine returns true for log lines that should not appear in the TUI activity log.
+// These are either redundant with the static header or noise from LLM subprocess stderr.
+func isFilteredLogLine(line string) bool {
+	upper := strings.ToUpper(line)
+
+	// Banner lines (redundant with static header)
+	if strings.HasPrefix(line, "=== VERN") {
+		return true
+	}
+	if strings.HasPrefix(line, "Prompt:") || strings.HasPrefix(line, "Pipeline:") || strings.HasPrefix(line, "Retries:") {
+		return true
+	}
+
+	// Gemini CLI stderr noise
+	if strings.Contains(upper, "YOLO MODE IS ENABLED") {
+		return true
+	}
+	if strings.Contains(upper, "LOADED CACHED CREDENTIALS") {
+		return true
+	}
+	if strings.Contains(upper, "HOOK REGISTRY INITIALIZED") {
+		return true
+	}
+	if strings.Contains(upper, "ALL TOOL CALLS WILL BE AUTOMATICALLY APPROVED") {
+		return true
+	}
+
+	// Empty/whitespace lines
+	if strings.TrimSpace(line) == "" {
+		return true
+	}
+
+	return false
 }
 
 // renderLogPanel renders the scrolling log lines into a bordered panel.

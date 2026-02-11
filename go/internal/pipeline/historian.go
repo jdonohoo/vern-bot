@@ -21,8 +21,9 @@ type HistorianOptions struct {
 	PromptFile string // Optional: prompt.md to update with reference to the index
 	AgentsDir  string
 	Timeout    int // seconds
-	LLMName    string // override LLM (default: gemini)
-	OnLog      func(string)
+	LLMName     string // override LLM (default: gemini)
+	QuietStderr bool   // suppress stderr (TUI mode)
+	OnLog       func(string)
 }
 
 // HistorianResult holds the outcome of a Historian run.
@@ -98,7 +99,17 @@ Recursively read and index ALL files in this directory:
 
 There are approximately %d indexable files. Read ALL of them. Skip only input-history.md and prompt.md.
 
-Do NOT try to read all files at once — crawl the directory structure, read files individually or in small batches, and compile your index incrementally.
+## STEP 1: DISCOVER THE FILE TREE (do this FIRST)
+
+Before reading any files, run a recursive directory listing to discover the full structure:
+  ls -R
+or list subdirectories individually. This gives you the complete roadmap of every file and folder.
+
+Use ONLY paths from your directory listing when reading files. Do NOT guess at directory names or file paths. If a path fails, re-list that directory to find the correct name.
+
+## STEP 2: READ AND INDEX
+
+Work through the file listing systematically. Read files individually or in small batches. Compile your index incrementally as you go.
 
 ## PURPOSE
 
@@ -157,6 +168,7 @@ Tag key items inline as they appear:
 		AgentsDir:     opts.AgentsDir,
 		AllowFileRead: true,
 		WorkingDir:    absDir,
+		QuietStderr:   opts.QuietStderr,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("historian LLM call failed: %w", err)
@@ -168,21 +180,37 @@ Tag key items inline as they appear:
 		return nil, fmt.Errorf("historian LLM exited with code %d", result.ExitCode)
 	}
 
-	output := result.Output
-	if strings.TrimSpace(output) == "" {
-		return nil, fmt.Errorf("historian produced empty output")
-	}
-
-	// Write output file
+	// Resolve output file path before checking content sources
 	outputFile := opts.OutputFile
 	if outputFile == "" {
 		outputFile = filepath.Join(opts.TargetDir, "input-history.md")
 	}
-	if err := os.WriteFile(outputFile, []byte(output), 0644); err != nil {
-		return nil, fmt.Errorf("write input-history.md: %w", err)
+
+	output := result.Output
+
+	// Agentic LLMs (especially Gemini --yolo) may write the output file directly
+	// instead of returning content on stdout. Check both sources.
+	if strings.TrimSpace(output) == "" {
+		if data, readErr := os.ReadFile(outputFile); readErr == nil && len(strings.TrimSpace(string(data))) > 0 {
+			output = string(data)
+			logFn("LLM wrote output file directly (stdout was empty) — preserving it")
+		}
 	}
 
-	logFn(fmt.Sprintf("Wrote %s (%d chars)", outputFile, len(output)))
+	if strings.TrimSpace(output) == "" {
+		return nil, fmt.Errorf("historian produced empty output (checked stdout and %s)", outputFile)
+	}
+
+	// Only write if the LLM didn't already write the file with this content
+	existingData, _ := os.ReadFile(outputFile)
+	if string(existingData) != output {
+		if err := os.WriteFile(outputFile, []byte(output), 0644); err != nil {
+			return nil, fmt.Errorf("write input-history.md: %w", err)
+		}
+		logFn(fmt.Sprintf("Wrote %s (%d chars)", outputFile, len(output)))
+	} else {
+		logFn(fmt.Sprintf("Output file already written by LLM: %s (%d chars)", outputFile, len(output)))
+	}
 
 	// Update prompt.md if it exists
 	if opts.PromptFile != "" {
