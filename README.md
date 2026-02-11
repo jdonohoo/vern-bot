@@ -72,25 +72,47 @@ Now available as a **standalone terminal app** — no Claude Code required.
 
 ### Standalone (No Claude Code Required)
 
-Download the latest binary from [GitHub Releases](https://github.com/jdonohoo/vern-bot/releases) or build from source:
+#### Homebrew (macOS / Linux)
 
 ```bash
-# Download (macOS Apple Silicon example)
+brew tap jdonohoo/vern
+brew install vern
+```
+
+To update later: `brew upgrade vern`
+
+#### Manual Download
+
+Download the latest binary from [GitHub Releases](https://github.com/jdonohoo/vern-bot/releases):
+
+```bash
+# macOS Apple Silicon
 curl -Lo vern https://github.com/jdonohoo/vern-bot/releases/latest/download/vern-darwin-arm64
 chmod +x vern
 sudo mv vern /usr/local/bin/
+```
 
-# Or build from source
+#### Build from Source
+
+```bash
 git clone https://github.com/jdonohoo/vern-bot.git
 cd vern-bot/go
 go build -o bin/vern ./cmd/vern
 sudo cp bin/vern /usr/local/bin/
 ```
 
-Then run the setup wizard to detect your LLMs and configure defaults:
+#### First Run
+
+Run the setup wizard to detect your LLMs and configure defaults:
 
 ```bash
 vern setup
+```
+
+Then launch the TUI:
+
+```bash
+vern tui
 ```
 
 **Available binaries:** macOS (Intel + Apple Silicon), Linux (x64 + ARM64), Windows (x64 + ARM64).
@@ -107,12 +129,13 @@ vern tui
 
 ```
 ┌──────────────────────────────────┐
-│         VERN-BOT v2.1            │
+│         VERN-BOT v2.2            │
 │                                  │
 │  [1] Discovery Pipeline          │
 │  [2] VernHole Council            │
 │  [3] Single LLM Run             │
-│  [4] Settings                    │
+│  [4] Post-Processing             │
+│  [5] Settings                    │
 │  [q] Quit                        │
 │                                  │
 │  LLM Mode: Mixed + Claude FB    │

@@ -1103,13 +1103,20 @@
         </p>
 
         <div class="tui-preview">
-            <div class="tui-header">VERN-BOT v2.1</div>
+            <div class="tui-header">VERN-BOT v2.2</div>
             <span class="tui-item">[1]</span> Discovery Pipeline<br>
             <span class="tui-item">[2]</span> VernHole Council<br>
             <span class="tui-item">[3]</span> Single LLM Run<br>
-            <span class="tui-item">[4]</span> Settings<br>
+            <span class="tui-item">[4]</span> Post-Processing<br>
+            <span class="tui-item">[5]</span> Settings<br>
             <span class="tui-item">[q]</span> Quit<br>
             <div class="tui-status">LLM Mode: Mixed + Claude Fallback &nbsp;&bull;&nbsp; LLMs: claude codex gemini copilot</div>
+        </div>
+
+        <div style="text-align: center; margin: 32px 0;">
+            <h3 style="margin-bottom: 16px; font-size: 1.2rem;">Install with Homebrew</h3>
+            <div class="install-cmd">brew tap jdonohoo/vern<br>brew install vern</div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Then run <code style="color: var(--cyan);">vern tui</code> to launch the interactive terminal UI.</p>
         </div>
 
         <h3 style="text-align: center; margin-bottom: 24px; font-size: 1.2rem;">Why Standalone?</h3>
@@ -1143,7 +1150,7 @@
 
         <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 24px;">
             Requires at least one LLM CLI: <code>claude</code>, <code>codex</code>, <code>gemini</code>, or <code>copilot</code>.
-            <br>Available for macOS, Linux, and Windows from <a href="https://github.com/jdonohoo/vern-bot/releases" style="color: var(--accent);">GitHub Releases</a>.
+            <br>Install via <code style="color: var(--cyan);">brew install jdonohoo/vern/vern</code> or download from <a href="https://github.com/jdonohoo/vern-bot/releases" style="color: var(--accent);">GitHub Releases</a>.
         </p>
     </div>
 </div>
@@ -1543,7 +1550,7 @@ Synthesizing 15 perspectives into final report...</div>
             Check us out on GitHub
         </a>
         <div class="install-cmd">/plugin marketplace add https://github.com/jdonohoo/vern-bot<br>/plugin install vern</div>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Or go standalone: <code style="color: var(--cyan);">vern tui</code> &mdash; no Claude Code required</p>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 12px;">Or go standalone: <code style="color: var(--cyan);">brew install jdonohoo/vern/vern && vern tui</code></p>
         <p class="dad-joke">Why did the mass of Verns cross the road? To get to the other paradigm.</p>
     </div>
 </footer>
