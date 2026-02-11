@@ -331,7 +331,7 @@
             font-size: 0.9rem;
             color: var(--text);
             max-width: 520px;
-            margin: 0 auto 32px auto;
+            margin: 0 auto;
             line-height: 1.7;
         }
         .tui-preview .tui-header {
@@ -347,6 +347,107 @@
             color: var(--text-muted);
             font-size: 0.85rem;
             margin-top: 12px;
+        }
+        .tui-preview .tui-ok { color: var(--green); }
+        .tui-preview .tui-warn { color: var(--yellow); }
+        .tui-preview .tui-fail { color: var(--red); }
+        .tui-preview .tui-accent { color: var(--accent); }
+        .tui-preview .tui-purple { color: var(--purple); }
+        .tui-preview .tui-magenta { color: var(--magenta); }
+        .tui-preview .tui-dim { color: var(--text-muted); }
+        .tui-preview .tui-spinner { color: var(--cyan); display: inline; }
+        .tui-preview .tui-progress-bar {
+            display: inline-block;
+            background: var(--border);
+            border-radius: 4px;
+            width: 180px;
+            height: 8px;
+            overflow: hidden;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .tui-preview .tui-progress-fill {
+            display: block;
+            height: 100%;
+            background: var(--cyan);
+            border-radius: 4px;
+        }
+
+        /* Carousel */
+        .tui-carousel {
+            position: relative;
+            max-width: 520px;
+            margin: 0 auto 32px auto;
+        }
+        .tui-carousel-track {
+            position: relative;
+            overflow: hidden;
+        }
+        .tui-slide {
+            display: none;
+            animation: tuiFadeIn 0.4s ease;
+        }
+        .tui-slide.active { display: block; }
+        @keyframes tuiFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tui-carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .tui-carousel-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--border);
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            padding: 0;
+        }
+        .tui-carousel-dot.active {
+            background: var(--cyan);
+            transform: scale(1.3);
+        }
+        .tui-carousel-dot:hover { background: var(--purple); }
+        .tui-carousel-label {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 8px;
+        }
+        .tui-carousel-arrows {
+            position: absolute;
+            top: 50%;
+            left: -40px;
+            right: -40px;
+            display: flex;
+            justify-content: space-between;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        .tui-carousel-arrow {
+            pointer-events: auto;
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .tui-carousel-arrow:hover { border-color: var(--cyan); color: var(--cyan); }
+        @media (max-width: 600px) {
+            .tui-carousel-arrows { left: -8px; right: -8px; }
+            .tui-carousel-arrow { width: 28px; height: 28px; font-size: 0.85rem; }
         }
 
         /* Pipelines */
@@ -1102,15 +1203,111 @@
             Hit your Claude Code token limit? Prefer a native terminal workflow? Now you can run the full Vern-Bot experience &mdash; discovery pipelines, VernHole councils, and all 16 personas &mdash; without Claude Code. Just the <code>vern</code> binary, your LLMs, and a terminal.
         </p>
 
-        <div class="tui-preview">
-            <div class="tui-header">VERN-BOT v2.2</div>
-            <span class="tui-item">[1]</span> Discovery Pipeline<br>
-            <span class="tui-item">[2]</span> VernHole Council<br>
-            <span class="tui-item">[3]</span> Single LLM Run<br>
-            <span class="tui-item">[4]</span> Post-Processing<br>
-            <span class="tui-item">[5]</span> Settings<br>
-            <span class="tui-item">[q]</span> Quit<br>
-            <div class="tui-status">LLM Mode: Mixed + Claude Fallback &nbsp;&bull;&nbsp; LLMs: claude codex gemini copilot</div>
+        <div class="tui-carousel" id="tuiCarousel">
+            <div class="tui-carousel-track">
+
+                <!-- Slide 1: Main Menu -->
+                <div class="tui-slide active" data-label="Main Menu">
+                    <div class="tui-preview">
+                        <div class="tui-header">VERN-BOT v2.2</div>
+                        <span class="tui-item">[1]</span> Discovery Pipeline<br>
+                        <span class="tui-item">[2]</span> VernHole Council<br>
+                        <span class="tui-item">[3]</span> Single LLM Run<br>
+                        <span class="tui-item">[4]</span> Post-Processing<br>
+                        <span class="tui-item">[5]</span> Settings<br>
+                        <span class="tui-item">[q]</span> Quit<br>
+                        <div class="tui-status">LLM Mode: Mixed + Claude Fallback &nbsp;&bull;&nbsp; LLMs: claude codex gemini copilot</div>
+                    </div>
+                </div>
+
+                <!-- Slide 2: Discovery Running -->
+                <div class="tui-slide" data-label="Discovery Pipeline">
+                    <div class="tui-preview">
+                        <div class="tui-header">Discovery Pipeline</div>
+                        <span class="tui-spinner">&#9673;</span> <span class="tui-purple"><b>Running pipeline...</b></span><br>
+                        <span class="tui-dim">&nbsp;&nbsp;Folder: discovery/my-saas-app</span><br>
+                        <span class="tui-dim">&nbsp;&nbsp;Mode: default (5 steps)</span><br><br>
+                        <span class="tui-dim">&nbsp;&nbsp;</span><span class="tui-progress-bar"><span class="tui-progress-fill" style="width:60%"></span></span> <span class="tui-dim">3/5 steps</span><br><br>
+                        <span class="tui-accent">&nbsp;&nbsp;1. Initial Analysis &rarr; codex</span><br>
+                        <span class="tui-item">&nbsp;&nbsp;2. Refinement &rarr; claude</span><br>
+                        <span class="tui-accent">&nbsp;&nbsp;3. Chaos Check &rarr; gemini</span><br>
+                        <span class="tui-dim">&nbsp;&nbsp;4. Consolidation &rarr; codex</span><br>
+                        <span class="tui-dim">&nbsp;&nbsp;5. Architect Breakdown &rarr; claude</span><br><br>
+                        <span class="tui-ok">&nbsp;&nbsp;OK (codex, 4.2KB, 32s)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;OK (claude, 6.1KB, 45s)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;OK (gemini, 3.8KB, 28s)</span><br>
+                        <div class="tui-status">j/k scroll &nbsp;&bull;&nbsp; ctrl+c cancel</div>
+                    </div>
+                </div>
+
+                <!-- Slide 3: VernHole Council -->
+                <div class="tui-slide" data-label="VernHole Council">
+                    <div class="tui-preview">
+                        <div class="tui-header">VernHole Council</div>
+                        <span class="tui-spinner">&#9673;</span> <span class="tui-purple"><b>Summoning the VernHole council...</b></span><br>
+                        <span class="tui-dim">&nbsp;&nbsp;Output: ./vernhole/</span><br><br>
+                        <span class="tui-dim">&nbsp;&nbsp;</span><span class="tui-progress-bar"><span class="tui-progress-fill" style="width:47%"></span></span> <span class="tui-dim">7/15 Verns</span><br><br>
+                        <span class="tui-accent">&gt;&gt;&gt; Vern 1/15: Vernile the Great (claude)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (claude, 4.8KB, 38s)</span><br>
+                        <span class="tui-accent">&gt;&gt;&gt; Vern 2/15: Vern the Mediocre (claude)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (claude, 2.1KB, 12s)</span><br>
+                        <span class="tui-accent">&gt;&gt;&gt; Vern 3/15: YOLO Vern (gemini)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (gemini, 3.2KB, 22s)</span><br>
+                        <span class="tui-accent">&gt;&gt;&gt; Vern 4/15: Paranoid Vern (claude)</span><br>
+                        <span class="tui-warn">&nbsp;&nbsp;&nbsp;&nbsp;WARNING: paranoid failed (exit 1)</span><br>
+                        <span class="tui-accent">&gt;&gt;&gt; Vern 5/15: MightyVern (codex)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;&nbsp;&nbsp;OK (codex, 5.6KB, 41s)</span><br>
+                        <div class="tui-status">j/k scroll &nbsp;&bull;&nbsp; ctrl+c cancel</div>
+                    </div>
+                </div>
+
+                <!-- Slide 4: Post-Processing -->
+                <div class="tui-slide" data-label="Post-Processing">
+                    <div class="tui-preview">
+                        <div class="tui-header">Post-Processing</div>
+                        <span class="tui-dim"><i>Run Oracle or VernHole on existing discovery output.</i></span><br><br>
+                        <span class="tui-purple"><b>What would you like to do?</b></span><br><br>
+                        <span class="tui-item">&gt;</span> <b>Consult the Oracle (generate vision)</b><br>
+                        <span>&nbsp;&nbsp;Apply Oracle's Vision (rewrite VTS tasks)</span><br>
+                        <span>&nbsp;&nbsp;Run VernHole on existing output</span><br><br>
+                        <span class="tui-dim" style="font-size: 0.8rem;">
+                            Oracle reads VernHole synthesis + VTS tasks and<br>
+                            recommends modifications, new tasks, removals,<br>
+                            and dependency changes.
+                        </span>
+                        <div class="tui-status">esc back &nbsp;&bull;&nbsp; enter select</div>
+                    </div>
+                </div>
+
+                <!-- Slide 5: Done / Results -->
+                <div class="tui-slide" data-label="Results View">
+                    <div class="tui-preview">
+                        <div class="tui-header">Discovery Pipeline</div>
+                        <span class="tui-ok"><b>Discovery complete!</b></span><br>
+                        <span class="tui-dim">Files created in: discovery/my-saas-app</span><br><br>
+                        <span class="tui-purple"><b>Pipeline Summary</b></span><br>
+                        <span>&nbsp;&nbsp;Steps: <span class="tui-ok">5/5 passed</span></span><br>
+                        <span>&nbsp;&nbsp;VTS Tasks: <span class="tui-item">12 task files</span></span><br>
+                        <span>&nbsp;&nbsp;VernHole: <span class="tui-item">15/15 Verns</span></span><br>
+                        <span>&nbsp;&nbsp;Oracle: <span class="tui-ok">vision applied</span></span><br><br>
+                        <span class="tui-purple"><b>Activity Log</b></span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Pipeline: 5/5 steps OK (3m 12s)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;VernHole: 15/15 Verns (4m 48s)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Oracle: vision generated (52s)</span><br>
+                        <span class="tui-ok">&nbsp;&nbsp;Oracle: VTS rewritten (38s)</span><br>
+                        <div class="tui-status">j/k scroll &nbsp;&bull;&nbsp; c copy &nbsp;&bull;&nbsp; q/esc menu</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="tui-carousel-arrows">
+                <button class="tui-carousel-arrow" onclick="tuiCarouselNav(-1)">&lsaquo;</button>
+                <button class="tui-carousel-arrow" onclick="tuiCarouselNav(1)">&rsaquo;</button>
+            </div>
+
+            <div class="tui-carousel-dots" id="tuiDots"></div>
+            <div class="tui-carousel-label" id="tuiLabel"></div>
         </div>
 
         <div style="text-align: center; margin: 32px 0;">
@@ -2537,6 +2734,54 @@ Takes the VTS tasks and makes them happen. Assigns each task to the right Vern f
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && overlay.classList.contains('active')) closeModal();
     });
+})();
+</script>
+
+<script>
+(function() {
+    var slides = document.querySelectorAll('#tuiCarousel .tui-slide');
+    var dotsWrap = document.getElementById('tuiDots');
+    var labelEl = document.getElementById('tuiLabel');
+    var current = 0;
+    var autoTimer = null;
+    var autoDelay = 5000;
+
+    // Build dots
+    for (var i = 0; i < slides.length; i++) {
+        var dot = document.createElement('button');
+        dot.className = 'tui-carousel-dot' + (i === 0 ? ' active' : '');
+        dot.setAttribute('aria-label', 'Slide ' + (i + 1));
+        dot.setAttribute('data-idx', i);
+        dot.addEventListener('click', function() { goTo(parseInt(this.getAttribute('data-idx'))); });
+        dotsWrap.appendChild(dot);
+    }
+
+    function goTo(idx) {
+        slides[current].classList.remove('active');
+        dotsWrap.children[current].classList.remove('active');
+        current = (idx + slides.length) % slides.length;
+        slides[current].classList.add('active');
+        dotsWrap.children[current].classList.add('active');
+        labelEl.textContent = slides[current].getAttribute('data-label') || '';
+        resetAuto();
+    }
+
+    function resetAuto() {
+        clearInterval(autoTimer);
+        autoTimer = setInterval(function() { goTo(current + 1); }, autoDelay);
+    }
+
+    // Expose global nav for arrow buttons
+    window.tuiCarouselNav = function(dir) { goTo(current + dir); };
+
+    // Pause on hover
+    var carousel = document.getElementById('tuiCarousel');
+    carousel.addEventListener('mouseenter', function() { clearInterval(autoTimer); });
+    carousel.addEventListener('mouseleave', resetAuto);
+
+    // Init
+    labelEl.textContent = slides[0].getAttribute('data-label') || '';
+    resetAuto();
 })();
 </script>
 
