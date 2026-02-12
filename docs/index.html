@@ -1813,62 +1813,6 @@
     </div>
 </div>
 
-<!-- Persona Generator -->
-<div class="generator-section">
-    <div class="container">
-        <h2>Persona Generator</h2>
-        <p class="gen-tagline">Create your own Vern. Give it a name, a description, and let AI do the rest.</p>
-
-        <div class="generator-layout">
-            <div class="generator-info">
-                <h3>Build Custom Personas</h3>
-                <p>
-                    Don't see a persona that fits your workflow? Generate one. The persona generator uses AI to design a complete Vern &mdash; personality, sign-off style, dad joke flavor, model assignment, and all the scaffolding to make it work as both a Claude Code plugin skill and a standalone CLI persona.
-                </p>
-                <h3>What Gets Created</h3>
-                <ul>
-                    <li><code>agents/{name}.md</code> &mdash; Full persona definition with personality, style, and sign-off</li>
-                    <li><code>commands/{name}.md</code> &mdash; Plugin command registration</li>
-                    <li><code>skills/{name}/SKILL.md</code> &mdash; Plugin skill that builds CLI commands</li>
-                </ul>
-                <h3 style="margin-top: 16px;">Registration Updates</h3>
-                <p>
-                    The generator also updates the shorthand router, help text, embedded test expectations, and council roster &mdash; so your new Vern is immediately available everywhere: plugin, CLI, TUI, and VernHole councils.
-                </p>
-            </div>
-
-            <div class="generator-demo">
-                <div class="generator-demo-cmd"><span class="prompt">$ </span>vern generate visionary "An optimistic futurist who sees potential everywhere"</div>
-                <div class="generator-demo-output"><span style="color: var(--purple);">Generating persona: visionary</span>
-<span style="color: var(--text-muted);">Description: An optimistic futurist who sees potential everywhere</span>
-<span style="color: var(--text-muted);">LLM: claude</span>
-
-<span style="color: var(--green);">Created agents/visionary.md</span>
-<span style="color: var(--green);">Created commands/visionary.md</span>
-<span style="color: var(--green);">Created skills/visionary/SKILL.md</span>
-<span style="color: var(--green);">Updated commands/v.md (router aliases)</span>
-<span style="color: var(--green);">Updated commands/help.md</span>
-<span style="color: var(--green);">Updated embedded_test.go</span>
-<span style="color: var(--green);">Updated council/selection.go</span>
-
-<span style="color: var(--cyan);">Done! Your new persona is ready.</span>
-<span style="color: var(--text-muted);">Use it: /vern:visionary &lt;task&gt;</span>
-<span style="color: var(--text-muted);">Or in the TUI: vern tui</span></div>
-            </div>
-        </div>
-
-        <div style="text-align: center; margin-top: 32px;">
-            <p style="color: var(--text-muted); font-size: 0.9rem;">
-                <code style="color: var(--green);">vern generate &lt;name&gt; &lt;description&gt;</code> &nbsp;&bull;&nbsp;
-                <code style="color: var(--green);">/vern:generate &lt;name&gt; &lt;description&gt;</code>
-            </p>
-            <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 8px;">
-                Flags: <code>--model</code> (override model), <code>--color</code> (TUI color), <code>--llm</code> (generation LLM), <code>--dry-run</code> (preview without writing), <code>--no-update</code> (skip registration updates)
-            </p>
-        </div>
-    </div>
-</div>
-
 <!-- What is VTS? -->
 <div class="vts-section">
     <div class="container">
@@ -1930,6 +1874,61 @@ signature, attach user context.
     </div>
 </div>
 
+<!-- Persona Generator -->
+<div class="generator-section">
+    <div class="container">
+        <h2>Persona Generator</h2>
+        <p class="gen-tagline">Create your own Vern. Give it a name, a description, and let AI do the rest.</p>
+
+        <div class="generator-layout">
+            <div class="generator-info">
+                <h3>Build Custom Personas</h3>
+                <p>
+                    Don't see a persona that fits your workflow? Generate one. The persona generator uses AI to design a complete Vern &mdash; personality, sign-off style, dad joke flavor, model assignment, and all the scaffolding to make it work as both a Claude Code plugin skill and a standalone CLI persona.
+                </p>
+                <h3>What Gets Created</h3>
+                <ul>
+                    <li><code>agents/{name}.md</code> &mdash; Full persona definition with personality, style, and sign-off</li>
+                    <li><code>commands/{name}.md</code> &mdash; Plugin command registration</li>
+                    <li><code>skills/{name}/SKILL.md</code> &mdash; Plugin skill that builds CLI commands</li>
+                </ul>
+                <h3 style="margin-top: 16px;">Registration Updates</h3>
+                <p>
+                    The generator also updates the shorthand router, help text, embedded test expectations, and council roster &mdash; so your new Vern is immediately available everywhere: plugin, CLI, TUI, and VernHole councils.
+                </p>
+            </div>
+
+            <div class="generator-demo">
+                <div class="generator-demo-cmd"><span class="prompt">$ </span>vern generate visionary "An optimistic futurist who sees potential everywhere"</div>
+                <div class="generator-demo-output"><span style="color: var(--purple);">Generating persona: visionary</span>
+<span style="color: var(--text-muted);">Description: An optimistic futurist who sees potential everywhere</span>
+<span style="color: var(--text-muted);">LLM: claude</span>
+
+<span style="color: var(--green);">Created agents/visionary.md</span>
+<span style="color: var(--green);">Created commands/visionary.md</span>
+<span style="color: var(--green);">Created skills/visionary/SKILL.md</span>
+<span style="color: var(--green);">Updated commands/v.md (router aliases)</span>
+<span style="color: var(--green);">Updated commands/help.md</span>
+<span style="color: var(--green);">Updated embedded_test.go</span>
+<span style="color: var(--green);">Updated council/selection.go</span>
+
+<span style="color: var(--cyan);">Done! Your new persona is ready.</span>
+<span style="color: var(--text-muted);">Use it: /vern:visionary &lt;task&gt;</span>
+<span style="color: var(--text-muted);">Or in the TUI: vern tui</span></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 32px;">
+            <p style="color: var(--text-muted); font-size: 0.9rem;">
+                <code style="color: var(--green);">vern generate &lt;name&gt; &lt;description&gt;</code> &nbsp;&bull;&nbsp;
+                <code style="color: var(--green);">/vern:generate &lt;name&gt; &lt;description&gt;</code>
+            </p>
+            <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 8px;">
+                Flags: <code>--model</code> (override model), <code>--color</code> (TUI color), <code>--llm</code> (generation LLM), <code>--dry-run</code> (preview without writing), <code>--no-update</code> (skip registration updates)
+            </p>
+        </div>
+    </div>
+</div>
 <!-- Commands & Examples -->
 <div class="examples-section">
     <div class="container">
