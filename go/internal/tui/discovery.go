@@ -31,6 +31,8 @@ type discoveryState int
 
 const (
 	discStateSetupForm discoveryState = iota
+	discStatePathForm
+	discStateProjectSelect
 	discStateEditFiles
 	discStateConfigForm
 	discStateRunning
@@ -56,10 +58,20 @@ type discoveryVals struct {
 	logCh        chan string
 }
 
+// projectInfo describes an existing discovery project for the rerun selector.
+type projectInfo struct {
+	name    string
+	path    string
+	modTime time.Time
+}
+
 // DiscoveryModel handles the discovery pipeline wizard.
 type DiscoveryModel struct {
 	state       discoveryState
+	rerun       bool
 	setupForm   *huh.Form
+	pathForm    *huh.Form
+	projectForm *huh.Form
 	configForm  *huh.Form
 	spinner     spinner.Model
 	progress    progress.Model
@@ -69,6 +81,8 @@ type DiscoveryModel struct {
 	width       int
 	height      int
 	vals        *discoveryVals
+	projects    []projectInfo
+	selectedProject string
 
 	// Execution state
 	running               bool
@@ -144,6 +158,161 @@ func NewDiscoveryModel(projectRoot, agentsDir string) DiscoveryModel {
 	return m
 }
 
+// NewRerunDiscoveryModel creates a DiscoveryModel in rerun mode that starts
+// with a path selection form, then shows a project selector.
+func NewRerunDiscoveryModel(projectRoot, agentsDir string) DiscoveryModel {
+	cfg := config.Load(projectRoot)
+
+	outputPath := "default"
+	customPath := ""
+	if cfg.DefaultDiscoveryPath != "" {
+		outputPath = "custom"
+		customPath = cfg.DefaultDiscoveryPath
+	}
+
+	vals := &discoveryVals{
+		outputPath:   outputPath,
+		customPath:   customPath,
+		llmMode:      "mixed_claude_fallback",
+		singleLLM:    "claude",
+		pipeline:     "default",
+		runHistorian: true,
+		vernhole:     "full",
+		oracle:       true,
+		oracleApply:  "vision",
+		confirm:      true,
+	}
+
+	m := DiscoveryModel{
+		state:       discStatePathForm,
+		rerun:       true,
+		projectRoot: projectRoot,
+		agentsDir:   agentsDir,
+		vals:        vals,
+	}
+
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	m.spinner = s
+
+	p := progress.New(
+		progress.WithSolidFill(string(colorSecondary)),
+		progress.WithWidth(40),
+		progress.WithoutPercentage(),
+	)
+	m.progress = p
+
+	m.pathForm = m.buildPathForm()
+	m.configForm = m.buildConfigForm()
+
+	return m
+}
+
+// scanProjects finds existing discovery projects by looking for directories
+// containing input/prompt.md under the given base path.
+func scanProjects(base string) []projectInfo {
+	base = expandHome(base)
+	var projects []projectInfo
+
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return nil
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		projPath := filepath.Join(base, e.Name())
+		promptPath := filepath.Join(projPath, "input", "prompt.md")
+		info, err := os.Stat(promptPath)
+		if err != nil {
+			continue
+		}
+		projects = append(projects, projectInfo{
+			name:    e.Name(),
+			path:    projPath,
+			modTime: info.ModTime(),
+		})
+	}
+
+	// Sort newest first
+	for i := 0; i < len(projects); i++ {
+		for j := i + 1; j < len(projects); j++ {
+			if projects[j].modTime.After(projects[i].modTime) {
+				projects[i], projects[j] = projects[j], projects[i]
+			}
+		}
+	}
+
+	return projects
+}
+
+// buildPathForm creates a form for selecting the discovery directory to scan.
+func (m *DiscoveryModel) buildPathForm() *huh.Form {
+	w := contentWidth(m.width)
+	v := m.vals
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Discovery folder location").
+				Description("Where are your discovery projects?").
+				Options(OutputPathOptions...).
+				Value(&v.outputPath),
+		),
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Path to discovery folder").
+				Placeholder("~/discovery").
+				Value(&v.customPath),
+		).WithHideFunc(func() bool { return v.outputPath != "custom" }),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
+// buildProjectForm creates a huh.Select form for choosing an existing project.
+func (m *DiscoveryModel) buildProjectForm() *huh.Form {
+	if len(m.projects) == 0 {
+		return nil
+	}
+
+	w := contentWidth(m.width)
+	options := make([]huh.Option[string], len(m.projects))
+	for i, p := range m.projects {
+		label := fmt.Sprintf("%s  (%s)", p.name, p.modTime.Format("Jan 2 15:04"))
+		options[i] = huh.NewOption(label, p.path)
+	}
+
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Select a project to rerun").
+				Description("Choose an existing discovery project").
+				Options(options...).
+				Height(min(len(options)+1, 15)).
+				Value(&m.selectedProject),
+		),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
+// cleanProjectOutput removes previous pipeline output from a discovery project
+// so a rerun starts fresh. Preserves the input/ directory (prompt.md, input-history.md, etc.).
+func cleanProjectOutput(dir string) error {
+	for _, sub := range []string{"output", "vernhole"} {
+		p := filepath.Join(dir, sub)
+		if _, err := os.Stat(p); err == nil {
+			if err := os.RemoveAll(p); err != nil {
+				return fmt.Errorf("remove %s: %w", sub, err)
+			}
+		}
+	}
+	oraclePath := filepath.Join(dir, "oracle-vision.md")
+	if _, err := os.Stat(oraclePath); err == nil {
+		if err := os.Remove(oraclePath); err != nil {
+			return fmt.Errorf("remove oracle-vision.md: %w", err)
+		}
+	}
+	return nil
+}
+
 // SetSize updates the terminal dimensions and resizes forms accordingly.
 func (m *DiscoveryModel) SetSize(w, h int) {
 	m.width = w
@@ -152,6 +321,12 @@ func (m *DiscoveryModel) SetSize(w, h int) {
 	fh := formHeight(h)
 	if m.setupForm != nil {
 		m.setupForm.WithWidth(cw).WithHeight(fh)
+	}
+	if m.pathForm != nil {
+		m.pathForm.WithWidth(cw).WithHeight(fh)
+	}
+	if m.projectForm != nil {
+		m.projectForm.WithWidth(cw).WithHeight(fh)
 	}
 	if m.configForm != nil {
 		m.configForm.WithWidth(cw).WithHeight(fh)
@@ -276,7 +451,13 @@ func (m *DiscoveryModel) buildConfigForm() *huh.Form {
 }
 
 func (m DiscoveryModel) Init() tea.Cmd {
-	return m.setupForm.Init()
+	if m.rerun && m.pathForm != nil {
+		return m.pathForm.Init()
+	}
+	if m.setupForm != nil {
+		return m.setupForm.Init()
+	}
+	return nil
 }
 
 func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -395,6 +576,66 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.state {
+	case discStatePathForm:
+		form, cmd := m.pathForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.pathForm = f
+		}
+		if m.pathForm.State == huh.StateCompleted {
+			m.projects = scanProjects(m.outputBase())
+			m.projectForm = m.buildProjectForm()
+			m.state = discStateProjectSelect
+			if m.projectForm != nil {
+				return m, m.projectForm.Init()
+			}
+			return m, nil
+		}
+		if m.pathForm.State == huh.StateAborted {
+			return m, backToMenu
+		}
+		return m, cmd
+
+	case discStateProjectSelect:
+		if m.projectForm == nil {
+			// No projects found — esc goes back
+			if keyMsg, ok := msg.(tea.KeyMsg); ok {
+				if keyMsg.String() == "esc" || keyMsg.String() == "enter" {
+					return m, backToMenu
+				}
+			}
+			return m, nil
+		}
+		form, cmd := m.projectForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.projectForm = f
+		}
+		if m.projectForm.State == huh.StateCompleted {
+			// Load project info from selected path
+			dir := m.selectedProject
+			m.vals.name = filepath.Base(dir)
+			promptPath := filepath.Join(dir, "input", "prompt.md")
+			if data, err := os.ReadFile(promptPath); err == nil {
+				m.vals.idea = string(data)
+			}
+			// Determine output path settings
+			parent := filepath.Dir(dir)
+			if absParent, err := filepath.Abs(parent); err == nil {
+				absCwd, _ := filepath.Abs("./discovery")
+				if absParent == absCwd {
+					m.vals.outputPath = "default"
+				} else {
+					m.vals.outputPath = "custom"
+					m.vals.customPath = parent
+				}
+			}
+			m.state = discStateEditFiles
+			return m, nil
+		}
+		if m.projectForm.State == huh.StateAborted {
+			return m, backToMenu
+		}
+		return m, cmd
+
 	case discStateSetupForm:
 		form, cmd := m.setupForm.Update(msg)
 		if f, ok := form.(*huh.Form); ok {
@@ -414,6 +655,13 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			switch keyMsg.String() {
 			case "enter":
+				// For rerun, re-read prompt.md in case user edited it externally
+				if m.rerun {
+					promptPath := filepath.Join(m.discoveryDir(), "input", "prompt.md")
+					if data, err := os.ReadFile(promptPath); err == nil {
+						m.vals.idea = string(data)
+					}
+				}
 				m.state = discStateConfigForm
 				return m, m.configForm.Init()
 			case "esc":
@@ -430,6 +678,14 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.configForm.State == huh.StateCompleted {
 			if !m.vals.confirm {
 				return m, backToMenu
+			}
+			if m.rerun {
+				if err := cleanProjectOutput(m.discoveryDir()); err != nil {
+					m.err = err
+					m.state = discStateDone
+					m.initDoneViewport()
+					return m, tea.DisableMouse
+				}
 			}
 			m.state = discStateRunning
 			m.running = true
@@ -598,7 +854,7 @@ func (m DiscoveryModel) createInputFolder() error {
 		return nil
 	}
 
-	content := fmt.Sprintf("# %s\n\n%s\n", m.vals.name, m.vals.idea)
+	content := fmt.Sprintf("# %s\n\n## Prompt\n\n%s\n\n## Additional Context\n<!-- Add any extra context, constraints, or goals. -->\n", m.vals.name, m.vals.idea)
 	if err := os.WriteFile(promptPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("write prompt.md: %w", err)
 	}
@@ -681,6 +937,11 @@ func (m DiscoveryModel) startPipeline() tea.Cmd {
 
 		dir := m.discoveryDir()
 
+		singleLLM := ""
+		if v.llmMode == "single_llm" {
+			singleLLM = v.singleLLM
+		}
+
 		opts := pipeline.Options{
 			Ctx:           ctx,
 			Idea:          v.idea,
@@ -692,7 +953,7 @@ func (m DiscoveryModel) startPipeline() tea.Cmd {
 			AgentsDir:     m.agentsDir,
 			ProjectRoot:   m.projectRoot,
 			LLMMode:       v.llmMode,
-			SingleLLM:     v.singleLLM,
+			SingleLLM:     singleLLM,
 			OnLog: func(line string) {
 				select {
 				case v.logCh <- line:
@@ -891,10 +1152,27 @@ func (m DiscoveryModel) Cancel() {
 func (m DiscoveryModel) View() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("Discovery Pipeline"))
+	if m.rerun {
+		b.WriteString(titleStyle.Render("Rerun Discovery"))
+	} else {
+		b.WriteString(titleStyle.Render("Discovery Pipeline"))
+	}
 	b.WriteString("\n\n")
 
 	switch m.state {
+	case discStatePathForm:
+		b.WriteString(m.pathForm.View())
+
+	case discStateProjectSelect:
+		if m.projectForm == nil {
+			b.WriteString(stepWarningStyle.Render("No discovery projects found in: "+m.outputBase()))
+			b.WriteString("\n\n")
+			b.WriteString("Create a project first using Discovery Pipeline.\n\n")
+			b.WriteString(subtitleStyle.Render("Press Esc to go back"))
+		} else {
+			b.WriteString(m.projectForm.View())
+		}
+
 	case discStateSetupForm:
 		b.WriteString(m.setupForm.View())
 
@@ -907,6 +1185,27 @@ func (m DiscoveryModel) View() string {
 			b.WriteString(stepFailStyle.Render("Failed to create folder: " + m.setupErr.Error()))
 			b.WriteString("\n\n")
 			b.WriteString(subtitleStyle.Render("Press Enter to continue anyway"))
+			b.WriteString("\n")
+			b.WriteString(subtitleStyle.Render("Press Esc to go back"))
+		} else if m.rerun {
+			b.WriteString(stepOKStyle.Render("Rerunning project: "+m.vals.name))
+			b.WriteString("\n\n")
+			b.WriteString(fmt.Sprintf("  %s  %s\n", logHeaderStyle.Render("Path:"), dir))
+			b.WriteString(fmt.Sprintf("  %s  %s\n", logHeaderStyle.Render("Prompt:"), promptPath))
+			b.WriteString("\n")
+
+			// Show prompt preview (truncated for display)
+			preview := m.vals.idea
+			maxPreview := 500
+			if len(preview) > maxPreview {
+				preview = preview[:maxPreview] + "\n..."
+			}
+			b.WriteString(logDimStyle.Render(preview))
+			b.WriteString("\n\n")
+			b.WriteString(stepWarningStyle.Render("Previous output will be cleared on run."))
+			b.WriteString("\n")
+			b.WriteString("You can edit prompt.md externally before pressing Enter.\n\n")
+			b.WriteString(subtitleStyle.Render("Press Enter when ready to configure"))
 			b.WriteString("\n")
 			b.WriteString(subtitleStyle.Render("Press Esc to go back"))
 		} else {

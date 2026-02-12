@@ -305,6 +305,7 @@ func (p *Pipeline) execute(mode string) error {
 		var duration time.Duration
 		fallbackLLM := p.cfg.GetFallbackLLM(originalLLM)
 
+		var actualLLM string
 		for attempt := 1; attempt <= totalAttempts; attempt++ {
 			if attempt > 1 {
 				p.printf("    Retry %d/%d for step %d (%s) with %s...\n", attempt-1, opts.MaxRetries, stepNum, step.Name, retryLLM)
@@ -325,6 +326,14 @@ func (p *Pipeline) execute(mode string) error {
 			lastExitCode = result.ExitCode
 			attemptCount = attempt
 			duration = result.Duration
+			actualLLM = result.LLMUsed
+
+			// Detect silent LLM swap by resolveLLM (e.g. CLI not found)
+			if actualLLM != "" && actualLLM != retryLLM && !fellBack {
+				p.printf("    %s not available — resolved to %s\n", retryLLM, actualLLM)
+				p.log("Step %d (%s): %s resolved to %s (CLI not found)", stepNum, step.Name, retryLLM, actualLLM)
+				fellBack = true
+			}
 
 			if result.ExitCode == 0 && !IsFailedOutput(outputFile) {
 				succeeded = true
@@ -363,6 +372,7 @@ func (p *Pipeline) execute(mode string) error {
 			attemptCount++
 			lastExitCode = result.ExitCode
 			duration = result.Duration
+			actualLLM = result.LLMUsed
 
 			if result.ExitCode == 0 && !IsFailedOutput(outputFile) {
 				succeeded = true
@@ -373,14 +383,20 @@ func (p *Pipeline) execute(mode string) error {
 			}
 		}
 
+		// Use the LLM that actually ran for display and tracking
+		usedLLM := retryLLM
+		if actualLLM != "" {
+			usedLLM = actualLLM
+		}
+
 		if succeeded {
 			outputBytes := fileSize(outputFile)
 			if fellBack {
-				p.printf("    OK (%s→%s fallback, %d bytes, %s)\n", originalLLM, retryLLM, outputBytes, duration.Truncate(time.Second))
-				p.log("Step %d (%s): OK via %s fallback (original=%s, attempt %d, %d bytes)", stepNum, step.Name, retryLLM, originalLLM, attemptCount, outputBytes)
+				p.printf("    OK (%s→%s, %d bytes, %s)\n", originalLLM, usedLLM, outputBytes, duration.Truncate(time.Second))
+				p.log("Step %d (%s): OK via %s (original=%s, attempt %d, %d bytes)", stepNum, step.Name, usedLLM, originalLLM, attemptCount, outputBytes)
 			} else {
-				p.printf("    OK (%s, %d bytes, %s)\n", retryLLM, outputBytes, duration.Truncate(time.Second))
-				p.log("Step %d (%s): OK (exit %d, attempt %d, llm=%s, %d bytes)", stepNum, step.Name, lastExitCode, attemptCount, retryLLM, outputBytes)
+				p.printf("    OK (%s, %d bytes, %s)\n", usedLLM, outputBytes, duration.Truncate(time.Second))
+				p.log("Step %d (%s): OK (exit %d, attempt %d, llm=%s, %d bytes)", stepNum, step.Name, lastExitCode, attemptCount, usedLLM, outputBytes)
 			}
 			p.results[idx] = StepResult{
 				StepNum:     stepNum,
@@ -389,7 +405,7 @@ func (p *Pipeline) execute(mode string) error {
 				Status:      "ok",
 				ExitCode:    lastExitCode,
 				Attempts:    attemptCount,
-				LLMUsed:     retryLLM,
+				LLMUsed:     usedLLM,
 				OriginalLLM: originalLLM,
 				FellBack:    fellBack,
 				DurationMS:  duration.Milliseconds(),
@@ -397,11 +413,11 @@ func (p *Pipeline) execute(mode string) error {
 			}
 		} else {
 			p.printf("    FAILED after %d attempts (last exit: %d)\n", attemptCount, lastExitCode)
-			p.log("Step %d (%s): FAILED (exit %d, %d attempts, original=%s, final=%s)", stepNum, step.Name, lastExitCode, attemptCount, originalLLM, retryLLM)
+			p.log("Step %d (%s): FAILED (exit %d, %d attempts, original=%s, final=%s)", stepNum, step.Name, lastExitCode, attemptCount, originalLLM, usedLLM)
 
 			// Write failure marker
 			failureContent := fmt.Sprintf("# STEP FAILED\n\nStep %d (%s) failed after %d attempt(s).\nOriginal LLM: %s\nFinal LLM: %s (fallback)\nLast exit code: %d\n\nRe-run with: --resume-from %d\n",
-				stepNum, step.Name, attemptCount, originalLLM, retryLLM, lastExitCode, stepNum)
+				stepNum, step.Name, attemptCount, originalLLM, usedLLM, lastExitCode, stepNum)
 			os.WriteFile(outputFile, []byte(failureContent), 0644)
 
 			failedSteps = append(failedSteps, stepNum)
@@ -412,7 +428,7 @@ func (p *Pipeline) execute(mode string) error {
 				Status:      "failed",
 				ExitCode:    lastExitCode,
 				Attempts:    attemptCount,
-				LLMUsed:     retryLLM,
+				LLMUsed:     usedLLM,
 				OriginalLLM: originalLLM,
 				FellBack:    fellBack,
 				DurationMS:  duration.Milliseconds(),
@@ -495,7 +511,9 @@ func (p *Pipeline) buildStepPrompt(step config.PipelineStep, idx int) string {
 			data, _ := os.ReadFile(p.consolidation)
 			consolOutput = string(data)
 		}
-		return step.PromptPrefix + "\n\nORIGINAL REQUEST:\n" + p.fullPrompt + "\n\nMaster plan: " + consolOutput
+		// Reinforce VTS format after the consolidation content so it isn't buried
+		vtsReminder := "\n\n---\nCRITICAL REMINDER: Your output MUST be a numbered task list using ### TASK N: Title format. Do NOT write a review, essay, grade, or analysis. Decompose the master plan above into 5-15 actionable implementation tasks. Every task MUST have **Description:**, **Acceptance Criteria:**, **Complexity:**, **Dependencies:**, and **Files:**. This output is machine-parsed — if you do not use ### TASK N: headers, the entire output is worthless."
+		return step.PromptPrefix + "\n\nORIGINAL REQUEST:\n" + p.fullPrompt + "\n\nMASTER PLAN TO DECOMPOSE INTO TASKS (do not review or grade this — break it into tasks):\n" + consolOutput + vtsReminder
 
 	default:
 		// Fallback: treat like previous

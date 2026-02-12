@@ -63,21 +63,32 @@ func RunOracleConsult(opts OracleConsultOptions) error {
 
 	// Build VTS task contents
 	var vtsIndex, vtsContents strings.Builder
+	vtsCount := 0
 	if opts.VTSDir != "" {
 		entries, _ := os.ReadDir(opts.VTSDir)
 		for _, e := range entries {
 			if !strings.HasPrefix(e.Name(), "vts-") || !strings.HasSuffix(e.Name(), ".md") {
 				continue
 			}
+			vtsCount++
 			vtsIndex.WriteString(fmt.Sprintf("\n- %s", e.Name()))
 			vtsData, _ := os.ReadFile(filepath.Join(opts.VTSDir, e.Name()))
 			vtsContents.WriteString(fmt.Sprintf("\n\n=== %s ===\n%s", e.Name(), string(vtsData)))
 		}
 	}
+	oracleLog(opts.OnLog, "Found %d VTS task files in %s\n", vtsCount, opts.VTSDir)
+
+	// Build the prompt — adapt instructions based on whether VTS tasks exist
+	var instructions string
+	if vtsCount > 0 {
+		instructions = `Review the existing VTS tasks in light of the Vern council's synthesis. Recommend modifications: new tasks to add, tasks to modify, tasks to remove, dependency changes, complexity reassessments, and missing acceptance criteria.`
+	} else {
+		instructions = `The Vern council produced a synthesis with analysis and recommendations, but no VTS task files were generated. Your job is to CREATE tasks from the synthesis. Extract every actionable recommendation from the synthesis and turn it into a concrete task with proper dependencies, acceptance criteria, and complexity assessments. Do not simply observe that tasks are missing — produce them.`
+	}
 
 	oraclePrompt := fmt.Sprintf(`You are Oracle Vern. The ancient seer who reads the patterns in the Vern council's chaos.
 
-Review these VTS tasks in light of the Vern council's synthesis. Recommend modifications: new tasks to add, tasks to modify, tasks to remove, dependency changes, complexity reassessments, and missing acceptance criteria.
+%s
 
 Output as a structured vision document with these sections:
 # Oracle Vision
@@ -86,9 +97,10 @@ Output as a structured vision document with these sections:
 Brief overview of recommended changes.
 
 ## New Tasks
-(Use ### TASK N+1: Title format — same format as the architect breakdown so it can be parsed by the VTS post-processor)
+(Use ### TASK N+1: Title format — same format as the architect breakdown so it can be parsed by the VTS post-processor. Each task MUST include **Description:**, **Acceptance Criteria:**, **Complexity:** S|M|L|XL, **Dependencies:**, and **Files:**.)
 
 ## Modified Tasks
+(Skip this section if there are no existing VTS tasks to modify.)
 ### VTS-NNN: New Title (was: Old Title)
 **Changes:** What changed and why
 **Description:** ...
@@ -97,6 +109,7 @@ Brief overview of recommended changes.
 **Dependencies:** ...
 
 ## Removed Tasks
+(Skip this section if there are no existing VTS tasks.)
 - VTS-NNN: Reason for removal
 
 ## Dependency Changes
@@ -115,7 +128,7 @@ VTS TASK FILES:
 %s
 
 VERNHOLE SYNTHESIS:
-%s`, opts.Idea, vtsIndex.String(), vtsContents.String(), string(data))
+%s`, instructions, opts.Idea, vtsIndex.String(), vtsContents.String(), string(data))
 
 	synthesisLLM := opts.SynthesisLLM
 	if synthesisLLM == "" {

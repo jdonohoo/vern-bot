@@ -22,6 +22,7 @@ func NewMenuModel() MenuModel {
 	return MenuModel{
 		items: []string{
 			"Discovery Pipeline",
+			"Rerun Discovery",
 			"VernHole Council",
 			"Single LLM Run",
 			"Post-Processing",
@@ -67,8 +68,10 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chosen = 5
 		case "7":
 			m.chosen = 6
-		case "q":
+		case "8":
 			m.chosen = 7
+		case "q":
+			m.chosen = 8
 		}
 	}
 	return m, nil

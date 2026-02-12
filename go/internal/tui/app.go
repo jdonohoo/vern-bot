@@ -157,6 +157,11 @@ func (a App) activeKeyMap() help.KeyMap {
 			return runningKeys
 		case discStateDone:
 			return runDoneKeys
+		case discStateProjectSelect:
+			if a.discovery.projectForm == nil {
+				return editFilesKeys
+			}
+			return formKeys
 		default:
 			return formKeys
 		}
@@ -264,42 +269,48 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.menu.chosen = -1
 				return a, a.discovery.Init()
 			case 1:
+				a.screen = ScreenDiscovery
+				a.discovery = NewRerunDiscoveryModel(a.projectRoot, a.agentsDir)
+				a.discovery.SetSize(a.width, a.height)
+				a.menu.chosen = -1
+				return a, a.discovery.Init()
+			case 2:
 				a.screen = ScreenHole
 				a.hole = NewHoleModel(a.projectRoot, a.agentsDir)
 				a.hole.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.hole.Init()
-			case 2:
+			case 3:
 				a.screen = ScreenRun
 				a.run = NewRunModel(a.projectRoot, a.agentsDir)
 				a.run.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.run.Init()
-			case 3:
+			case 4:
 				a.screen = ScreenOracle
 				a.oracle = NewOracleModel(a.projectRoot, a.agentsDir)
 				a.oracle.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.oracle.Init()
-			case 4:
+			case 5:
 				a.screen = ScreenGenerate
 				a.generate = NewGenerateModel(a.projectRoot, a.agentsDir)
 				a.generate.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.generate.Init()
-			case 5:
+			case 6:
 				a.screen = ScreenHistorian
 				a.historian = NewHistorianModel(a.projectRoot, a.agentsDir)
 				a.historian.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.historian.Init()
-			case 6:
+			case 7:
 				a.screen = ScreenSettings
 				a.settings = NewSettingsModel(a.projectRoot)
 				a.settings.SetSize(a.width, a.height)
 				a.menu.chosen = -1
 				return a, a.settings.Init()
-			case 7:
+			case 8:
 				return a, tea.Quit
 			}
 			a.menu.chosen = -1

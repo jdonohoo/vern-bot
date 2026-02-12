@@ -19,7 +19,6 @@ type settingsState int
 const (
 	settingsStateMenu settingsState = iota
 	settingsStateForm
-	settingsStateSaved
 	settingsStateSaveErr
 )
 
@@ -91,7 +90,6 @@ var settingsMenuItems = []string{
 	"LLM Availability",
 	"Pipeline Mode",
 	"Default Discovery Folder",
-	"Save to disk",
 	"Back",
 }
 
@@ -119,6 +117,11 @@ func (m SettingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.form.State == huh.StateCompleted {
 			m.applyFormResult()
+			m.saveErr = m.saveConfig()
+			if m.saveErr != nil {
+				m.state = settingsStateSaveErr
+				return m, nil
+			}
 			m.state = settingsStateMenu
 			m.cursor = 0
 			return m, nil
@@ -130,7 +133,7 @@ func (m SettingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, cmd
 
-	case settingsStateSaved, settingsStateSaveErr:
+	case settingsStateSaveErr:
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if keyMsg.String() == "enter" {
 				m.state = settingsStateMenu
@@ -163,8 +166,6 @@ func (m SettingsModel) updateMenu(msg tea.Msg) (SettingsModel, tea.Cmd) {
 			return m.executeAction(2)
 		case "4":
 			return m.executeAction(3)
-		case "s":
-			return m.executeAction(4)
 		case "q":
 			return m, backToMenu
 		}
@@ -204,13 +205,6 @@ func (m SettingsModel) executeAction(index int) (SettingsModel, tea.Cmd) {
 		m.state = settingsStateForm
 		return m, m.form.Init()
 	case 4:
-		m.saveErr = m.saveConfig()
-		if m.saveErr != nil {
-			m.state = settingsStateSaveErr
-		} else {
-			m.state = settingsStateSaved
-		}
-	case 5:
 		return m, backToMenu
 	}
 	return m, nil
@@ -341,15 +335,22 @@ func (m SettingsModel) currentEnabledLLMs() []string {
 }
 
 func (m SettingsModel) saveConfig() error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("get home directory: %w", err)
+	configPath := m.cfg.SourcePath
+
+	// If config came from embedded/hardcoded (no source path) or from the
+	// project default (config.default.json — shouldn't be modified), fall back
+	// to the standalone user config location.
+	if configPath == "" || filepath.Base(configPath) == "config.default.json" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("get home directory: %w", err)
+		}
+		configPath = filepath.Join(home, ".config", "vern", "config.json")
 	}
-	configDir := filepath.Join(home, ".config", "vern")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
-	configPath := filepath.Join(configDir, "config.json")
 
 	data, err := json.MarshalIndent(m.cfg, "", "  ")
 	if err != nil {
@@ -421,10 +422,7 @@ func (m SettingsModel) View() string {
 			}
 
 			number := fmt.Sprintf("[%d] ", i+1)
-			if i == 4 { // Save
-				number = "[s] "
-			}
-			if i == 5 { // Back
+			if i == len(settingsMenuItems)-1 { // Back
 				number = "[q] "
 			}
 
@@ -434,16 +432,6 @@ func (m SettingsModel) View() string {
 
 	case settingsStateForm:
 		b.WriteString(m.form.View())
-
-	case settingsStateSaved:
-		b.WriteString(stepOKStyle.Render("Config saved!"))
-		configPath := "~/.config/vern/config.json"
-		if home, err := os.UserHomeDir(); err == nil {
-			configPath = filepath.Join(home, ".config", "vern", "config.json")
-		}
-		b.WriteString(fmt.Sprintf("\n\n  Saved to: %s\n", logDimStyle.Render(configPath)))
-		b.WriteString("\n")
-		b.WriteString(subtitleStyle.Render("  Press Enter to continue"))
 
 	case settingsStateSaveErr:
 		b.WriteString(stepFailStyle.Render("Failed to save config"))

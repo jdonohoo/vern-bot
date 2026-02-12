@@ -26,6 +26,9 @@ type Config struct {
 
 	// Backward compat: old config format
 	LegacyPipeline []PipelineStep              `json:"discovery_pipeline"`
+
+	// SourcePath is the file this config was loaded from (not serialized).
+	SourcePath string `json:"-"`
 }
 
 // LLMModeConfig defines fallback behavior for a given LLM mode.
@@ -61,18 +64,21 @@ func Load(projectRoot string) *Config {
 	// Tier 1: Claude Code plugin user config
 	userConfig := filepath.Join(os.Getenv("HOME"), ".claude", "vern-bot-config.json")
 	if cfg, err := loadFile(userConfig); err == nil {
+		cfg.SourcePath = userConfig
 		return cfg
 	}
 
 	// Tier 2: standalone user config
 	standaloneConfig := filepath.Join(os.Getenv("HOME"), ".config", "vern", "config.json")
 	if cfg, err := loadFile(standaloneConfig); err == nil {
+		cfg.SourcePath = standaloneConfig
 		return cfg
 	}
 
 	// Tier 3: project default config (on disk)
 	defaultConfig := filepath.Join(projectRoot, "config.default.json")
 	if cfg, err := loadFile(defaultConfig); err == nil {
+		cfg.SourcePath = defaultConfig
 		return cfg
 	}
 
