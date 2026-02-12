@@ -660,6 +660,77 @@
             white-space: pre-line;
         }
 
+        /* VTS section */
+        .vts-section {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(210, 153, 34, 0.04), rgba(57, 210, 192, 0.04));
+        }
+        .vts-section h2 {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--yellow), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .vts-section .vts-tagline {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            margin-bottom: 32px;
+        }
+        .vts-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            align-items: start;
+        }
+        @media (max-width: 768px) {
+            .vts-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .vts-info h3 {
+            font-size: 1.2rem;
+            margin-bottom: 12px;
+            color: var(--cyan);
+        }
+        .vts-info p {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        .vts-demo {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .vts-demo-header {
+            padding: 12px 20px;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.85rem;
+            color: var(--green);
+            border-bottom: 1px solid var(--border);
+            background: rgba(63, 185, 80, 0.04);
+        }
+        .vts-demo-content {
+            padding: 16px 20px;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.65;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .vts-demo-content .yk { color: var(--cyan); }
+        .vts-demo-content .yv { color: var(--text); }
+        .vts-demo-content .yd { color: #6e7681; }
+        .vts-demo-content .yh { color: var(--purple); font-weight: 600; }
+
         /* Examples section */
         .examples-section {
             padding: 60px 0;
@@ -1794,6 +1865,67 @@
             <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 8px;">
                 Flags: <code>--model</code> (override model), <code>--color</code> (TUI color), <code>--llm</code> (generation LLM), <code>--dry-run</code> (preview without writing), <code>--no-update</code> (skip registration updates)
             </p>
+        </div>
+    </div>
+</div>
+
+<!-- What is VTS? -->
+<div class="vts-section">
+    <div class="container">
+        <h2>What is VTS?</h2>
+        <p class="vts-tagline">Structured output. Zero opinions. Take it anywhere.</p>
+
+        <div class="vts-layout">
+            <div class="vts-info">
+                <h3>Vern Task Spec</h3>
+                <p>Discovery pipelines don't just give you analysis — they give you
+                   tasks. VTS is the structured output format: YAML frontmatter with
+                   ID, complexity, dependencies, status, and files touched. Markdown
+                   body with description and acceptance criteria. One file per task.</p>
+
+                <h3>Your Tracker, Your Rules</h3>
+                <p>VTS is unopinionated by design. Export to Jira, Linear, GitHub
+                   Issues, or whatever your team runs on. The format is simple enough
+                   to parse, rich enough to be useful. Your issue tracker doesn't care
+                   which Vern wrote it.</p>
+
+                <h3>Coming Soon: VTS → Beads</h3>
+                <p>The Build Crew will work off
+                   <a href="https://github.com/steveyegge/beads" style="color: var(--yellow); font-weight: 700;">Beads</a> by
+                   <span style="color: var(--yellow); font-weight: 700;">Steve Yegge</span>.
+                   A VTS-to-Beads bridge is in development — your discovery output
+                   flows directly into build execution.</p>
+            </div>
+
+            <div class="vts-demo">
+                <div class="vts-demo-header">vts-003-implement-auth-middleware.md</div>
+                <div class="vts-demo-content"><span class="yd">---</span>
+<span class="yk">id:</span> <span class="yv">VTS-003</span>
+<span class="yk">title:</span> <span class="yv">"Implement Auth Middleware"</span>
+<span class="yk">complexity:</span> <span class="yv">M</span>
+<span class="yk">status:</span> <span class="yv">pending</span>
+<span class="yk">owner:</span> <span class="yv">""</span>
+<span class="yk">source:</span> <span class="yv">discovery</span>
+<span class="yk">source_ref:</span> <span class="yv">"05-architect-breakdown.md"</span>
+<span class="yk">dependencies:</span>
+  <span class="yv">- VTS-001</span>
+<span class="yk">files:</span>
+  <span class="yv">- "middleware/auth.go"</span>
+  <span class="yv">- "internal/jwt/verify.go"</span>
+<span class="yd">---</span>
+
+<span class="yh"># Implement Auth Middleware</span>
+
+JWT validation middleware for protected routes.
+Extract token from Authorization header, verify
+signature, attach user context.
+
+<span class="yh">## Criteria</span>
+
+<span class="yv">-</span> Protected routes reject invalid tokens
+<span class="yv">-</span> Token expiry enforced
+<span class="yv">-</span> User context available in handlers</div>
+            </div>
         </div>
     </div>
 </div>
