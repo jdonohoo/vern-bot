@@ -43,8 +43,10 @@ Parse the first argument to determine which Vern persona to invoke:
 | `setup` | `/vern:setup` | Configure LLMs, pipeline personas, preferences |
 | `new-idea` / `new` / `ni` | `/vern:new-idea` | Create a discovery folder with input/output structure |
 | `discovery` / `disco` / `d` | `/vern:discovery` | Full discovery pipeline |
+| `rerun` / `rr` | `/vern:rerun-discovery` | Rerun discovery on existing project |
 | `generate` / `gen` | `/vern:generate` | Generate a new Vern persona using AI |
 | `hole` / `khole` / `vh` | `/vern:hole` | VernHole - random Vern passes |
+| `hole-existing` / `vhe` | `/vern:vernhole-existing` | VernHole on existing output |
 
 If no persona specified, default to `/vern:great`.
 
@@ -61,6 +63,7 @@ Route the alias to the matching skill and pass the remaining arguments as the ta
 - `help` / `h` / `?` → invoke `/vern:help`
 - `historian` / `his` → invoke `/vern:historian`
 - `hole` / `khole` / `vh` → invoke `/vern:hole`
+- `hole-existing` / `vhe` → invoke `/vern:vernhole-existing`
 - `inverse` / `inv` / `i` → invoke `/vern:inverse`
 - `ketamine` / `ket` / `k` → invoke `/vern:ketamine`
 - `mediocre` / `med` / `m` → invoke `/vern:mediocre`
@@ -69,6 +72,7 @@ Route the alias to the matching skill and pass the remaining arguments as the ta
 - `nyquil` / `nq` / `n` → invoke `/vern:nyquil`
 - `optimist` / `opt` / `o` → invoke `/vern:optimist`
 - `oracle` / `orc` / `ora` → invoke `/vern:oracle`
+- `rerun` / `rr` → invoke `/vern:rerun-discovery`
 - `paranoid` / `para` / `p` → invoke `/vern:paranoid`
 - `retro` / `ret` / `r` → invoke `/vern:retro`
 - `setup` → invoke `/vern:setup`

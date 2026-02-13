@@ -702,7 +702,7 @@ Example: "Why did the user cross the road? They didn't — the button was on the
 
 // DefaultConfigJSON contains the default config.default.json content.
 var DefaultConfigJSON = `{
-  "version": "2.5.0",
+  "version": "2.5.1",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {

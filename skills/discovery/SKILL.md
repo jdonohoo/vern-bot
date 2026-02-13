@@ -93,6 +93,16 @@ Ask the user using AskUserQuestion:
    - **Manual** — review oracle-vision.md yourself (Recommended)
    - **Auto-apply** — Architect Vern executes the Oracle's vision
 
+6. **Resume from step** (only ask if there's an existing `output/pipeline-status.md` in the discovery dir showing a failed step):
+   - If a previous run failed, offer to resume: "Previous run failed at step N. Resume from there?"
+   - **Yes, resume from step N** (Recommended)
+   - **No, start fresh**
+   - If resuming → set RESUME_FROM=N
+
+7. **Max retries** (optional, only ask if user seems to want it or a previous run had failures):
+   - Default is 1 retry per step. Only expose this if the user asks about reliability or retries.
+   - If needed → set MAX_RETRIES=N
+
 ## Step 4: Execute Pipeline via CLI
 
 **CRITICAL: Do NOT orchestrate the pipeline steps yourself.** Instead, build a single CLI command and run it via the Bash tool. This ensures the entire pipeline runs non-interactively without permission prompts.
@@ -128,6 +138,8 @@ Build the command:
   [--oracle]                              # if user wants Oracle Vern
   [--oracle-apply]                        # if user wants auto-apply (implies --oracle)
   [--extra-context /path/to/file ...]     # for each extra context file the user provided
+  [--resume-from N]                       # resume from step N (if previous run failed)
+  [--max-retries N]                       # max retry attempts per step (default: 1)
   "<idea prompt>" \
   "<discovery_dir>"
 ```
@@ -151,6 +163,8 @@ Build the command:
 - User said **yes** to Oracle → add `--oracle`
 - User said **auto-apply** → add `--oracle-apply` (replaces `--oracle`)
 - User provided extra files → add `--extra-context /path/to/file` for each one
+- Resuming from a failed step → add `--resume-from N` (N is the step number)
+- Custom retry count → add `--max-retries N` (default is 1)
 
 ### Important:
 - Use a long timeout (at least 1200000ms / 20 minutes) for the Bash call — the pipeline spawns multiple LLM subprocesses

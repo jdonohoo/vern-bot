@@ -35,6 +35,21 @@ Options:
 - **Copilot** - Code-focused assistance
 - **Copilot GPT-4** - GPT-4 backbone
 
+Then ask:
+
+> "What color for the TUI?"
+
+Options:
+- **Auto** (Recommended) - Let the generator pick based on persona vibe
+- **Red** - Bold, aggressive personas
+- **Orange** - Warm, builder-type personas
+- **Yellow** - Optimistic, energetic personas
+- **Green** - Balanced, natural personas
+- **Cyan** - Technical, precise personas
+- **Blue** - Calm, analytical personas
+- **Purple** - Creative, unconventional personas
+- **Pink** - Playful, friendly personas
+
 ## Step 2: Build Command
 
 Determine the plugin root:
@@ -58,12 +73,23 @@ Map model choice to flag:
 - Copilot → `--model copilot`
 - Copilot GPT-4 → `--model copilot-gpt4`
 
+Map color choice to flag:
+- Auto → no flag
+- Red → `--color red`
+- Orange → `--color orange`
+- Yellow → `--color yellow`
+- Green → `--color green`
+- Cyan → `--color cyan`
+- Blue → `--color blue`
+- Purple → `--color purple`
+- Pink → `--color pink`
+
 **Platform detection:** Use the appropriate wrapper for the current OS:
 - **Windows:** `{plugin_root}\bin\vern-generate.cmd`
 - **macOS/Linux:** `{plugin_root}/bin/vern-generate`
 
 ```bash
-{plugin_root}/bin/vern-generate "<name>" "<description>" [--model <model>]
+{plugin_root}/bin/vern-generate "<name>" "<description>" [--model <model>] [--color <color>]
 ```
 
 ## Step 3: Execute

@@ -33,9 +33,11 @@ SPECIALIST PERSONAS
 
 WORKFLOWS & PIPELINES
   /vern:discovery <prompt> Full multi-LLM discovery pipeline (5 or 7 steps)
+  /vern:rerun-discovery    Rerun pipeline on existing discovery project
   /vern:generate <name>    Generate a new Vern persona using AI
   /vern:new-idea <name>    Create discovery folder with input/output structure
   /vern:hole <idea>        Summon random Verns to brainstorm your idea
+  /vern:vernhole-existing  Run VernHole on existing discovery output
 
 CONFIGURATION
   /vern:setup              Configure LLMs, pipeline personas, preferences
@@ -44,7 +46,7 @@ SHORTHAND ROUTER
   /vern:v <alias> <task>   Route to any persona by short alias
 
   Aliases: med, great, nq, ket, yolo, mighty, arch, inv, para, opt,
-           acad, su, ent, ux, ret, orc, hole, disco, new, gen, setup, his
+           acad, su, ent, ux, ret, orc, hole, vhe, disco, rr, new, gen, setup, his
 
 EXAMPLES
   /vern:mediocre fix the broken login redirect
@@ -52,6 +54,8 @@ EXAMPLES
   /vern:architect design a scalable notification system
   /vern:hole should we use GraphQL or REST?
   /vern:discovery build a SaaS for freelancers
+  /vern:rerun-discovery ./discovery/my-project
+  /vern:vernhole-existing ./discovery/my-project/output/04-mighty-consolidation.md
   /vern:v med write a quick bash script
   /vern:v hole monolith vs microservices?
 ```

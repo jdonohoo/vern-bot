@@ -9,7 +9,13 @@ Interactive setup wizard for configuring vern-bot. Run this after installing the
 
 ## Step 1: Check for Existing Config
 
-Look for config at `~/.claude/vern-bot-config.json`. If it exists, read it and show current settings before asking if they want to reconfigure.
+Look for config in this order (same as the Go CLI loader):
+1. `~/.claude/vern-bot-config.json` (Claude Code plugin config)
+2. `~/.config/vern/config.json` (standalone/TUI config)
+
+Use whichever file exists first. Remember which file you found so you save back to it in Step 6.
+
+If a config exists, read it and show current settings before asking if they want to reconfigure.
 
 If it exists, ask:
 > "You already have a vern-bot config. What would you like to do?"
@@ -161,13 +167,27 @@ Options:
 - **Medium chaos (7-9)** - good balance
 - **Full VernHole (10-12)** - maximum perspectives
 
+## Step 5.5: Default Discovery Path
+
+Ask using AskUserQuestion:
+
+> "Where should discovery projects be saved by default?"
+
+Options:
+- **Current directory** (Recommended) - uses `./discovery/` relative to where you run commands
+- **Choose a path** - set a fixed location (e.g. `~/ai-discovery`)
+
+If they choose a custom path, ask them to type it. Track as `default_discovery_path` (empty string means current directory).
+
 ## Step 6: Save Config
 
-Write the config to `~/.claude/vern-bot-config.json`:
+Write the config to the same file it was loaded from in Step 1. If no config existed, write to `~/.config/vern/config.json` (create the directory if needed). This ensures compatibility with both the Claude Code plugin and the standalone TUI.
 
 ```json
 {
-  "version": "2.1.0",
+  "version": "2.5.0",
+  "timeout_seconds": 1200,
+  "max_retries": 1,
   "llms": {
     "claude": true,
     "codex": true,
@@ -175,7 +195,36 @@ Write the config to `~/.claude/vern-bot-config.json`:
     "copilot": false
   },
   "llm_mode": "mixed_claude_fallback",
+  "llm_modes": {
+    "mixed_claude_fallback": {
+      "description": "Mixed LLMs, claude as safety net",
+      "fallback": {"codex": "claude", "gemini": "claude", "copilot": "claude"},
+      "synthesis_llm": "claude"
+    },
+    "mixed_codex_fallback": {
+      "description": "Mixed LLMs, codex as safety net",
+      "fallback": {"claude": "codex", "gemini": "codex", "copilot": "codex"},
+      "synthesis_llm": "codex"
+    },
+    "mixed_gemini_fallback": {
+      "description": "Mixed LLMs, gemini as safety net",
+      "fallback": {"claude": "gemini", "codex": "gemini", "copilot": "gemini"},
+      "synthesis_llm": "gemini"
+    },
+    "mixed_copilot_fallback": {
+      "description": "Mixed LLMs, copilot as safety net",
+      "fallback": {"claude": "copilot", "codex": "copilot", "gemini": "copilot"},
+      "synthesis_llm": "copilot"
+    },
+    "single_llm": {
+      "description": "Single LLM for everything",
+      "override_llm": "",
+      "fallback": {},
+      "synthesis_llm": ""
+    }
+  },
   "pipeline_mode": "default",
+  "default_discovery_path": "",
   "discovery_pipelines": {
     "default": [
       {
@@ -317,15 +366,21 @@ Expanded Pipeline (use --expanded or select at runtime):
 
 VernHole: Random (5-12 Verns)
 
+Discovery Path: ./discovery/ (default)
+
+Config saved to: ~/.config/vern/config.json
+
 Run /vern:setup anytime to reconfigure.
 ```
 
 ## Notes
 
-- Config is stored at `~/.claude/vern-bot-config.json`
-- The bin scripts read this config to determine which LLM to invoke
+- Config is read from `~/.claude/vern-bot-config.json` (tier 1) or `~/.config/vern/config.json` (tier 2)
+- The TUI settings screen also reads/writes these same config files
+- The bin scripts and Go CLI read this config to determine which LLM to invoke
 - Any persona can run on any LLM - the persona prompt is the personality, the LLM is the engine
 - If no config exists, the pipeline falls back to defaults (codex/claude/gemini)
 - Use `--expanded` flag with `/vern:discovery` to override the default pipeline mode for a single run
+- The `default_discovery_path` setting is shared with the TUI — changes in either place are visible to both
 
 Begin setup: $ARGUMENTS
