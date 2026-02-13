@@ -16,6 +16,11 @@ type Task struct {
 	Dependencies []string // e.g. ["VTS-001", "VTS-002"]
 	Criteria     []string
 	Files        []string
+	ID           string // "VTS-001" from frontmatter (set by reader, not parser)
+	Status       string // "pending", "active", etc.
+	Owner        string
+	Source       string
+	SourceRef    string
 }
 
 var taskPattern = regexp.MustCompile(`(?im)^#{2,3}\s+Task\s+(\d+)\s*[:\.—]\s*(.+)`)
