@@ -180,6 +180,7 @@ Or run commands directly from the CLI:
 vern discovery "build a SaaS for freelancers"
 vern hole --council conflict "monolith vs microservices"
 vern run codex "analyze this codebase"
+vern tobeads --apply ./discovery/my-project/output/vts/
 ```
 
 ### LLM Modes
@@ -416,6 +417,29 @@ discovery/{name}/
 └── oracle-vision.md           # Only if Oracle ran
 ```
 
+## VTS → Beads
+
+Import your VTS tasks into [Beads](https://github.com/steveyegge/beads) by Steve Yegge. The `vern tobeads` command reads VTS files and creates Beads issues via the `br` CLI.
+
+```bash
+# Dry-run (default) — see what would be created
+vern tobeads ./discovery/my-project/output/vts/
+
+# Actually create issues in Beads
+vern tobeads --apply ./discovery/my-project/output/vts/
+
+# Target a different Beads repo + sync after
+vern tobeads --apply --sync --beads-dir ~/my-beads-repo ./vts/
+```
+
+| Flag | Description |
+|------|-------------|
+| `--apply` | Create issues (default is dry-run) |
+| `--beads-dir` | Target a specific Beads repo |
+| `--sync` | Run `br sync --flush-only` after import |
+
+The importer runs preflight validation (duplicate IDs, unknown statuses, missing dependency targets, cycle detection) before touching Beads. Re-run safe — existing issues are detected and skipped.
+
 ## The VernHole
 
 <p align="center">
@@ -504,7 +528,7 @@ vern-bot/
 │   ├── hole/SKILL.md
 │   ├── discovery/SKILL.md
 │   └── new-idea/SKILL.md
-├── go/                        # Compiled CLI (vern run, discovery, hole, historian, generate, oracle, tui, setup)
+├── go/                        # Compiled CLI (vern run, discovery, hole, tobeads, historian, generate, oracle, tui, setup)
 │   ├── cmd/vern/             # Cobra CLI entry points
 │   ├── internal/             # Config, LLM runner, VTS, pipeline, council, TUI, generate
 │   ├── go.mod
@@ -543,6 +567,7 @@ cd go && go test ./...
 vern run <llm> <prompt>              # Single LLM run
 vern discovery <prompt>               # Full discovery pipeline
 vern hole <idea>                      # VernHole council
+vern tobeads <vts-dir>               # Import VTS tasks into Beads
 vern historian <directory>            # Index a directory into a concept map
 vern generate <name> <description>   # Generate a new Vern persona using AI
 vern oracle consult <idea>            # Generate Oracle vision from VernHole output

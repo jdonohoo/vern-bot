@@ -1420,7 +1420,7 @@
             <div class="persona-body">
                 <div class="persona-command" style="color: var(--text-muted);">/vern:buildmaster</div>
                 <div class="persona-quote">"Coming soon..."</div>
-                <div class="persona-desc">Takes the VTS tasks and makes them happen. Assigns each task to the right Vern. Tracks progress. Yells when things stall. The foreman who turns plans into shipped code.</div>
+                <div class="persona-desc">Takes the VTS tasks from Beads and makes them happen. Assigns each task to the right Vern. Tracks progress. Yells when things stall. The foreman who turns plans into shipped code.</div>
                 <div class="persona-meta">
                     <span class="tag" style="border-color: var(--yellow); color: var(--yellow);">coming soon</span>
                     <span class="tag tag-trait">pipeline</span>
@@ -1833,12 +1833,13 @@
                    to parse, rich enough to be useful. Your issue tracker doesn't care
                    which Vern wrote it.</p>
 
-                <h3>Coming Soon: VTS → Beads</h3>
-                <p>The Build Crew will work off
+                <h3>VTS → Beads</h3>
+                <p>The builder runs off
                    <a href="https://github.com/steveyegge/beads" style="color: var(--yellow); font-weight: 700;">Beads</a> by
                    <span style="color: var(--yellow); font-weight: 700;">Steve Yegge</span>.
-                   A VTS-to-Beads bridge is in development — your discovery output
-                   flows directly into build execution.</p>
+                   <code style="color: var(--cyan);">vern tobeads</code> imports your VTS tasks
+                   directly into Beads — status mapping, dependency wiring, dry-run by default.
+                   Discovery output flows straight into build execution.</p>
             </div>
 
             <div class="vts-demo">
