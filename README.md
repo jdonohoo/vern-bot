@@ -153,14 +153,14 @@ vern tui
 │                                  │
 │  [1] Discovery Pipeline          │
 │  [2] VernHole Council            │
-│  [3] Single LLM Run             │
+│  [3] Single LLM Run              │
 │  [4] Post-Processing             │
 │  [5] Generate Persona            │
 │  [6] Historian                   │
 │  [7] Settings                    │
 │  [q] Quit                        │
 │                                  │
-│  LLM Mode: Mixed + Claude FB    │
+│  LLM Mode: Mixed + Claude FB     │
 │  LLMs: claude codex gemini       │
 └──────────────────────────────────┘
 ```
