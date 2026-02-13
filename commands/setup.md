@@ -179,13 +179,34 @@ Options:
 
 If they choose a custom path, ask them to type it. Track as `default_discovery_path` (empty string means current directory).
 
+## Step 5.6: Timeouts
+
+Ask using AskUserQuestion:
+
+> "Configure timeouts? All default to 20 minutes."
+
+Options:
+- **Keep defaults (20 min each)** (Recommended) - all four timeouts stay at 1200 seconds (20 minutes)
+- **Customize timeouts** - set each timeout individually
+
+If they choose customize, ask for each timeout in minutes using AskUserQuestion (one question with 4 options each):
+
+1. **Pipeline step timeout** (per discovery step) - default 20 min
+2. **Historian timeout** (indexing) - default 20 min
+3. **Oracle consult timeout** - default 20 min
+4. **Oracle apply timeout** (architect rewriting VTS) - default 20 min
+
+For each, offer options: 10 min, 20 min (Recommended), 30 min, Custom.
+
+Store as `timeouts.pipeline_step`, `timeouts.historian`, `timeouts.oracle`, `timeouts.oracle_apply` (values in seconds = minutes * 60).
+
 ## Step 6: Save Config
 
 Write the config to the same file it was loaded from in Step 1. If no config existed, write to `~/.config/vern/config.json` (create the directory if needed). This ensures compatibility with both the Claude Code plugin and the standalone TUI.
 
 ```json
 {
-  "version": "2.5.0",
+  "version": "2.7.0",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {
@@ -330,6 +351,12 @@ Write the config to the same file it was loaded from in Step 1. If no config exi
   "vernhole": {
     "default_council": "random",
     "min": 3
+  },
+  "timeouts": {
+    "pipeline_step": 1200,
+    "historian": 1200,
+    "oracle": 1200,
+    "oracle_apply": 1200
   }
 }
 ```
@@ -365,6 +392,8 @@ Expanded Pipeline (use --expanded or select at runtime):
   7. Architect Breakdown → Architect Vern on Claude
 
 VernHole: Random (5-12 Verns)
+
+Timeouts: Pipeline 20m | Historian 20m | Oracle 20m | Apply 20m
 
 Discovery Path: ./discovery/ (default)
 

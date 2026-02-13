@@ -103,7 +103,7 @@ var settingsMenuKeys = settingsMenuKeyMap{
 	Up:     key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("j/k", "navigate")),
 	Down:   key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("", "")),
 	Select: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
-	Number: key.NewBinding(key.WithKeys("1", "2", "3", "4"), key.WithHelp("1-4", "jump")),
+	Number: key.NewBinding(key.WithKeys("1", "2", "3", "4", "5"), key.WithHelp("1-5", "jump")),
 	Back:   key.NewBinding(key.WithKeys("q", "esc"), key.WithHelp("q/esc", "back")),
 }
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.6.2",
+  "version": "2.7.0",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {
@@ -143,5 +143,11 @@
   "vernhole": {
     "default_council": "random",
     "min": 3
+  },
+  "timeouts": {
+    "pipeline_step": 1200,
+    "historian": 1200,
+    "oracle": 1200,
+    "oracle_apply": 1200
   }
 }

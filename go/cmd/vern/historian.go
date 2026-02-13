@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/pipeline"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +31,7 @@ var (
 
 func init() {
 	historianCmd.Flags().StringVar(&historianLLM, "llm", "", "Override LLM (default: gemini, falls back if unavailable)")
-	historianCmd.Flags().IntVar(&historianTimeout, "timeout", 600, "Timeout in seconds (default: 600)")
+	historianCmd.Flags().IntVar(&historianTimeout, "timeout", 0, "Timeout in seconds (default: from config, 1200)")
 	rootCmd.AddCommand(historianCmd)
 }
 
@@ -53,6 +54,16 @@ func runHistorian(cmd *cobra.Command, args []string) error {
 	}
 
 	agentsDir := resolveAgentsDir()
+
+	// Resolve timeout from config if not overridden by flag
+	if historianTimeout <= 0 {
+		projectRoot := ""
+		if agentsDir != "agents" {
+			projectRoot = agentsDir[:len(agentsDir)-len("/agents")]
+		}
+		cfg := config.Load(projectRoot)
+		historianTimeout = cfg.GetHistorianTimeout()
+	}
 
 	outputFile := filepath.Join(absDir, "input-history.md")
 

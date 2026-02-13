@@ -702,7 +702,7 @@ Example: "Why did the user cross the road? They didn't — the button was on the
 
 // DefaultConfigJSON contains the default config.default.json content.
 var DefaultConfigJSON = `{
-  "version": "2.6.2",
+  "version": "2.7.0",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {
@@ -846,6 +846,12 @@ var DefaultConfigJSON = `{
   "vernhole": {
     "default_council": "random",
     "min": 3
+  },
+  "timeouts": {
+    "pipeline_step": 1200,
+    "historian": 1200,
+    "oracle": 1200,
+    "oracle_apply": 1200
   }
 }
 `

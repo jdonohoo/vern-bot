@@ -149,7 +149,7 @@ vern tui
 
 ```
 ┌──────────────────────────────────┐
-│         VERN-BOT v2.4            │
+│         VERN-BOT v2.7            │
 │                                  │
 │  [1] Discovery Pipeline          │
 │  [2] VernHole Council            │

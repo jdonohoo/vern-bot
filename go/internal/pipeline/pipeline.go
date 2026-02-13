@@ -83,7 +83,7 @@ func Run(opts Options) error {
 
 	// Override timeout from config if not set
 	if opts.Timeout == 0 {
-		opts.Timeout = cfg.TimeoutSeconds
+		opts.Timeout = cfg.GetPipelineStepTimeout()
 	}
 	if opts.MaxRetries <= 0 {
 		if cfg.MaxRetries > 0 {

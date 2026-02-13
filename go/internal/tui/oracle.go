@@ -885,7 +885,7 @@ func (m OracleModel) startOracle() tea.Cmd {
 				VTSDir:       expandHome(v.vtsDir),
 				AgentsDir:    m.agentsDir,
 				SynthesisLLM: synthesisLLM,
-				Timeout:      1200,
+				Timeout:      cfg.GetOracleTimeout(),
 				OnLog:        onLog,
 			})
 
@@ -896,7 +896,7 @@ func (m OracleModel) startOracle() tea.Cmd {
 				VTSDir:       expandHome(v.vtsDir),
 				AgentsDir:    m.agentsDir,
 				SynthesisLLM: synthesisLLM,
-				Timeout:      1200,
+				Timeout:      cfg.GetOracleApplyTimeout(),
 				OnLog:        onLog,
 			})
 
@@ -913,7 +913,7 @@ func (m OracleModel) startOracle() tea.Cmd {
 				Council:      v.council,
 				Context:      expandHome(v.contextFile),
 				AgentsDir:    m.agentsDir,
-				Timeout:      1200,
+				Timeout:      cfg.GetPipelineStepTimeout(),
 				SynthesisLLM: synthesisLLM,
 				OverrideLLM:  overrideLLM,
 				OnLog:        onLog,

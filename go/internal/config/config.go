@@ -20,6 +20,7 @@ type Config struct {
 	LLMMode        string                      `json:"llm_mode"`
 	LLMModes       map[string]LLMModeConfig    `json:"llm_modes"`
 	VernHole       VernHoleConfig              `json:"vernhole"`
+	Timeouts       TimeoutConfig               `json:"timeouts"`
 
 	// User preferences (persisted across sessions)
 	DefaultDiscoveryPath string               `json:"default_discovery_path,omitempty"`
@@ -47,6 +48,14 @@ type PipelineStep struct {
 	LLM          string `json:"llm"`
 	ContextMode  string `json:"context_mode"`
 	PromptPrefix string `json:"prompt_prefix"`
+}
+
+// TimeoutConfig holds granular timeout settings (all in seconds).
+type TimeoutConfig struct {
+	PipelineStep int `json:"pipeline_step"` // per discovery pipeline step
+	Historian    int `json:"historian"`     // historian indexing
+	Oracle       int `json:"oracle"`        // oracle consult
+	OracleApply  int `json:"oracle_apply"`  // architect applying oracle vision
 }
 
 // VernHoleConfig holds VernHole-specific settings.
@@ -124,6 +133,7 @@ func loadEmbeddedConfig() (*Config, error) {
 	if cfg.LLMModes == nil {
 		cfg.LLMModes = defaultLLMModes()
 	}
+	applyTimeoutDefaults(cfg)
 
 	return cfg, nil
 }
@@ -169,6 +179,7 @@ func loadFile(path string) (*Config, error) {
 	if cfg.LLMModes == nil {
 		cfg.LLMModes = defaultLLMModes()
 	}
+	applyTimeoutDefaults(cfg)
 
 	return cfg, nil
 }
@@ -219,6 +230,38 @@ func (c *Config) GetOverrideLLM() string {
 	return ""
 }
 
+// GetPipelineStepTimeout returns the per-step timeout for discovery pipeline steps (seconds).
+func (c *Config) GetPipelineStepTimeout() int {
+	if c.Timeouts.PipelineStep > 0 {
+		return c.Timeouts.PipelineStep
+	}
+	return 1200
+}
+
+// GetHistorianTimeout returns the timeout for historian indexing (seconds).
+func (c *Config) GetHistorianTimeout() int {
+	if c.Timeouts.Historian > 0 {
+		return c.Timeouts.Historian
+	}
+	return 1200
+}
+
+// GetOracleTimeout returns the timeout for oracle consult (seconds).
+func (c *Config) GetOracleTimeout() int {
+	if c.Timeouts.Oracle > 0 {
+		return c.Timeouts.Oracle
+	}
+	return 1200
+}
+
+// GetOracleApplyTimeout returns the timeout for oracle apply (seconds).
+func (c *Config) GetOracleApplyTimeout() int {
+	if c.Timeouts.OracleApply > 0 {
+		return c.Timeouts.OracleApply
+	}
+	return 1200
+}
+
 func (c *Config) getActiveMode() *LLMModeConfig {
 	if c.LLMMode == "" || c.LLMModes == nil {
 		return nil
@@ -228,6 +271,24 @@ func (c *Config) getActiveMode() *LLMModeConfig {
 		return nil
 	}
 	return &mode
+}
+
+// applyTimeoutDefaults populates the granular Timeouts struct from the legacy
+// TimeoutSeconds field if needed, ensuring backward compatibility.
+func applyTimeoutDefaults(cfg *Config) {
+	zero := TimeoutConfig{}
+	if cfg.Timeouts == zero {
+		base := cfg.TimeoutSeconds
+		if base <= 0 {
+			base = 1200
+		}
+		cfg.Timeouts = TimeoutConfig{
+			PipelineStep: base,
+			Historian:    base,
+			Oracle:       base,
+			OracleApply:  base,
+		}
+	}
 }
 
 func defaultLLMModes() map[string]LLMModeConfig {
@@ -263,7 +324,7 @@ func defaultLLMModes() map[string]LLMModeConfig {
 
 func hardcodedDefaults() *Config {
 	return &Config{
-		Version:        "2.1.0",
+		Version:        "2.7.0",
 		TimeoutSeconds: 1200,
 		MaxRetries:     2,
 		PipelineMode:   "default",
@@ -272,6 +333,12 @@ func hardcodedDefaults() *Config {
 		VernHole: VernHoleConfig{
 			DefaultCouncil: "random",
 			Min:            3,
+		},
+		Timeouts: TimeoutConfig{
+			PipelineStep: 1200,
+			Historian:    1200,
+			Oracle:       1200,
+			OracleApply:  1200,
 		},
 		LLMs: map[string]bool{
 			"claude":  true,

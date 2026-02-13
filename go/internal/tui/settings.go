@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,16 +30,21 @@ const (
 	settingsActionLLMs
 	settingsActionPipeline
 	settingsActionDiscoveryPath
+	settingsActionTimeouts
 )
 
 // settingsVals holds form-bound values on the heap so pointers survive
 // bubbletea's value-copy semantics.
 type settingsVals struct {
-	llmMode       string
-	singleLLM     string
-	enabledLLMs   []string
-	pipelineMode  string
-	discoveryPath string
+	llmMode            string
+	singleLLM          string
+	enabledLLMs        []string
+	pipelineMode       string
+	discoveryPath      string
+	timeoutPipeline    string
+	timeoutHistorian   string
+	timeoutOracle      string
+	timeoutOracleApply string
 }
 
 // SettingsModel handles the settings screen.
@@ -90,6 +96,7 @@ var settingsMenuItems = []string{
 	"LLM Availability",
 	"Pipeline Mode",
 	"Default Discovery Folder",
+	"Timeouts",
 	"Back",
 }
 
@@ -166,6 +173,8 @@ func (m SettingsModel) updateMenu(msg tea.Msg) (SettingsModel, tea.Cmd) {
 			return m.executeAction(2)
 		case "4":
 			return m.executeAction(3)
+		case "5":
+			return m.executeAction(4)
 		case "q":
 			return m, backToMenu
 		}
@@ -205,6 +214,15 @@ func (m SettingsModel) executeAction(index int) (SettingsModel, tea.Cmd) {
 		m.state = settingsStateForm
 		return m, m.form.Init()
 	case 4:
+		m.action = settingsActionTimeouts
+		v.timeoutPipeline = strconv.Itoa(m.cfg.GetPipelineStepTimeout() / 60)
+		v.timeoutHistorian = strconv.Itoa(m.cfg.GetHistorianTimeout() / 60)
+		v.timeoutOracle = strconv.Itoa(m.cfg.GetOracleTimeout() / 60)
+		v.timeoutOracleApply = strconv.Itoa(m.cfg.GetOracleApplyTimeout() / 60)
+		m.form = m.buildTimeoutForm()
+		m.state = settingsStateForm
+		return m, m.form.Init()
+	case 5:
 		return m, backToMenu
 	}
 	return m, nil
@@ -295,6 +313,53 @@ func (m *SettingsModel) buildDiscoveryPathForm() *huh.Form {
 	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
 }
 
+func validateMinutes(s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return fmt.Errorf("value is required")
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return fmt.Errorf("must be a number")
+	}
+	if n < 1 {
+		return fmt.Errorf("must be at least 1 minute")
+	}
+	if n > 120 {
+		return fmt.Errorf("max 120 minutes")
+	}
+	return nil
+}
+
+func (m *SettingsModel) buildTimeoutForm() *huh.Form {
+	w := contentWidth(m.width)
+	v := m.vals
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Pipeline step timeout (minutes)").
+				Description("Per-step timeout for discovery pipeline").
+				Value(&v.timeoutPipeline).
+				Validate(validateMinutes),
+			huh.NewInput().
+				Title("Historian timeout (minutes)").
+				Description("Timeout for historian indexing").
+				Value(&v.timeoutHistorian).
+				Validate(validateMinutes),
+			huh.NewInput().
+				Title("Oracle consult timeout (minutes)").
+				Description("Timeout for oracle vision generation").
+				Value(&v.timeoutOracle).
+				Validate(validateMinutes),
+			huh.NewInput().
+				Title("Oracle apply timeout (minutes)").
+				Description("Timeout for architect applying oracle vision").
+				Value(&v.timeoutOracleApply).
+				Validate(validateMinutes),
+		),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
 func (m *SettingsModel) applyFormResult() {
 	v := m.vals
 	switch m.action {
@@ -321,6 +386,19 @@ func (m *SettingsModel) applyFormResult() {
 		m.cfg.PipelineMode = v.pipelineMode
 	case settingsActionDiscoveryPath:
 		m.cfg.DefaultDiscoveryPath = strings.TrimSpace(v.discoveryPath)
+	case settingsActionTimeouts:
+		if p, err := strconv.Atoi(strings.TrimSpace(v.timeoutPipeline)); err == nil {
+			m.cfg.Timeouts.PipelineStep = p * 60
+		}
+		if h, err := strconv.Atoi(strings.TrimSpace(v.timeoutHistorian)); err == nil {
+			m.cfg.Timeouts.Historian = h * 60
+		}
+		if o, err := strconv.Atoi(strings.TrimSpace(v.timeoutOracle)); err == nil {
+			m.cfg.Timeouts.Oracle = o * 60
+		}
+		if a, err := strconv.Atoi(strings.TrimSpace(v.timeoutOracleApply)); err == nil {
+			m.cfg.Timeouts.OracleApply = a * 60
+		}
 	}
 }
 
@@ -393,7 +471,15 @@ func (m SettingsModel) configSummary() string {
 	if discPath == "" {
 		discPath = "./discovery (default)"
 	}
-	b.WriteString(fmt.Sprintf("  %s  %s", label("Discovery:"), val(discPath)))
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Discovery:"), val(discPath)))
+	b.WriteString(fmt.Sprintf("  %s  %s",
+		label("Timeouts:"),
+		val(fmt.Sprintf("Pipeline %dm | Historian %dm | Oracle %dm | Apply %dm",
+			m.cfg.GetPipelineStepTimeout()/60,
+			m.cfg.GetHistorianTimeout()/60,
+			m.cfg.GetOracleTimeout()/60,
+			m.cfg.GetOracleApplyTimeout()/60)),
+	))
 
 	return b.String()
 }

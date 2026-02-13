@@ -411,7 +411,7 @@ func (m HoleModel) startHole() tea.Cmd {
 			OutputDir:    m.outputDir(),
 			Council:      v.council,
 			AgentsDir:    m.agentsDir,
-			Timeout:      1200,
+			Timeout:      cfg.GetPipelineStepTimeout(),
 			SynthesisLLM: synthesisLLM,
 			OverrideLLM:  overrideLLM,
 			OnLog: func(line string) {

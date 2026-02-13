@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 
+	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/pipeline"
 )
 
@@ -243,11 +244,13 @@ func (m HistorianModel) startHistorian() tea.Cmd {
 			}
 		}
 
+		cfg := config.Load(m.projectRoot)
+
 		result, err := pipeline.RunHistorian(pipeline.HistorianOptions{
 			Ctx:       ctx,
 			TargetDir: expandHome(v.directory),
 			AgentsDir: m.agentsDir,
-			Timeout:   600,
+			Timeout:   cfg.GetHistorianTimeout(),
 			OnLog:     logFn,
 		})
 

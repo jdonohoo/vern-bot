@@ -90,12 +90,22 @@ func resolveOracleLLM() string {
 	return cfg.GetSynthesisLLM()
 }
 
+func resolveOracleConfig() *config.Config {
+	agentsDir := resolveAgentsDir()
+	projectRoot := ""
+	if agentsDir != "agents" {
+		projectRoot = agentsDir[:len(agentsDir)-len("/agents")]
+	}
+	return config.Load(projectRoot)
+}
+
 func runOracleConsult(cmd *cobra.Command, args []string) error {
 	idea := args[0]
 	agentsDir := resolveAgentsDir()
 	synthesisLLM := resolveOracleLLM()
 
-	timeout := 1200
+	cfg := resolveOracleConfig()
+	timeout := cfg.GetOracleTimeout()
 	if envTimeout := os.Getenv("VERN_TIMEOUT"); envTimeout != "" {
 		var t int
 		if _, err := fmt.Sscanf(envTimeout, "%d", &t); err == nil {
@@ -123,7 +133,8 @@ func runOracleApply(cmd *cobra.Command, args []string) error {
 	agentsDir := resolveAgentsDir()
 	synthesisLLM := resolveOracleLLM()
 
-	timeout := 1200
+	cfg := resolveOracleConfig()
+	timeout := cfg.GetOracleApplyTimeout()
 	if envTimeout := os.Getenv("VERN_TIMEOUT"); envTimeout != "" {
 		var t int
 		if _, err := fmt.Sscanf(envTimeout, "%d", &t); err == nil {
