@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -22,7 +23,10 @@ import (
 type oracleState int
 
 const (
-	oracleStateForm oracleState = iota
+	oracleStateForm          oracleState = iota // operation picker only
+	oracleStatePathForm                         // pick base directory
+	oracleStateProjectSelect                    // scan + pick project
+	oracleStateConfigForm                       // operation-specific config + confirm
 	oracleStateRunning
 	oracleStateDone
 )
@@ -37,32 +41,49 @@ var OracleOperationOptions = []huh.Option[string]{
 // oracleVals holds form-bound values on the heap so pointers survive
 // bubbletea's value-copy semantics.
 type oracleVals struct {
-	operation    string
-	synthDir     string
-	vtsDir       string
-	visionFile   string
-	contextFile  string
-	idea         string
-	council      string
-	llmMode      string
-	singleLLM    string
-	confirm      bool
-	cancel       context.CancelFunc
-	logCh        chan string
+	operation   string
+	synthDir    string
+	vtsDir      string
+	visionFile  string
+	contextFile string
+	idea        string
+	council     string
+	llmMode     string
+	singleLLM   string
+	confirm     bool
+	cancel      context.CancelFunc
+	logCh       chan string
+
+	// Path picker state
+	outputPath string // "default" or "custom"
+	customPath string // custom path value
+
+	// Selected project path (set by project selector)
+	projectPath string
+
+	// VernHole output dir (derived from project)
+	vernholeDir string
 }
 
 // OracleModel handles the Oracle wizard.
 type OracleModel struct {
-	state       oracleState
-	form        *huh.Form
-	spinner     spinner.Model
-	progress    progress.Model
-	viewport    viewport.Model
-	projectRoot string
-	agentsDir   string
-	width       int
-	height      int
-	vals        *oracleVals
+	state         oracleState
+	operationForm *huh.Form
+	pathForm      *huh.Form
+	projectForm   *huh.Form
+	configForm    *huh.Form
+	spinner       spinner.Model
+	progress      progress.Model
+	viewport      viewport.Model
+	projectRoot   string
+	agentsDir     string
+	width         int
+	height        int
+	vals          *oracleVals
+
+	// Project browser state
+	projects        []projectInfo
+	selectedProject string
 
 	// Execution state
 	running        bool
@@ -74,12 +95,23 @@ type OracleModel struct {
 }
 
 func NewOracleModel(projectRoot, agentsDir string) OracleModel {
+	cfg := config.Load(projectRoot)
+
+	outputPath := "default"
+	customPath := ""
+	if cfg.DefaultDiscoveryPath != "" {
+		outputPath = "custom"
+		customPath = cfg.DefaultDiscoveryPath
+	}
+
 	vals := &oracleVals{
-		operation: "consult",
-		council:   "full",
-		llmMode:   "mixed_claude_fallback",
-		singleLLM: "claude",
-		confirm:   true,
+		operation:  "consult",
+		council:    "full",
+		llmMode:    "mixed_claude_fallback",
+		singleLLM:  "claude",
+		confirm:    true,
+		outputPath: outputPath,
+		customPath: customPath,
 	}
 
 	m := OracleModel{
@@ -100,19 +132,28 @@ func NewOracleModel(projectRoot, agentsDir string) OracleModel {
 	)
 	m.progress = p
 
-	m.form = m.buildForm()
+	m.operationForm = m.buildOperationForm()
 
 	return m
 }
 
-// SetSize updates the terminal dimensions and resizes the form.
+// SetSize updates the terminal dimensions and resizes forms.
 func (m *OracleModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	cw := contentWidth(w)
 	fh := formHeight(h)
-	if m.form != nil {
-		m.form.WithWidth(cw).WithHeight(fh)
+	if m.operationForm != nil {
+		m.operationForm.WithWidth(cw).WithHeight(fh)
+	}
+	if m.pathForm != nil {
+		m.pathForm.WithWidth(cw).WithHeight(fh)
+	}
+	if m.projectForm != nil {
+		m.projectForm.WithWidth(cw).WithHeight(fh)
+	}
+	if m.configForm != nil {
+		m.configForm.WithWidth(cw).WithHeight(fh)
 	}
 	m.viewport.Width = cw
 	m.viewport.Height = h - 6
@@ -121,12 +162,11 @@ func (m *OracleModel) SetSize(w, h int) {
 	}
 }
 
-func (m *OracleModel) buildForm() *huh.Form {
-	lines := textareaLines(m.height)
+// buildOperationForm creates a form with just the operation picker.
+func (m *OracleModel) buildOperationForm() *huh.Form {
 	w := contentWidth(m.width)
 	v := m.vals
 	return huh.NewForm(
-		// Step 1: Operation
 		huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("What would you like to do?").
@@ -134,90 +174,89 @@ func (m *OracleModel) buildForm() *huh.Form {
 				Height(len(OracleOperationOptions)+1).
 				Value(&v.operation),
 		),
-		// Step 2a: Synthesis directory (consult only)
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Path to synthesis directory").
-				Description("Directory containing synthesis.md from a VernHole run").
-				Placeholder("./vernhole/").
-				Value(&v.synthDir).
-				Validate(func(s string) error {
-					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("synthesis directory is required")
-					}
-					return nil
-				}),
-		).WithHideFunc(func() bool { return v.operation != "consult" }),
-		// Step 2b: VTS directory (consult + apply)
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Path to VTS directory").
-				Description("Directory containing vts-*.md task files").
-				Placeholder("./discovery/output/vts/").
-				Value(&v.vtsDir).
-				Validate(func(s string) error {
-					if v.operation == "apply" && strings.TrimSpace(s) == "" {
-						return fmt.Errorf("VTS directory is required for apply")
-					}
-					return nil
-				}),
-		).WithHideFunc(func() bool { return v.operation == "vernhole" }),
-		// Step 2c: Oracle vision file (apply only)
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Path to oracle-vision.md").
-				Description("Oracle vision file from a previous consult").
-				Placeholder("./oracle-vision.md").
-				Value(&v.visionFile).
-				Validate(func(s string) error {
-					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("oracle vision file is required")
-					}
-					return nil
-				}),
-		).WithHideFunc(func() bool { return v.operation != "apply" }),
-		// Step 2d: Context file (vernhole on output)
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Path to context file").
-				Description("File to feed as context (e.g. consolidation.md or any discovery output)").
-				Placeholder("./discovery/output/consolidation.md").
-				Value(&v.contextFile).
-				Validate(func(s string) error {
-					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("context file is required")
-					}
-					return nil
-				}),
-		).WithHideFunc(func() bool { return v.operation != "vernhole" }),
-		// Step 3: Council (vernhole on output only)
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
+// buildOraclePathForm creates a form for selecting the base directory to scan.
+func (m *OracleModel) buildOraclePathForm() *huh.Form {
+	w := contentWidth(m.width)
+	v := m.vals
+	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
-				Title("Which council do you want to summon?").
-				Options(CouncilOptions...).
-				Height(len(CouncilOptions)+1).
-				Value(&v.council),
-		).WithHideFunc(func() bool { return v.operation != "vernhole" }),
-		// Step 4: LLM mode
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("LLM Mode").
-				Options(LLMModeOptions...).
-				Height(len(LLMModeOptions)+1).
-				Value(&v.llmMode),
+				Title("Discovery folder location").
+				Description("Where are your discovery projects?").
+				Options(OutputPathOptions...).
+				Value(&v.outputPath),
 		),
-		// Step 4b: Single LLM (conditional)
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Path to discovery folder").
+				Placeholder("~/discovery").
+				Value(&v.customPath),
+		).WithHideFunc(func() bool { return v.outputPath != "custom" }),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
+// buildOracleProjectForm creates a select form for choosing a project.
+func (m *OracleModel) buildOracleProjectForm() *huh.Form {
+	if len(m.projects) == 0 {
+		return nil
+	}
+
+	w := contentWidth(m.width)
+	options := make([]huh.Option[string], len(m.projects))
+	for i, p := range m.projects {
+		label := fmt.Sprintf("%s  (%s)", p.name, p.modTime.Format("Jan 2 15:04"))
+		options[i] = huh.NewOption(label, p.path)
+	}
+
+	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().
-				Title("Which LLM should run all steps?").
-				Options(SingleLLMOptions...).
-				Height(len(SingleLLMOptions)+1).
-				Value(&v.singleLLM),
-		).WithHideFunc(func() bool { return v.llmMode != "single_llm" }),
-		// Step 5: Idea (consult + vernhole)
-		huh.NewGroup(
+				Title("Select a project").
+				Description(m.projectSelectDescription()).
+				Options(options...).
+				Height(min(len(options)+1, 15)).
+				Value(&m.selectedProject),
+		),
+	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
+// projectSelectDescription returns an operation-specific description for the project selector.
+func (m *OracleModel) projectSelectDescription() string {
+	switch m.vals.operation {
+	case "consult":
+		return "Projects with vernhole/synthesis.md"
+	case "apply":
+		return "Projects with oracle-vision.md"
+	case "vernhole":
+		return "Projects with discovery output"
+	}
+	return "Select a project"
+}
+
+// buildOracleConfigForm creates an operation-specific config + confirm form.
+func (m *OracleModel) buildOracleConfigForm() *huh.Form {
+	w := contentWidth(m.width)
+	v := m.vals
+
+	var groups []*huh.Group
+
+	// Auto-detected paths note
+	groups = append(groups, huh.NewGroup(
+		huh.NewNote().
+			Title("Auto-Detected Paths").
+			Description(m.autoDetectedSummary()),
+	))
+
+	// Operation-specific fields
+	switch v.operation {
+	case "consult":
+		lines := textareaLines(m.height)
+		groups = append(groups, huh.NewGroup(
 			huh.NewText().
-				Title("Enter the original idea / prompt").
+				Title("Original idea / prompt").
 				Placeholder("Describe the idea that was explored...").
 				Lines(lines).
 				CharLimit(2000).
@@ -228,32 +267,258 @@ func (m *OracleModel) buildForm() *huh.Form {
 					}
 					return nil
 				}),
-		).WithHideFunc(func() bool { return v.operation == "apply" }),
-		// Step 6: Confirm
-		huh.NewGroup(
-			huh.NewNote().
-				Title("Review Configuration").
-				DescriptionFunc(func() string {
-					return m.confirmSummary()
-				}, &v.operation),
-			huh.NewConfirm().
-				Title("Proceed?").
-				Affirmative("Yes, run it").
-				Negative("Cancel").
-				Value(&v.confirm),
-		),
-	).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+		))
+	case "vernhole":
+		lines := textareaLines(m.height)
+		groups = append(groups, huh.NewGroup(
+			huh.NewText().
+				Title("Original idea / prompt").
+				Placeholder("Describe the idea that was explored...").
+				Lines(lines).
+				CharLimit(2000).
+				Value(&v.idea).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("idea is required")
+					}
+					return nil
+				}),
+		))
+		groups = append(groups, huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Which council do you want to summon?").
+				Options(CouncilOptions...).
+				Height(len(CouncilOptions)+1).
+				Value(&v.council),
+		))
+	}
+
+	// LLM mode (all operations)
+	groups = append(groups, huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("LLM Mode").
+			Options(LLMModeOptions...).
+			Height(len(LLMModeOptions)+1).
+			Value(&v.llmMode),
+	))
+	groups = append(groups, huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Which LLM should run all steps?").
+			Options(SingleLLMOptions...).
+			Height(len(SingleLLMOptions)+1).
+			Value(&v.singleLLM),
+	).WithHideFunc(func() bool { return v.llmMode != "single_llm" }))
+
+	// Confirm
+	groups = append(groups, huh.NewGroup(
+		huh.NewNote().
+			Title("Review Configuration").
+			DescriptionFunc(func() string {
+				return m.confirmSummary()
+			}, &v.operation),
+		huh.NewConfirm().
+			Title("Proceed?").
+			Affirmative("Yes, run it").
+			Negative("Cancel").
+			Value(&v.confirm),
+	))
+
+	return huh.NewForm(groups...).WithTheme(VernTheme()).WithWidth(w).WithHeight(formHeight(m.height))
+}
+
+// autoDetectedSummary returns a formatted summary of auto-detected paths.
+func (m *OracleModel) autoDetectedSummary() string {
+	v := m.vals
+	dim := lipgloss.NewStyle().Foreground(colorMuted).Italic(true).Render
+	label := lipgloss.NewStyle().Foreground(colorPrimary).Bold(true).Render
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Project:"), dim(filepath.Base(v.projectPath))))
+
+	switch v.operation {
+	case "consult":
+		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Synthesis:"), dim(v.synthDir)))
+		if v.vtsDir != "" {
+			b.WriteString(fmt.Sprintf("  %s  %s\n", label("VTS Dir:"), dim(v.vtsDir)))
+		}
+	case "apply":
+		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Vision:"), dim(v.visionFile)))
+		b.WriteString(fmt.Sprintf("  %s  %s\n", label("VTS Dir:"), dim(v.vtsDir)))
+	case "vernhole":
+		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Context:"), dim(v.contextFile)))
+		b.WriteString(fmt.Sprintf("  %s  %s\n", label("Output:"), dim(v.vernholeDir)))
+	}
+
+	return b.String()
+}
+
+// oracleOutputBase returns the base directory for project scanning.
+func (m *OracleModel) oracleOutputBase() string {
+	if m.vals.outputPath == "custom" && m.vals.customPath != "" {
+		return expandHome(m.vals.customPath)
+	}
+	return "./discovery"
+}
+
+// scanOracleProjects scans the base directory for projects matching the
+// operation's criteria. Returns sorted by most recently modified first.
+func scanOracleProjects(base, operation string) []projectInfo {
+	base = expandHome(base)
+	var projects []projectInfo
+
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return nil
+	}
+
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		projPath := filepath.Join(base, e.Name())
+		var keyTime time.Time
+		eligible := false
+
+		switch operation {
+		case "consult":
+			synthPath := filepath.Join(projPath, "vernhole", "synthesis.md")
+			if info, err := os.Stat(synthPath); err == nil {
+				eligible = true
+				keyTime = info.ModTime()
+			}
+		case "apply":
+			visionPath := filepath.Join(projPath, "oracle-vision.md")
+			if info, err := os.Stat(visionPath); err == nil {
+				eligible = true
+				keyTime = info.ModTime()
+			}
+		case "vernhole":
+			outputDir := filepath.Join(projPath, "output")
+			outputEntries, err := os.ReadDir(outputDir)
+			if err != nil {
+				continue
+			}
+			for _, oe := range outputEntries {
+				if !oe.IsDir() && strings.HasSuffix(oe.Name(), ".md") {
+					eligible = true
+					if info, err := oe.Info(); err == nil {
+						if info.ModTime().After(keyTime) {
+							keyTime = info.ModTime()
+						}
+					}
+				}
+			}
+		}
+
+		if eligible {
+			projects = append(projects, projectInfo{
+				name:    e.Name(),
+				path:    projPath,
+				modTime: keyTime,
+			})
+		}
+	}
+
+	// Sort newest first
+	sort.Slice(projects, func(i, j int) bool {
+		return projects[i].modTime.After(projects[j].modTime)
+	})
+
+	return projects
+}
+
+// populateFromProject auto-fills vals fields from the selected project directory.
+func (m *OracleModel) populateFromProject(projPath string) {
+	v := m.vals
+	v.projectPath = projPath
+
+	// Try to read idea from prompt.md
+	promptPath := filepath.Join(projPath, "input", "prompt.md")
+	if data, err := os.ReadFile(promptPath); err == nil {
+		v.idea = string(data)
+	}
+
+	switch v.operation {
+	case "consult":
+		v.synthDir = filepath.Join(projPath, "vernhole")
+		v.vtsDir = filepath.Join(projPath, "output", "vts")
+	case "apply":
+		v.visionFile = filepath.Join(projPath, "oracle-vision.md")
+		v.vtsDir = filepath.Join(projPath, "output", "vts")
+	case "vernhole":
+		v.contextFile = findConsolidationFile(filepath.Join(projPath, "output"))
+		v.vernholeDir = filepath.Join(projPath, "vernhole")
+	}
+}
+
+// findConsolidationFile looks for the best context file in a discovery output
+// directory. Prefers files matching *consolidation*, then falls back to the
+// highest-numbered step file.
+func findConsolidationFile(outputDir string) string {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return ""
+	}
+
+	var consolidation string
+	var highestStep string
+	var highestNum int
+
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+			continue
+		}
+		lower := strings.ToLower(e.Name())
+		if strings.Contains(lower, "consolidation") {
+			consolidation = filepath.Join(outputDir, e.Name())
+		}
+		// Track highest-numbered file (format: NN-slug-step.md)
+		if len(e.Name()) >= 2 && e.Name()[0] >= '0' && e.Name()[0] <= '9' {
+			var num int
+			fmt.Sscanf(e.Name()[:2], "%d", &num)
+			if num > highestNum {
+				highestNum = num
+				highestStep = filepath.Join(outputDir, e.Name())
+			}
+		}
+	}
+
+	if consolidation != "" {
+		return consolidation
+	}
+	return highestStep
 }
 
 func (m OracleModel) Init() tea.Cmd {
-	return m.form.Init()
+	return m.operationForm.Init()
 }
 
 func (m OracleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.String() == "esc" && !m.running {
-			return m, backToMenu
+			switch m.state {
+			case oracleStatePathForm:
+				// Go back to operation picker
+				m.state = oracleStateForm
+				m.operationForm = m.buildOperationForm()
+				return m, m.operationForm.Init()
+			case oracleStateProjectSelect:
+				// Go back to path form
+				m.state = oracleStatePathForm
+				m.pathForm = m.buildOraclePathForm()
+				return m, m.pathForm.Init()
+			case oracleStateConfigForm:
+				// Go back to project select
+				m.state = oracleStateProjectSelect
+				m.projectForm = m.buildOracleProjectForm()
+				if m.projectForm != nil {
+					return m, m.projectForm.Init()
+				}
+				return m, nil
+			default:
+				return m, backToMenu
+			}
 		}
 
 	case oracleDoneMsg:
@@ -280,11 +545,79 @@ func (m OracleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case oracleStateForm:
-		form, cmd := m.form.Update(msg)
+		form, cmd := m.operationForm.Update(msg)
 		if f, ok := form.(*huh.Form); ok {
-			m.form = f
+			m.operationForm = f
 		}
-		if m.form.State == huh.StateCompleted {
+		if m.operationForm.State == huh.StateCompleted {
+			m.state = oracleStatePathForm
+			m.pathForm = m.buildOraclePathForm()
+			return m, m.pathForm.Init()
+		}
+		if m.operationForm.State == huh.StateAborted {
+			return m, backToMenu
+		}
+		return m, cmd
+
+	case oracleStatePathForm:
+		form, cmd := m.pathForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.pathForm = f
+		}
+		if m.pathForm.State == huh.StateCompleted {
+			base := m.oracleOutputBase()
+			m.projects = scanOracleProjects(base, m.vals.operation)
+			m.projectForm = m.buildOracleProjectForm()
+			m.state = oracleStateProjectSelect
+			if m.projectForm != nil {
+				return m, m.projectForm.Init()
+			}
+			return m, nil
+		}
+		if m.pathForm.State == huh.StateAborted {
+			// Go back to operation picker
+			m.state = oracleStateForm
+			m.operationForm = m.buildOperationForm()
+			return m, m.operationForm.Init()
+		}
+		return m, cmd
+
+	case oracleStateProjectSelect:
+		if m.projectForm == nil {
+			// No projects found
+			if keyMsg, ok := msg.(tea.KeyMsg); ok {
+				if keyMsg.String() == "esc" || keyMsg.String() == "enter" {
+					m.state = oracleStatePathForm
+					m.pathForm = m.buildOraclePathForm()
+					return m, m.pathForm.Init()
+				}
+			}
+			return m, nil
+		}
+		form, cmd := m.projectForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.projectForm = f
+		}
+		if m.projectForm.State == huh.StateCompleted {
+			m.populateFromProject(m.selectedProject)
+			m.configForm = m.buildOracleConfigForm()
+			m.state = oracleStateConfigForm
+			return m, m.configForm.Init()
+		}
+		if m.projectForm.State == huh.StateAborted {
+			// Go back to path form
+			m.state = oracleStatePathForm
+			m.pathForm = m.buildOraclePathForm()
+			return m, m.pathForm.Init()
+		}
+		return m, cmd
+
+	case oracleStateConfigForm:
+		form, cmd := m.configForm.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.configForm = f
+		}
+		if m.configForm.State == huh.StateCompleted {
 			if !m.vals.confirm {
 				return m, backToMenu
 			}
@@ -293,8 +626,14 @@ func (m OracleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.vals.logCh = make(chan string, 100)
 			return m, tea.Batch(m.spinner.Tick, m.startOracle(), m.waitForLog())
 		}
-		if m.form.State == huh.StateAborted {
-			return m, backToMenu
+		if m.configForm.State == huh.StateAborted {
+			// Go back to project select
+			m.state = oracleStateProjectSelect
+			m.projectForm = m.buildOracleProjectForm()
+			if m.projectForm != nil {
+				return m, m.projectForm.Init()
+			}
+			return m, nil
 		}
 		return m, cmd
 
@@ -364,7 +703,11 @@ func (m OracleModel) resultContent() string {
 		}
 		return b.String()
 	case "vernhole":
-		synthPath := filepath.Join("./vernhole/", "synthesis.md")
+		synthDir := v.vernholeDir
+		if synthDir == "" {
+			synthDir = "./vernhole/"
+		}
+		synthPath := filepath.Join(synthDir, "synthesis.md")
 		if data, err := os.ReadFile(synthPath); err == nil {
 			return string(data)
 		}
@@ -405,9 +748,13 @@ func (m *OracleModel) initDoneViewport() {
 			content.WriteString(stepOKStyle.Render("Oracle's vision applied!"))
 			content.WriteString(fmt.Sprintf("\nUpdated VTS files in: %s\n\n", logDimStyle.Render(expandHome(m.vals.vtsDir))))
 		case "vernhole":
+			vernDir := m.vals.vernholeDir
+			if vernDir == "" {
+				vernDir = "./vernhole/"
+			}
 			content.WriteString(stepOKStyle.Render("The VernHole has spoken!"))
-			content.WriteString("\nFiles created in: ./vernhole/\n\n")
-			synthPath := filepath.Join("./vernhole/", "synthesis.md")
+			content.WriteString(fmt.Sprintf("\nFiles created in: %s\n\n", logDimStyle.Render(vernDir)))
+			synthPath := filepath.Join(vernDir, "synthesis.md")
 			if data, err := os.ReadFile(synthPath); err == nil {
 				content.WriteString(logHeaderStyle.Render("Synthesis"))
 				content.WriteString("\n")
@@ -455,6 +802,7 @@ func (m OracleModel) confirmSummary() string {
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Operation:"), val(m.operationLabel())))
+	b.WriteString(fmt.Sprintf("  %s  %s\n", label("Project:"), dim(filepath.Base(v.projectPath))))
 
 	switch v.operation {
 	case "consult":
@@ -553,11 +901,15 @@ func (m OracleModel) startOracle() tea.Cmd {
 			})
 
 		case "vernhole":
-			os.MkdirAll("./vernhole/", 0755)
+			vernDir := v.vernholeDir
+			if vernDir == "" {
+				vernDir = "./vernhole/"
+			}
+			os.MkdirAll(vernDir, 0755)
 			err = pipeline.RunVernHole(pipeline.VernHoleOptions{
 				Ctx:          ctx,
 				Idea:         v.idea,
-				OutputDir:    "./vernhole/",
+				OutputDir:    vernDir,
 				Council:      v.council,
 				Context:      expandHome(v.contextFile),
 				AgentsDir:    m.agentsDir,
@@ -602,7 +954,33 @@ func (m OracleModel) View() string {
 
 	switch m.state {
 	case oracleStateForm:
-		b.WriteString(m.form.View())
+		b.WriteString(m.operationForm.View())
+
+	case oracleStatePathForm:
+		b.WriteString(m.pathForm.View())
+
+	case oracleStateProjectSelect:
+		if m.projectForm == nil {
+			opLabel := ""
+			switch m.vals.operation {
+			case "consult":
+				opLabel = "No projects with vernhole/synthesis.md found in:"
+			case "apply":
+				opLabel = "No projects with oracle-vision.md found in:"
+			case "vernhole":
+				opLabel = "No projects with discovery output found in:"
+			}
+			b.WriteString(stepWarningStyle.Render(opLabel))
+			b.WriteString("\n")
+			b.WriteString(logDimStyle.Render(m.oracleOutputBase()))
+			b.WriteString("\n\n")
+			b.WriteString(subtitleStyle.Render("Press Esc to go back"))
+		} else {
+			b.WriteString(m.projectForm.View())
+		}
+
+	case oracleStateConfigForm:
+		b.WriteString(m.configForm.View())
 
 	case oracleStateRunning:
 		opLabel := m.operationLabel()
