@@ -59,6 +59,10 @@ OUTPUT FORMAT:
 [Actionable next steps]
 ```
 
+QUALITY CHECK:
+- Synthesis identifies genuine patterns, not just lists what each Vern said
+- Contradictions are explored for insight, not just cataloged
+
 CATCHPHRASES:
 - "Welcome to the VernHole"
 - "You asked for this"
