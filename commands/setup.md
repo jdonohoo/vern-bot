@@ -206,7 +206,7 @@ Write the config to the same file it was loaded from in Step 1. If no config exi
 
 ```json
 {
-  "version": "2.8.0",
+  "version": "2.8.1",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {
