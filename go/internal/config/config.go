@@ -324,7 +324,7 @@ func defaultLLMModes() map[string]LLMModeConfig {
 
 func hardcodedDefaults() *Config {
 	return &Config{
-		Version:        "2.8.1",
+		Version:        "2.9.0",
 		TimeoutSeconds: 1200,
 		MaxRetries:     2,
 		PipelineMode:   "default",

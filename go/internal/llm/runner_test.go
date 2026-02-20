@@ -1,9 +1,13 @@
 package llm
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestResolveLLM(t *testing.T) {
@@ -61,6 +65,160 @@ func TestLoadPersonaContextMissing(t *testing.T) {
 func TestExitCodeFromErr(t *testing.T) {
 	if exitCodeFromErr(nil) != 0 {
 		t.Error("nil error should return 0")
+	}
+}
+
+func TestLogRunWritesJSONL(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	// Clear any VERN_LOG setting
+	t.Setenv("VERN_LOG", "")
+
+	// Create the config dir structure so configDir() resolves here
+	logDir := filepath.Join(tmpDir, ".config", "vern", "logs")
+
+	opts := RunOptions{
+		LLM:        "gemini",
+		Prompt:     "Analyze this idea about building a distributed system",
+		OutputFile: "output.md",
+	}
+	result := &Result{
+		Output:   "Here is my analysis...",
+		ExitCode: 0,
+		TimedOut: false,
+		LLMUsed:  "claude",
+		Duration: 4500 * time.Millisecond,
+	}
+
+	logRun(opts, "gemini", result, nil)
+
+	logPath := filepath.Join(logDir, "vern.log")
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("failed to read log file: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected 1 log line, got %d", len(lines))
+	}
+
+	var entry logEntry
+	if err := json.Unmarshal([]byte(lines[0]), &entry); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	if entry.LLMRequested != "gemini" {
+		t.Errorf("llm_requested = %q, want %q", entry.LLMRequested, "gemini")
+	}
+	if entry.LLMUsed != "claude" {
+		t.Errorf("llm_used = %q, want %q", entry.LLMUsed, "claude")
+	}
+	if entry.ExitCode != 0 {
+		t.Errorf("exit_code = %d, want 0", entry.ExitCode)
+	}
+	if entry.TimedOut {
+		t.Error("timed_out should be false")
+	}
+	if entry.DurationMs != 4500 {
+		t.Errorf("duration_ms = %d, want 4500", entry.DurationMs)
+	}
+	if entry.Error != "" {
+		t.Errorf("error should be empty, got %q", entry.Error)
+	}
+	if entry.OutputFile != "output.md" {
+		t.Errorf("output_file = %q, want %q", entry.OutputFile, "output.md")
+	}
+	if entry.OutputBytes != len("Here is my analysis...") {
+		t.Errorf("output_bytes = %d, want %d", entry.OutputBytes, len("Here is my analysis..."))
+	}
+	if entry.PromptPreview != "Analyze this idea about building a distributed system" {
+		t.Errorf("prompt_preview = %q, want full prompt", entry.PromptPreview)
+	}
+	if entry.Time == "" {
+		t.Error("time should not be empty")
+	}
+}
+
+func TestLogRunWithError(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("VERN_LOG", "")
+
+	opts := RunOptions{
+		LLM:    "codex",
+		Prompt: "test prompt",
+	}
+	result := &Result{
+		ExitCode: 1,
+		LLMUsed:  "codex",
+		Duration: 200 * time.Millisecond,
+	}
+
+	logRun(opts, "codex", result, fmt.Errorf("signal: killed"))
+
+	logPath := filepath.Join(tmpDir, ".config", "vern", "logs", "vern.log")
+	data, _ := os.ReadFile(logPath)
+
+	var entry logEntry
+	json.Unmarshal([]byte(strings.TrimSpace(string(data))), &entry)
+
+	if entry.Error != "signal: killed" {
+		t.Errorf("error = %q, want %q", entry.Error, "signal: killed")
+	}
+	if entry.ExitCode != 1 {
+		t.Errorf("exit_code = %d, want 1", entry.ExitCode)
+	}
+}
+
+func TestLogRunDisabledByEnv(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("VERN_LOG", "0")
+
+	opts := RunOptions{LLM: "claude", Prompt: "test"}
+	result := &Result{LLMUsed: "claude", Duration: time.Second}
+
+	logRun(opts, "claude", result, nil)
+
+	logPath := filepath.Join(tmpDir, ".config", "vern", "logs", "vern.log")
+	if _, err := os.Stat(logPath); err == nil {
+		t.Error("log file should not exist when VERN_LOG=0")
+	}
+}
+
+func TestTruncatePrompt(t *testing.T) {
+	short := "short prompt"
+	if got := truncatePrompt(short, 200); got != short {
+		t.Errorf("short prompt should not be truncated, got %q", got)
+	}
+
+	long := strings.Repeat("a", 300)
+	got := truncatePrompt(long, 200)
+	if len(got) != 203 { // 200 + "..."
+		t.Errorf("truncated length = %d, want 203", len(got))
+	}
+	if !strings.HasSuffix(got, "...") {
+		t.Error("truncated prompt should end with ...")
+	}
+}
+
+func TestLogRunAppendsMultipleEntries(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("VERN_LOG", "")
+
+	opts := RunOptions{LLM: "claude", Prompt: "first"}
+	result := &Result{LLMUsed: "claude", Duration: time.Second}
+
+	logRun(opts, "claude", result, nil)
+	logRun(opts, "claude", result, nil)
+
+	logPath := filepath.Join(tmpDir, ".config", "vern", "logs", "vern.log")
+	data, _ := os.ReadFile(logPath)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Errorf("expected 2 log lines, got %d", len(lines))
 	}
 }
 

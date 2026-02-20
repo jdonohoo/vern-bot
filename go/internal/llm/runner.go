@@ -45,6 +45,7 @@ func Run(opts RunOptions) (*Result, error) {
 	}
 
 	// Resolve LLM and check availability, fall back to claude
+	llmRequested := opts.LLM
 	llm := resolveLLM(opts.LLM)
 
 	// Build persona context
@@ -142,7 +143,9 @@ func Run(opts RunOptions) (*Result, error) {
 			Duration: duration,
 		}
 
-		return writeOutput(result, opts.OutputFile)
+		result, wErr := writeOutput(result, opts.OutputFile)
+		logRun(opts, llmRequested, result, wErr)
+		return result, wErr
 
 	case "gemini":
 		fullPrompt := textOnly + personaContext + opts.Prompt + dadJoke
@@ -194,7 +197,9 @@ func Run(opts RunOptions) (*Result, error) {
 		Duration: duration,
 	}
 
-	return writeOutput(result, opts.OutputFile)
+	result, wErr := writeOutput(result, opts.OutputFile)
+	logRun(opts, llmRequested, result, wErr)
+	return result, wErr
 }
 
 // resolveLLM normalizes LLM names and falls back to claude if unavailable.
