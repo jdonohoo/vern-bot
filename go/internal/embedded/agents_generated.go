@@ -138,7 +138,7 @@ Example: "Why did the developer quit? Because he didn't get arrays. YOLO!"
 
 // DefaultConfigJSON contains the default config.default.json content.
 var DefaultConfigJSON = `{
-  "version": "2.9.0",
+  "version": "2.9.1",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {

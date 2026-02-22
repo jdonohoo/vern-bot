@@ -38,6 +38,7 @@ type HistorianModel struct {
 	form        *huh.Form
 	spinner     spinner.Model
 	viewport    viewport.Model
+	celebration CelebrationModel
 	width       int
 	height      int
 	projectRoot string
@@ -136,13 +137,21 @@ func (m HistorianModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, backToMenu
 		}
 
+	case celebrateTickMsg:
+		cmd := m.celebration.Update(msg)
+		return m, cmd
+
 	case histDoneMsg:
 		m.state = histStateDone
 		m.running = false
 		m.summary = msg.summary
 		m.err = msg.err
+		var celebCmd tea.Cmd
+		if msg.err == nil {
+			celebCmd = m.celebration.Start("historian", m.width)
+		}
 		m.initDoneViewport()
-		return m, tea.DisableMouse
+		return m, tea.Batch(tea.DisableMouse, celebCmd)
 
 	case histLogMsg:
 		m.stepLog = append(m.stepLog, msg.line)
@@ -199,6 +208,9 @@ func (m HistorianModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *HistorianModel) initDoneViewport() {
 	cw := contentWidth(m.width)
 	vpHeight := m.height - 6
+	if m.err == nil {
+		vpHeight -= m.celebration.Height()
+	}
 	if vpHeight < 5 {
 		vpHeight = 5
 	}
@@ -211,8 +223,6 @@ func (m *HistorianModel) initDoneViewport() {
 		content.WriteString("\n\n")
 		content.WriteString(logDimStyle.Render("Press [r] to retry, or [q/esc] to return to menu."))
 	} else {
-		content.WriteString(stepOKStyle.Render("Historian indexing complete!"))
-		content.WriteString("\n\n")
 		content.WriteString(m.summary)
 	}
 
@@ -330,6 +340,10 @@ func (m HistorianModel) View() string {
 		}
 
 	case histStateDone:
+		if cv := m.celebration.View(); cv != "" {
+			b.WriteString(cv)
+			b.WriteString("\n")
+		}
 		b.WriteString(m.viewport.View())
 	}
 

@@ -113,7 +113,7 @@ func RunVernHole(opts VernHoleOptions) error {
 				vernLLM = opts.OverrideLLM
 			}
 
-			vernOutput(&opts, ">>> Vern %d/%d: %s (%s)\n", idx+1, numVerns, vern.Desc, vernLLM)
+			vernOutput(&opts, ">>> Vern %d/%d: %s (%s)\n", idx+1, numVerns, vern.Name, vernLLM)
 
 			result, err := llm.Run(llm.RunOptions{
 				Ctx:        opts.Ctx,
@@ -142,7 +142,17 @@ func RunVernHole(opts VernHoleOptions) error {
 					exitCode = result.ExitCode
 				}
 				r.ExitCode = exitCode
-				vernOutput(&opts, "    FAILED (%s, exit %d, Vern %d/%d) — excluding from synthesis\n", vern.ID, exitCode, idx+1, numVerns)
+				errSnippet := ""
+				if result != nil && result.Stderr != "" {
+					errSnippet = llm.FirstLine(result.Stderr)
+				} else if err != nil {
+					errSnippet = err.Error()
+				}
+				if errSnippet != "" {
+					vernOutput(&opts, "    FAILED (%s, exit %d, Vern %d/%d): %s — excluding from synthesis\n", vern.ID, exitCode, idx+1, numVerns, errSnippet)
+				} else {
+					vernOutput(&opts, "    FAILED (%s, exit %d, Vern %d/%d) — excluding from synthesis\n", vern.ID, exitCode, idx+1, numVerns)
+				}
 			}
 
 			results[idx] = r

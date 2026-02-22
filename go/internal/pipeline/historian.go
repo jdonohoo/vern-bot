@@ -183,6 +183,10 @@ Tag key items inline as they appear:
 	duration := time.Since(start)
 
 	if result.ExitCode != 0 {
+		detail := llm.FirstLine(result.Stderr)
+		if detail != "" {
+			return nil, fmt.Errorf("historian LLM exited with code %d: %s", result.ExitCode, detail)
+		}
 		return nil, fmt.Errorf("historian LLM exited with code %d", result.ExitCode)
 	}
 

@@ -18,6 +18,7 @@ type StepResult struct {
 	FellBack    bool   `json:"fell_back,omitempty"`     // true if fell back to fallback LLM
 	DurationMS  int64  `json:"duration_ms"`
 	OutputBytes int64  `json:"output_bytes"`
+	ErrorDetail string `json:"error_detail,omitempty"` // stderr snippet on failure
 }
 
 // IsFailedOutput checks if a file is a failure marker or empty/missing.

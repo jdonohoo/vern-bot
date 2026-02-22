@@ -22,7 +22,7 @@ import (
 // vernStatus tracks an individual Vern's async state in the VernHole phase.
 type vernStatus struct {
 	num    int    // 1-based index
-	desc   string // e.g. "Opus excellence"
+	desc   string // display name from log line (e.g. "Ketamine Vern")
 	llm    string // e.g. "claude"
 	status string // "summoned", "ok", "failed"
 }
@@ -76,6 +76,7 @@ type DiscoveryModel struct {
 	spinner     spinner.Model
 	progress    progress.Model
 	viewport    viewport.Model
+	celebration CelebrationModel
 	projectRoot string
 	agentsDir   string
 	width       int
@@ -470,13 +471,21 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, backToMenu
 		}
 
+	case celebrateTickMsg:
+		cmd := m.celebration.Update(msg)
+		return m, cmd
+
 	case pipelineDoneMsg:
 		m.state = discStateDone
 		m.running = false
 		m.err = msg.err
 		m.readStatus()
+		var celebCmd tea.Cmd
+		if msg.err == nil {
+			celebCmd = m.celebration.Start("pipeline", m.width)
+		}
 		m.initDoneViewport()
-		return m, tea.DisableMouse
+		return m, tea.Batch(tea.DisableMouse, celebCmd)
 
 	case pipelineLogMsg:
 		line := msg.line
@@ -494,6 +503,8 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.runningPhase = "vernhole"
 			m.phaseLogStart = len(m.stepLog)
 		} else if strings.Contains(upper, "CONSULTING THE ORACLE") {
+			// VernHole just finished — fire ephemeral celebration
+			m.celebration.StartEphemeral("vernhole", m.width)
 			m.runningPhase = "oracle"
 			m.phaseLogStart = len(m.stepLog)
 			m.oracleStep = "consult"
@@ -512,6 +523,7 @@ func (m DiscoveryModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.historianPhase = "running"
 			} else if strings.Contains(upper, "HISTORIAN COMPLETE") || strings.Contains(upper, "HISTORIAN INDEX ALREADY EXISTS") {
 				m.historianPhase = "done"
+				m.celebration.StartEphemeral("historian", m.width)
 			} else if strings.Contains(upper, "HISTORIAN: PROMPT ONLY") || strings.Contains(upper, "NOTHING TO INDEX") {
 				m.historianPhase = "done"
 			} else if strings.Contains(upper, "HISTORIAN FAILED") {
@@ -774,6 +786,9 @@ func (m *DiscoveryModel) updateProgress(line string) {
 func (m *DiscoveryModel) initDoneViewport() {
 	cw := contentWidth(m.width)
 	vpHeight := m.height - 6
+	if m.err == nil {
+		vpHeight -= m.celebration.Height()
+	}
 	if vpHeight < 5 {
 		vpHeight = 5
 	}
@@ -785,8 +800,7 @@ func (m *DiscoveryModel) initDoneViewport() {
 		content.WriteString(stepFailStyle.Render("Pipeline failed: " + m.err.Error()))
 		content.WriteString("\n\n")
 	} else {
-		content.WriteString(stepOKStyle.Render("Discovery pipeline complete!"))
-		content.WriteString(fmt.Sprintf("\n\nOutput: %s\n", m.discoveryDir()))
+		content.WriteString(fmt.Sprintf("Output: %s\n", m.discoveryDir()))
 		content.WriteString("\n")
 	}
 
@@ -1257,8 +1271,14 @@ func (m DiscoveryModel) View() string {
 			label("Output:"), logDimStyle.Render(m.discoveryDir())))
 		b.WriteString("  " + logDimStyle.Render(strings.Repeat("─", 50)) + "\n")
 
+		// Ephemeral celebration (inline during running)
+		if cv := m.celebration.View(); cv != "" {
+			b.WriteString(cv)
+			b.WriteString("\n")
+		}
+
 		// Chrome: title(2) + spinner(2) + config(1) + sep(1) + progress(2) + help(2) = 10
-		totalAvail := m.height - 10
+		totalAvail := m.height - 10 - m.celebration.Height()
 		if totalAvail < 10 {
 			totalAvail = 10
 		}
@@ -1330,6 +1350,10 @@ func (m DiscoveryModel) View() string {
 		}
 
 	case discStateDone:
+		if cv := m.celebration.View(); cv != "" {
+			b.WriteString(cv)
+			b.WriteString("\n")
+		}
 		if m.statusMsg != "" {
 			b.WriteString(stepOKStyle.Render(m.statusMsg) + "\n")
 		}

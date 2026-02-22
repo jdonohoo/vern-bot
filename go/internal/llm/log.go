@@ -16,6 +16,7 @@ type logEntry struct {
 	TimedOut      bool   `json:"timed_out"`
 	DurationMs    int64  `json:"duration_ms"`
 	Error         string `json:"error,omitempty"`
+	Stderr        string `json:"stderr,omitempty"`
 	OutputFile    string `json:"output_file,omitempty"`
 	OutputBytes   int    `json:"output_bytes"`
 	PromptPreview string `json:"prompt_preview"`
@@ -23,7 +24,7 @@ type logEntry struct {
 
 // logRun appends a JSONL entry to ~/.config/vern/logs/vern.log.
 // Disabled if VERN_LOG=0.
-func logRun(opts RunOptions, llmRequested string, result *Result, err error) {
+func logRun(opts RunOptions, llmRequested string, result *Result, runErr error, writeErr error) {
 	if os.Getenv("VERN_LOG") == "0" {
 		return
 	}
@@ -49,10 +50,15 @@ func logRun(opts RunOptions, llmRequested string, result *Result, err error) {
 		entry.TimedOut = result.TimedOut
 		entry.DurationMs = result.Duration.Milliseconds()
 		entry.OutputBytes = len(result.Output)
+		if result.Stderr != "" {
+			entry.Stderr = truncatePrompt(result.Stderr, 500)
+		}
 	}
 
-	if err != nil {
-		entry.Error = err.Error()
+	if runErr != nil {
+		entry.Error = runErr.Error()
+	} else if writeErr != nil {
+		entry.Error = writeErr.Error()
 	}
 
 	data, jsonErr := json.Marshal(entry)

@@ -90,7 +90,7 @@ func TestLogRunWritesJSONL(t *testing.T) {
 		Duration: 4500 * time.Millisecond,
 	}
 
-	logRun(opts, "gemini", result, nil)
+	logRun(opts, "gemini", result, nil, nil)
 
 	logPath := filepath.Join(logDir, "vern.log")
 	data, err := os.ReadFile(logPath)
@@ -155,7 +155,7 @@ func TestLogRunWithError(t *testing.T) {
 		Duration: 200 * time.Millisecond,
 	}
 
-	logRun(opts, "codex", result, fmt.Errorf("signal: killed"))
+	logRun(opts, "codex", result, fmt.Errorf("signal: killed"), nil)
 
 	logPath := filepath.Join(tmpDir, ".config", "vern", "logs", "vern.log")
 	data, _ := os.ReadFile(logPath)
@@ -179,7 +179,7 @@ func TestLogRunDisabledByEnv(t *testing.T) {
 	opts := RunOptions{LLM: "claude", Prompt: "test"}
 	result := &Result{LLMUsed: "claude", Duration: time.Second}
 
-	logRun(opts, "claude", result, nil)
+	logRun(opts, "claude", result, nil, nil)
 
 	logPath := filepath.Join(tmpDir, ".config", "vern", "logs", "vern.log")
 	if _, err := os.Stat(logPath); err == nil {
@@ -211,8 +211,8 @@ func TestLogRunAppendsMultipleEntries(t *testing.T) {
 	opts := RunOptions{LLM: "claude", Prompt: "first"}
 	result := &Result{LLMUsed: "claude", Duration: time.Second}
 
-	logRun(opts, "claude", result, nil)
-	logRun(opts, "claude", result, nil)
+	logRun(opts, "claude", result, nil, nil)
+	logRun(opts, "claude", result, nil, nil)
 
 	logPath := filepath.Join(tmpDir, ".config", "vern", "logs", "vern.log")
 	data, _ := os.ReadFile(logPath)

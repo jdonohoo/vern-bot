@@ -164,6 +164,10 @@ VERNHOLE SYNTHESIS:
 	})
 
 	if err != nil || result.ExitCode != 0 {
+		detail := llm.FirstLine(result.Stderr)
+		if detail != "" {
+			return fmt.Errorf("oracle consult failed (exit %d): %s", result.ExitCode, detail)
+		}
 		return fmt.Errorf("oracle consult failed (exit %d)", result.ExitCode)
 	}
 
@@ -240,7 +244,11 @@ Produce the complete updated task breakdown. Include ALL tasks (not just changed
 	})
 
 	if err != nil || result.ExitCode != 0 || IsFailedOutput(outputFile) {
-		return fmt.Errorf("oracle apply failed")
+		detail := llm.FirstLine(result.Stderr)
+		if detail != "" {
+			return fmt.Errorf("oracle apply failed (exit %d): %s", result.ExitCode, detail)
+		}
+		return fmt.Errorf("oracle apply failed (exit %d)", result.ExitCode)
 	}
 
 	// Clear old VTS files and re-process

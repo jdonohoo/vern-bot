@@ -75,6 +75,7 @@ type OracleModel struct {
 	spinner       spinner.Model
 	progress      progress.Model
 	viewport      viewport.Model
+	celebration   CelebrationModel
 	projectRoot   string
 	agentsDir     string
 	width         int
@@ -521,12 +522,24 @@ func (m OracleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case celebrateTickMsg:
+		cmd := m.celebration.Update(msg)
+		return m, cmd
+
 	case oracleDoneMsg:
 		m.state = oracleStateDone
 		m.running = false
 		m.err = msg.err
+		var celebCmd tea.Cmd
+		if msg.err == nil {
+			phase := "oracle"
+			if m.vals.operation == "vernhole" {
+				phase = "vernhole"
+			}
+			celebCmd = m.celebration.Start(phase, m.width)
+		}
 		m.initDoneViewport()
-		return m, tea.DisableMouse
+		return m, tea.Batch(tea.DisableMouse, celebCmd)
 
 	case oracleLogMsg:
 		m.stepLog = append(m.stepLog, msg.line)
@@ -723,6 +736,9 @@ func (m OracleModel) consultOutputFile() string {
 func (m *OracleModel) initDoneViewport() {
 	cw := contentWidth(m.width)
 	vpHeight := m.height - 6
+	if m.err == nil {
+		vpHeight -= m.celebration.Height()
+	}
 	if vpHeight < 5 {
 		vpHeight = 5
 	}
@@ -736,8 +752,7 @@ func (m *OracleModel) initDoneViewport() {
 	} else {
 		switch m.vals.operation {
 		case "consult":
-			content.WriteString(stepOKStyle.Render("Oracle has spoken!"))
-			content.WriteString(fmt.Sprintf("\nVision written to: %s\n\n", logDimStyle.Render(m.consultOutputFile())))
+			content.WriteString(fmt.Sprintf("Vision written to: %s\n\n", logDimStyle.Render(m.consultOutputFile())))
 			if data, err := os.ReadFile(m.consultOutputFile()); err == nil {
 				content.WriteString(logHeaderStyle.Render("Oracle Vision"))
 				content.WriteString("\n")
@@ -745,15 +760,13 @@ func (m *OracleModel) initDoneViewport() {
 				content.WriteString("\n")
 			}
 		case "apply":
-			content.WriteString(stepOKStyle.Render("Oracle's vision applied!"))
-			content.WriteString(fmt.Sprintf("\nUpdated VTS files in: %s\n\n", logDimStyle.Render(expandHome(m.vals.vtsDir))))
+			content.WriteString(fmt.Sprintf("Updated VTS files in: %s\n\n", logDimStyle.Render(expandHome(m.vals.vtsDir))))
 		case "vernhole":
 			vernDir := m.vals.vernholeDir
 			if vernDir == "" {
 				vernDir = "./vernhole/"
 			}
-			content.WriteString(stepOKStyle.Render("The VernHole has spoken!"))
-			content.WriteString(fmt.Sprintf("\nFiles created in: %s\n\n", logDimStyle.Render(vernDir)))
+			content.WriteString(fmt.Sprintf("Files created in: %s\n\n", logDimStyle.Render(vernDir)))
 			synthPath := filepath.Join(vernDir, "synthesis.md")
 			if data, err := os.ReadFile(synthPath); err == nil {
 				content.WriteString(logHeaderStyle.Render("Synthesis"))
@@ -1024,6 +1037,10 @@ func (m OracleModel) View() string {
 		}
 
 	case oracleStateDone:
+		if cv := m.celebration.View(); cv != "" {
+			b.WriteString(cv)
+			b.WriteString("\n")
+		}
 		if m.statusMsg != "" {
 			b.WriteString(stepOKStyle.Render(m.statusMsg) + "\n")
 		}

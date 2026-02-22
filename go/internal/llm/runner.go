@@ -32,6 +32,7 @@ type RunOptions struct {
 // Result holds the output of an LLM run.
 type Result struct {
 	Output   string
+	Stderr   string // last 2KB of subprocess stderr
 	ExitCode int
 	TimedOut bool
 	LLMUsed  string
@@ -118,7 +119,12 @@ func Run(opts RunOptions) (*Result, error) {
 		// Set process group so we can kill children
 		setProcGroup(cmd)
 		cmd.Stdout = nil // codex output goes to -o file
-		cmd.Stderr = nil
+		var stderrBuf bytes.Buffer
+		if opts.QuietStderr {
+			cmd.Stderr = &stderrBuf
+		} else {
+			cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+		}
 
 		runErr := cmd.Run()
 		duration := time.Since(start)
@@ -137,6 +143,7 @@ func Run(opts RunOptions) (*Result, error) {
 
 		result := &Result{
 			Output:   outputStr,
+			Stderr:   truncStderr(stderrBuf.String(), 2048),
 			ExitCode: exitCode,
 			TimedOut: timedOut,
 			LLMUsed:  llm,
@@ -144,7 +151,7 @@ func Run(opts RunOptions) (*Result, error) {
 		}
 
 		result, wErr := writeOutput(result, opts.OutputFile)
-		logRun(opts, llmRequested, result, wErr)
+		logRun(opts, llmRequested, result, runErr, wErr)
 		return result, wErr
 
 	case "gemini":
@@ -167,11 +174,12 @@ func Run(opts RunOptions) (*Result, error) {
 	// Capture stdout only — let stderr pass through to the terminal so the user
 	// sees progress/errors but they don't pollute the captured output.
 	var stdoutBuf bytes.Buffer
+	var stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	if opts.QuietStderr {
-		cmd.Stderr = io.Discard
+		cmd.Stderr = &stderrBuf
 	} else {
-		cmd.Stderr = os.Stderr
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	}
 
 	// Set process group for non-codex LLMs
@@ -191,6 +199,7 @@ func Run(opts RunOptions) (*Result, error) {
 
 	result := &Result{
 		Output:   string(output),
+		Stderr:   truncStderr(stderrBuf.String(), 2048),
 		ExitCode: exitCode,
 		TimedOut: timedOut,
 		LLMUsed:  llm,
@@ -198,7 +207,7 @@ func Run(opts RunOptions) (*Result, error) {
 	}
 
 	result, wErr := writeOutput(result, opts.OutputFile)
-	logRun(opts, llmRequested, result, wErr)
+	logRun(opts, llmRequested, result, err, wErr)
 	return result, wErr
 }
 
@@ -271,6 +280,42 @@ func exitCodeFromErr(err error) int {
 		return exitErr.ExitCode()
 	}
 	return 1
+}
+
+// truncStderr trims stderr to the last max bytes, strips leading blank lines
+// and non-printable characters.
+func truncStderr(s string, max int) string {
+	if s == "" {
+		return ""
+	}
+	// Strip non-printable chars (keep tabs and newlines)
+	cleaned := strings.Map(func(r rune) rune {
+		if r == '\t' || r == '\n' || r == '\r' {
+			return r
+		}
+		if r < 32 {
+			return -1
+		}
+		return r
+	}, s)
+	// Keep last max bytes
+	if len(cleaned) > max {
+		cleaned = cleaned[len(cleaned)-max:]
+	}
+	// Strip leading blank lines
+	cleaned = strings.TrimLeft(cleaned, "\n\r")
+	return strings.TrimSpace(cleaned)
+}
+
+// FirstLine returns the first non-empty line of s, or empty string.
+func FirstLine(s string) string {
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			return line
+		}
+	}
+	return ""
 }
 
 func writeOutput(result *Result, outputFile string) (*Result, error) {

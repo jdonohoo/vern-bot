@@ -41,7 +41,7 @@ func (h *ConsoleHandler) OnStepFallback(stepNum int, from string, to string) {
 }
 
 func (h *ConsoleHandler) OnVernStart(idx int, vern council.Vern, llm string) {
-	fmt.Printf(">>> Vern %d: %s (%s)\n", idx+1, vern.Desc, llm)
+	fmt.Printf(">>> Vern %d: %s (%s)\n", idx+1, vern.Name, llm)
 }
 
 func (h *ConsoleHandler) OnVernComplete(idx int, result VernHoleResult) {

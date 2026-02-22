@@ -13,7 +13,7 @@
     {
       "name": "vern",
       "description": "Multi-LLM discovery pipelines, competing AI personas, VernHole council tiers, Historian indexing, and Oracle vision. One idea in, battle-tested plan out. Run your idea through competing AI models and personas — each one challenges, refines, and stress-tests the last. What survives the gauntlet is worth building.",
-      "version": "2.9.0",
+      "version": "2.9.1",
       "author": {
         "name": "Justin Donohoo"
       },

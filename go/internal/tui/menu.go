@@ -12,13 +12,14 @@ import (
 
 // MenuModel is the main menu screen.
 type MenuModel struct {
-	cursor int
-	items  []string
-	chosen int
-	cfg    *config.Config
+	cursor  int
+	items   []string
+	chosen  int
+	cfg     *config.Config
+	version string
 }
 
-func NewMenuModel() MenuModel {
+func NewMenuModel(version string) MenuModel {
 	return MenuModel{
 		items: []string{
 			"Discovery Pipeline",
@@ -31,8 +32,9 @@ func NewMenuModel() MenuModel {
 			"Settings",
 			"Quit",
 		},
-		chosen: -1,
-		cfg:    config.Load(""),
+		chosen:  -1,
+		cfg:     config.Load(""),
+		version: version,
 	}
 }
 
@@ -80,9 +82,13 @@ func (m MenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m MenuModel) View() string {
 	var b strings.Builder
 
+	title := "VERN-BOT"
+	if m.version != "" {
+		title += "  " + subtitleStyle.Render("v"+strings.TrimPrefix(m.version, "v"))
+	}
 	header := headerBox.Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			titleStyle.Render("VERN-BOT"),
+			titleStyle.Render(title),
 			subtitleStyle.Render("Multi-LLM Discovery Pipeline"),
 		),
 	)

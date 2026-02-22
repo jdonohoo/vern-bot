@@ -163,6 +163,16 @@ func ModelToLLM(model string) string {
 	}
 }
 
+// DisplayName extracts the persona display name from a full description string.
+// E.g. "MightyVern / Codex Vern - Raw computational power." -> "MightyVern / Codex Vern"
+// Falls back to the full description (trimmed) if no dash separator is found.
+func DisplayName(desc string) string {
+	if idx := strings.Index(desc, " - "); idx >= 0 {
+		return strings.TrimSpace(desc[:idx])
+	}
+	return strings.TrimSpace(desc)
+}
+
 // ShortDescription extracts the short descriptor from a full description string.
 // E.g. "MightyVern / Codex Vern - Raw computational power." -> "Raw computational power"
 func ShortDescription(desc string) string {

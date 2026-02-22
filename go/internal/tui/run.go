@@ -55,6 +55,7 @@ type RunModel struct {
 	running   bool
 	stepLog   []string
 	output    string
+	stderr    string
 	err       error
 	statusMsg string
 }
@@ -164,6 +165,7 @@ func (m RunModel) Init() tea.Cmd {
 // runDoneMsg signals the LLM run completed (with or without error).
 type runDoneMsg struct {
 	output string
+	stderr string
 	err    error
 }
 
@@ -189,6 +191,7 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = runStateDone
 		m.running = false
 		m.output = msg.output
+		m.stderr = msg.stderr
 		m.err = msg.err
 		m.initDoneViewport()
 		return m, tea.DisableMouse
@@ -275,7 +278,13 @@ func (m *RunModel) initDoneViewport() {
 	var content strings.Builder
 	if m.err != nil {
 		content.WriteString(stepFailStyle.Render("Error: " + m.err.Error()))
-		content.WriteString("\n\n")
+		content.WriteString("\n")
+		if m.stderr != "" {
+			content.WriteString("\n")
+			content.WriteString(logDimStyle.Render(m.stderr))
+			content.WriteString("\n")
+		}
+		content.WriteString("\n")
 		// Show retry hint
 		content.WriteString(logDimStyle.Render("Press [r] to retry with a different LLM, or [q/esc] to return to menu."))
 	} else {
@@ -337,6 +346,7 @@ func (m RunModel) startRun() tea.Cmd {
 
 		var lastErr error
 		var lastOutput string
+		var lastStderr string
 
 		for attempt := 1; attempt <= maxRunAttempts; attempt++ {
 			logLine := fmt.Sprintf(">>> Attempt %d/%d — Running %s", attempt, maxRunAttempts, v.llmName)
@@ -370,6 +380,9 @@ func (m RunModel) startRun() tea.Cmd {
 			lastErr = err
 			if result != nil {
 				lastOutput = result.Output
+				if result.Stderr != "" {
+					lastStderr = result.Stderr
+				}
 			}
 
 			failLine := "    FAILED"
@@ -395,7 +408,7 @@ func (m RunModel) startRun() tea.Cmd {
 		if lastErr == nil {
 			lastErr = fmt.Errorf("all %d attempts failed (empty or error output)", maxRunAttempts)
 		}
-		return runDoneMsg{err: lastErr, output: lastOutput}
+		return runDoneMsg{err: lastErr, output: lastOutput, stderr: lastStderr}
 	}
 }
 

@@ -50,7 +50,7 @@ type App struct {
 func NewApp(projectRoot, agentsDir, version string) App {
 	return App{
 		screen:         ScreenMenu,
-		menu:           NewMenuModel(),
+		menu:           NewMenuModel(version),
 		discovery:      NewDiscoveryModel(projectRoot, agentsDir),
 		hole:           NewHoleModel(projectRoot, agentsDir),
 		run:            NewRunModel(projectRoot, agentsDir),
@@ -245,7 +245,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case backToMenuMsg:
 		a.screen = ScreenMenu
-		a.menu = NewMenuModel()
+		a.menu = NewMenuModel(a.currentVersion)
 		return a, tea.EnableMouseCellMotion
 
 	case updateAvailableMsg:
@@ -385,24 +385,38 @@ func (a App) View() string {
 	// Help bar
 	helpView := helpBarStyle.Render(a.help.View(a.activeKeyMap()))
 
+	// Version label (very subtle)
+	versionLabel := ""
+	if a.currentVersion != "" {
+		versionLabel = lipgloss.NewStyle().Foreground(lipgloss.Color("#484848")).Render(
+			" v" + strings.TrimPrefix(a.currentVersion, "v"),
+		)
+	}
+
 	// Center in terminal
 	if a.width > 0 && a.height > 0 {
-		// Reserve lines for help bar + optional update banner
-		reserved := 2
-		if a.updateAvailable != "" {
-			reserved++
-		}
+		// Reserve lines for help bar + bottom bar (version / update)
+		reserved := 3
 		contentHeight := a.height - reserved
 
 		output := lipgloss.Place(a.width, contentHeight, lipgloss.Center, lipgloss.Center, styled)
 		output += "\n" + lipgloss.PlaceHorizontal(a.width, lipgloss.Center, helpView)
 
+		// Bottom bar: version left, update banner right
+		bottomRight := ""
 		if a.updateAvailable != "" {
-			banner := updateStyle.Render(
+			bottomRight = updateStyle.Render(
 				fmt.Sprintf("Update available %s! Run: brew upgrade vern", a.updateAvailable),
 			)
-			output += "\n" + lipgloss.PlaceHorizontal(a.width, lipgloss.Right, banner)
 		}
+		leftW := lipgloss.Width(versionLabel)
+		rightW := lipgloss.Width(bottomRight)
+		gap := a.width - leftW - rightW
+		if gap < 0 {
+			gap = 0
+		}
+		output += "\n" + versionLabel + strings.Repeat(" ", gap) + bottomRight
+
 		return output
 	}
 	return styled + "\n" + helpView

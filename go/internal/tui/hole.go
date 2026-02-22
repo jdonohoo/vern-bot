@@ -48,6 +48,7 @@ type HoleModel struct {
 	spinner     spinner.Model
 	progress    progress.Model
 	viewport    viewport.Model
+	celebration CelebrationModel
 	projectRoot string
 	agentsDir   string
 	width       int
@@ -203,12 +204,20 @@ func (m HoleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, backToMenu
 		}
 
+	case celebrateTickMsg:
+		cmd := m.celebration.Update(msg)
+		return m, cmd
+
 	case holeDoneMsg:
 		m.state = holeStateDone
 		m.running = false
 		m.err = msg.err
+		var celebCmd tea.Cmd
+		if msg.err == nil {
+			celebCmd = m.celebration.Start("vernhole", m.width)
+		}
 		m.initDoneViewport()
-		return m, tea.DisableMouse
+		return m, tea.Batch(tea.DisableMouse, celebCmd)
 
 	case holeLogMsg:
 		m.stepLog = append(m.stepLog, msg.line)
@@ -295,6 +304,9 @@ func (m *HoleModel) updateProgress(line string) {
 func (m *HoleModel) initDoneViewport() {
 	cw := contentWidth(m.width)
 	vpHeight := m.height - 6
+	if m.err == nil {
+		vpHeight -= m.celebration.Height()
+	}
 	if vpHeight < 5 {
 		vpHeight = 5
 	}
@@ -306,8 +318,7 @@ func (m *HoleModel) initDoneViewport() {
 		content.WriteString(stepFailStyle.Render("VernHole failed: " + m.err.Error()))
 		content.WriteString("\n\n")
 	} else {
-		content.WriteString(stepOKStyle.Render("The VernHole has spoken!"))
-		content.WriteString(fmt.Sprintf("\n\nFiles created in: %s\n", m.outputDir()))
+		content.WriteString(fmt.Sprintf("Files created in: %s\n", m.outputDir()))
 		content.WriteString("\n")
 	}
 
@@ -522,6 +533,10 @@ func (m HoleModel) View() string {
 		}
 
 	case holeStateDone:
+		if cv := m.celebration.View(); cv != "" {
+			b.WriteString(cv)
+			b.WriteString("\n")
+		}
 		if m.statusMsg != "" {
 			b.WriteString(stepOKStyle.Render(m.statusMsg) + "\n")
 		}

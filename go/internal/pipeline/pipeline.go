@@ -306,13 +306,14 @@ func (p *Pipeline) execute(mode string) error {
 		fallbackLLM := p.cfg.GetFallbackLLM(originalLLM)
 
 		var actualLLM string
+		var lastStderr string
 		for attempt := 1; attempt <= totalAttempts; attempt++ {
 			if attempt > 1 {
 				p.printf("    Retry %d/%d for step %d (%s) with %s...\n", attempt-1, opts.MaxRetries, stepNum, step.Name, retryLLM)
 				p.log("Step %d (%s): retry %d/%d with %s", stepNum, step.Name, attempt-1, opts.MaxRetries, retryLLM)
 			}
 
-			result, _ := llm.Run(llm.RunOptions{
+			result, runErr := llm.Run(llm.RunOptions{
 				Ctx:         opts.Ctx,
 				LLM:         retryLLM,
 				Prompt:      runPrompt,
@@ -327,6 +328,11 @@ func (p *Pipeline) execute(mode string) error {
 			attemptCount = attempt
 			duration = result.Duration
 			actualLLM = result.LLMUsed
+			if result.Stderr != "" {
+				lastStderr = result.Stderr
+			} else if runErr != nil {
+				lastStderr = runErr.Error()
+			}
 
 			// Detect silent LLM swap by resolveLLM (e.g. CLI not found)
 			if actualLLM != "" && actualLLM != retryLLM && !fellBack {
@@ -358,7 +364,7 @@ func (p *Pipeline) execute(mode string) error {
 			retryLLM = fallbackLLM
 			fellBack = true
 
-			result, _ := llm.Run(llm.RunOptions{
+			result, runErr := llm.Run(llm.RunOptions{
 				Ctx:         opts.Ctx,
 				LLM:         fallbackLLM,
 				Prompt:      runPrompt,
@@ -373,6 +379,11 @@ func (p *Pipeline) execute(mode string) error {
 			lastExitCode = result.ExitCode
 			duration = result.Duration
 			actualLLM = result.LLMUsed
+			if result.Stderr != "" {
+				lastStderr = result.Stderr
+			} else if runErr != nil {
+				lastStderr = runErr.Error()
+			}
 
 			if result.ExitCode == 0 && !IsFailedOutput(outputFile) {
 				succeeded = true
@@ -412,12 +423,21 @@ func (p *Pipeline) execute(mode string) error {
 				OutputBytes: outputBytes,
 			}
 		} else {
-			p.printf("    FAILED after %d attempts (last exit: %d)\n", attemptCount, lastExitCode)
-			p.log("Step %d (%s): FAILED (exit %d, %d attempts, original=%s, final=%s)", stepNum, step.Name, lastExitCode, attemptCount, originalLLM, usedLLM)
+			stderrSnippet := llm.FirstLine(lastStderr)
+			if stderrSnippet != "" {
+				p.printf("    FAILED after %d attempts (last exit: %d): %s\n", attemptCount, lastExitCode, stderrSnippet)
+				p.log("Step %d (%s): FAILED (exit %d, %d attempts, original=%s, final=%s): %s", stepNum, step.Name, lastExitCode, attemptCount, originalLLM, usedLLM, stderrSnippet)
+			} else {
+				p.printf("    FAILED after %d attempts (last exit: %d)\n", attemptCount, lastExitCode)
+				p.log("Step %d (%s): FAILED (exit %d, %d attempts, original=%s, final=%s)", stepNum, step.Name, lastExitCode, attemptCount, originalLLM, usedLLM)
+			}
 
 			// Write failure marker
 			failureContent := fmt.Sprintf("# STEP FAILED\n\nStep %d (%s) failed after %d attempt(s).\nOriginal LLM: %s\nFinal LLM: %s (fallback)\nLast exit code: %d\n\nRe-run with: --resume-from %d\n",
 				stepNum, step.Name, attemptCount, originalLLM, usedLLM, lastExitCode, stepNum)
+			if lastStderr != "" {
+				failureContent += fmt.Sprintf("\n## Stderr\n\n```\n%s\n```\n", lastStderr)
+			}
 			os.WriteFile(outputFile, []byte(failureContent), 0644)
 
 			failedSteps = append(failedSteps, stepNum)
@@ -433,6 +453,7 @@ func (p *Pipeline) execute(mode string) error {
 				FellBack:    fellBack,
 				DurationMS:  duration.Milliseconds(),
 				OutputBytes: 0,
+				ErrorDetail: stderrSnippet,
 			}
 		}
 

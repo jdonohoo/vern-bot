@@ -16,8 +16,9 @@ import (
 // Vern represents a persona in the roster.
 type Vern struct {
 	ID   string
+	Name string // display name (e.g. "Ketamine Vern")
 	LLM  string
-	Desc string
+	Desc string // tagline (e.g. "Good vibes only")
 }
 
 // ScanRoster builds the roster by scanning agents/*.md files.
@@ -52,10 +53,12 @@ func ScanRoster(agentsDir string) []Vern {
 		}
 
 		llm := persona.ModelToLLM(p.Model)
+		name := persona.DisplayName(p.Description)
 		desc := persona.ShortDescription(p.Description)
 
 		roster = append(roster, Vern{
 			ID:   id,
+			Name: name,
 			LLM:  llm,
 			Desc: desc,
 		})
@@ -87,8 +90,9 @@ func scanEmbeddedRoster(skip map[string]bool) []Vern {
 			continue
 		}
 		llm := persona.ModelToLLM(p.Model)
+		displayName := persona.DisplayName(p.Description)
 		desc := persona.ShortDescription(p.Description)
-		roster = append(roster, Vern{ID: name, LLM: llm, Desc: desc})
+		roster = append(roster, Vern{ID: name, Name: displayName, LLM: llm, Desc: desc})
 	}
 
 	if len(roster) == 0 {
@@ -206,20 +210,20 @@ func clamp(n, min, max int) int {
 
 func hardcodedRoster() []Vern {
 	return []Vern{
-		{ID: "academic", LLM: "claude", Desc: "needs more research, cites sources"},
-		{ID: "architect", LLM: "claude", Desc: "systems design, blueprints before builds"},
-		{ID: "enterprise", LLM: "claude", Desc: "needs 6 meetings and a committee"},
-		{ID: "great", LLM: "claude", Desc: "excellence incarnate, elegant solutions"},
-		{ID: "inverse", LLM: "claude", Desc: "contrarian takes only"},
-		{ID: "ketamine", LLM: "claude", Desc: "multi-dimensional vibes, sees patterns"},
-		{ID: "mediocre", LLM: "claude", Desc: "scrappy speed demon, ship it fast"},
-		{ID: "mighty", LLM: "claude", Desc: "raw power, comprehensive analysis"},
-		{ID: "nyquil", LLM: "claude", Desc: "brilliant but brief, NyQuil kicking in"},
-		{ID: "optimist", LLM: "claude", Desc: "everything will be fine!"},
-		{ID: "paranoid", LLM: "claude", Desc: "what could possibly go wrong?"},
-		{ID: "retro", LLM: "claude", Desc: "we solved this with cron in 2004"},
-		{ID: "startup", LLM: "claude", Desc: "MVP or die, move fast"},
-		{ID: "ux", LLM: "claude", Desc: "can the user find the button?"},
-		{ID: "yolo", LLM: "claude", Desc: "full send, no guardrails"},
+		{ID: "academic", Name: "Academic Vern", LLM: "claude", Desc: "needs more research, cites sources"},
+		{ID: "architect", Name: "Architect Vern", LLM: "claude", Desc: "systems design, blueprints before builds"},
+		{ID: "enterprise", Name: "Enterprise Vern", LLM: "claude", Desc: "needs 6 meetings and a committee"},
+		{ID: "great", Name: "Vernile the Great", LLM: "claude", Desc: "excellence incarnate, elegant solutions"},
+		{ID: "inverse", Name: "Inverse Vern", LLM: "claude", Desc: "contrarian takes only"},
+		{ID: "ketamine", Name: "Ketamine Vern", LLM: "claude", Desc: "multi-dimensional vibes, sees patterns"},
+		{ID: "mediocre", Name: "Vern the Mediocre", LLM: "claude", Desc: "scrappy speed demon, ship it fast"},
+		{ID: "mighty", Name: "MightyVern", LLM: "claude", Desc: "raw power, comprehensive analysis"},
+		{ID: "nyquil", Name: "Nyquil Vern", LLM: "claude", Desc: "brilliant but brief, NyQuil kicking in"},
+		{ID: "optimist", Name: "Optimist Vern", LLM: "claude", Desc: "everything will be fine!"},
+		{ID: "paranoid", Name: "Paranoid Vern", LLM: "claude", Desc: "what could possibly go wrong?"},
+		{ID: "retro", Name: "Retro Vern", LLM: "claude", Desc: "we solved this with cron in 2004"},
+		{ID: "startup", Name: "Startup Vern", LLM: "claude", Desc: "MVP or die, move fast"},
+		{ID: "ux", Name: "UX Vern", LLM: "claude", Desc: "can the user find the button?"},
+		{ID: "yolo", Name: "YOLO Vern", LLM: "claude", Desc: "full send, no guardrails"},
 	}
 }
