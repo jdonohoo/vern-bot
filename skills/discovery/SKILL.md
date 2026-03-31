@@ -1,7 +1,7 @@
 ---
 name: discovery
-description: Full Vern Discovery flow - multi-LLM planning pipeline with Default (5-step) and Expanded (7-step) modes.
-argument-hint: [name] [prompt] or just [prompt]
+description: "Runs a multi-LLM discovery pipeline (Default 5-step or Expanded 7-step) that chains analysis, refinement, chaos-checking, and consolidation across LLMs, then breaks results into actionable VTS tasks. Use when the user wants to explore, validate, or plan an idea through multiple AI perspectives."
+argument-hint: "[name] [prompt] or just [prompt]"
 ---
 
 # Vern Discovery Pipeline
