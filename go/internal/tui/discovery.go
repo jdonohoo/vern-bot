@@ -410,7 +410,7 @@ func (m *DiscoveryModel) buildConfigForm() *huh.Form {
 		huh.NewGroup(
 			huh.NewConfirm().
 				Title("Run Historian to index input files?").
-				Description("Uses Gemini's 2M context to create a deep index for downstream steps").
+				Description("Uses Antigravity's large context to create a deep index for downstream steps").
 				Affirmative("Yes (Recommended)").
 				Negative("Skip").
 				Value(&v.runHistorian),

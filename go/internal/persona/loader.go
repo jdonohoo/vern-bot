@@ -152,12 +152,10 @@ func ModelToLLM(model string) string {
 	switch strings.ToLower(model) {
 	case "opus", "sonnet", "haiku":
 		return "claude"
-	case "gemini", "gemini-3", "gemini-pro", "gemini-flash":
-		return "gemini"
+	case "antigravity", "agy", "gemini", "gemini-3", "gemini-pro", "gemini-flash":
+		return "antigravity"
 	case "codex", "codex-mini":
 		return "codex"
-	case "copilot", "copilot-gpt4":
-		return "copilot"
 	default:
 		return "claude"
 	}

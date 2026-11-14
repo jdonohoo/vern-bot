@@ -35,7 +35,7 @@ var (
 )
 
 func init() {
-	generateCmd.Flags().StringVarP(&genModel, "model", "m", "", "Override model (opus/sonnet/haiku/gemini-3/gemini-pro/gemini-flash/codex/codex-mini/copilot/copilot-gpt4)")
+	generateCmd.Flags().StringVarP(&genModel, "model", "m", "", "Override model (opus/sonnet/haiku/antigravity/codex/codex-mini)")
 	generateCmd.Flags().StringVar(&genColor, "color", "", "Override TUI color")
 	generateCmd.Flags().StringVar(&genLLM, "llm", "claude", "LLM for generation")
 	generateCmd.Flags().BoolVar(&genDryRun, "dry-run", false, "Print generated content without writing")

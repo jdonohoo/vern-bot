@@ -278,9 +278,9 @@ func (m HistorianModel) startHistorian() tea.Cmd {
 		if result.FellBack {
 			summaryLines = append(summaryLines,
 				"",
-				fmt.Sprintf("WARNING: Gemini not installed -- used %s as fallback.", result.LLMUsed),
-				"The Historian needs Gemini's 2M context window for large inputs.",
-				"Index may be incomplete. Install Gemini CLI for best results.",
+				fmt.Sprintf("WARNING: Antigravity (agy) not installed -- used %s as fallback.", result.LLMUsed),
+				"The Historian works best with a large-context model for big inputs.",
+				"Index may be incomplete. Install the Antigravity CLI for best results.",
 			)
 		}
 

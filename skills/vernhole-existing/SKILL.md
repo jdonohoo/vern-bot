@@ -64,11 +64,10 @@ Ask using AskUserQuestion:
 Options:
 - **Mixed LLMs + Claude fallback** (Recommended)
 - **Mixed LLMs + Codex fallback**
-- **Mixed LLMs + Gemini fallback**
-- **Mixed LLMs + Copilot fallback**
+- **Mixed LLMs + Antigravity fallback**
 - **Single LLM**
 
-If "Single LLM", follow up: Claude, Codex, Gemini, Copilot
+If "Single LLM", follow up: Claude, Codex, Antigravity
 
 ## Step 5: Output Location
 
@@ -112,8 +111,7 @@ If outputting to the same project and a `vernhole/` directory already exists, wa
 ### Flag mapping:
 - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit)
 - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
-- Mixed + Gemini FB → `--llm-mode mixed_gemini_fallback`
-- Mixed + Copilot FB → `--llm-mode mixed_copilot_fallback`
+- Mixed + Antigravity FB → `--llm-mode mixed_antigravity_fallback`
 - Single LLM → `--single-llm <chosen_llm>`
 
 ### Important:

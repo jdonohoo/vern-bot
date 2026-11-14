@@ -249,7 +249,7 @@ func isFilteredLogLine(line string) bool {
 		return true
 	}
 
-	// Gemini CLI stderr noise
+	// Antigravity / Gemini CLI stderr noise
 	if strings.Contains(upper, "YOLO MODE IS ENABLED") {
 		return true
 	}

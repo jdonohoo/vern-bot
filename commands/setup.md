@@ -33,10 +33,9 @@ Ask using AskUserQuestion:
 
 Options (multiSelect: true):
 - **Codex** (used by MightyVern for raw analysis power)
-- **Gemini** (used by YOLO Vern for chaos checks)
-- **Copilot** (used as analysis engine, GitHub Copilot CLI)
+- **Antigravity** (used by YOLO Vern for chaos checks)
 
-Based on their answer, set `llms.codex`, `llms.gemini`, and `llms.copilot` to true/false. `llms.claude` is always true.
+Based on their answer, set `llms.codex` and `llms.antigravity` to true/false. `llms.claude` is always true.
 
 ## Step 2.5: Default LLM Mode
 
@@ -45,17 +44,15 @@ Ask using AskUserQuestion:
 > "What should be your default LLM mode?"
 
 Options:
-- **Mixed LLMs + Claude fallback** (Recommended) — Pipeline uses codex/claude/gemini/copilot per step config, falls back to claude on failure
+- **Mixed LLMs + Claude fallback** (Recommended) — Pipeline uses codex/claude/antigravity per step config, falls back to claude on failure
 - **Mixed LLMs + Codex fallback** — Same pipeline, falls back to codex instead
-- **Mixed LLMs + Gemini fallback** — Falls back to gemini
-- **Mixed LLMs + Copilot fallback** — Falls back to copilot
+- **Mixed LLMs + Antigravity fallback** — Falls back to antigravity
 - **Single LLM** — All steps use one LLM (ask which one)
 
 Track the answer as `llm_mode`:
 - Mixed + Claude FB → `"mixed_claude_fallback"`
 - Mixed + Codex FB → `"mixed_codex_fallback"`
-- Mixed + Gemini FB → `"mixed_gemini_fallback"`
-- Mixed + Copilot FB → `"mixed_copilot_fallback"`
+- Mixed + Antigravity FB → `"mixed_antigravity_fallback"`
 - Single LLM → `"single_llm"` (also ask which LLM and set `llm_modes.single_llm.override_llm`)
 
 ## Step 3: Pipeline Mode
@@ -74,7 +71,7 @@ Track the answer as `pipeline_mode` ("default" or "expanded").
 
 If they have ALL three LLMs, ask:
 
-> "Use the default discovery pipeline? (Codex -> Claude -> Gemini -> Codex -> Claude)"
+> "Use the default discovery pipeline? (Codex -> Claude -> Antigravity -> Codex -> Claude)"
 
 Options:
 - **Yes, use defaults** (Recommended) - skip to Step 5
@@ -92,7 +89,6 @@ For each of the 5 default pipeline steps, ask using AskUserQuestion:
 Options (build dynamically based on available LLMs):
 - **MightyVern on Codex** (Recommended if codex available) - raw power analysis
 - **MightyVern on Claude** - thorough but different flavor
-- **MightyVern on Copilot** - copilot-powered analysis
 - **Vernile on Claude** - elegant initial analysis
 - **Academic Vern on Claude** - research-heavy initial analysis
 
@@ -109,9 +105,8 @@ Options:
 > "Who should stress-test the plan?"
 
 Options (build dynamically):
-- **YOLO Vern on Gemini** (Recommended if gemini available) - full chaos
+- **YOLO Vern on Antigravity** (Recommended if agy available) - full chaos
 - **YOLO Vern on Claude** - chaos energy, Claude engine
-- **YOLO Vern on Copilot** - chaos energy, Copilot engine
 - **Inverse Vern on Claude** - contrarian stress test
 - **Paranoid Vern on Claude** - risk-focused stress test
 - **Startup Vern on Claude** - "is this actually an MVP?" test
@@ -122,7 +117,6 @@ Options (build dynamically):
 Options:
 - **MightyVern on Codex** (Recommended if codex available) - comprehensive synthesis
 - **MightyVern on Claude** - synthesis without Codex
-- **MightyVern on Copilot** - copilot-powered synthesis
 - **Vernile on Claude** - elegant consolidation
 - **Ketamine Vern on Claude** - pattern-finding consolidation
 
@@ -206,36 +200,30 @@ Write the config to the same file it was loaded from in Step 1. If no config exi
 
 ```json
 {
-  "version": "2.9.1",
+  "version": "3.0.0",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {
     "claude": true,
     "codex": true,
-    "gemini": false,
-    "copilot": false
+    "antigravity": false
   },
   "llm_mode": "mixed_claude_fallback",
   "llm_modes": {
     "mixed_claude_fallback": {
       "description": "Mixed LLMs, claude as safety net",
-      "fallback": {"codex": "claude", "gemini": "claude", "copilot": "claude"},
+      "fallback": {"codex": "claude", "antigravity": "claude"},
       "synthesis_llm": "claude"
     },
     "mixed_codex_fallback": {
       "description": "Mixed LLMs, codex as safety net",
-      "fallback": {"claude": "codex", "gemini": "codex", "copilot": "codex"},
+      "fallback": {"claude": "codex", "antigravity": "codex"},
       "synthesis_llm": "codex"
     },
-    "mixed_gemini_fallback": {
-      "description": "Mixed LLMs, gemini as safety net",
-      "fallback": {"claude": "gemini", "codex": "gemini", "copilot": "gemini"},
-      "synthesis_llm": "gemini"
-    },
-    "mixed_copilot_fallback": {
-      "description": "Mixed LLMs, copilot as safety net",
-      "fallback": {"claude": "copilot", "codex": "copilot", "gemini": "copilot"},
-      "synthesis_llm": "copilot"
+    "mixed_antigravity_fallback": {
+      "description": "Mixed LLMs, antigravity as safety net",
+      "fallback": {"claude": "antigravity", "codex": "antigravity"},
+      "synthesis_llm": "antigravity"
     },
     "single_llm": {
       "description": "Single LLM for everything",
@@ -318,9 +306,9 @@ Write the config to the same file it was loaded from in Step 1. If no config exi
         "step": 4,
         "name": "Chaos Check",
         "persona": "yolo",
-        "llm": "gemini",
+        "llm": "antigravity",
         "context_mode": "previous",
-        "description": "YOLO Vern on Gemini"
+        "description": "YOLO Vern on Antigravity"
       },
       {
         "step": 5,
@@ -371,7 +359,7 @@ Show the user a summary:
 === VERN-BOT CONFIGURED ===
 
 LLM Mode: Mixed + Claude Fallback
-LLMs: Claude ✓  Codex ✓  Gemini ✗  Copilot ✗
+LLMs: Claude ✓  Codex ✓  Antigravity ✗
 
 Default Pipeline Mode: default (5-step)
 
@@ -408,7 +396,7 @@ Run /vern:setup anytime to reconfigure.
 - The TUI settings screen also reads/writes these same config files
 - The bin scripts and Go CLI read this config to determine which LLM to invoke
 - Any persona can run on any LLM - the persona prompt is the personality, the LLM is the engine
-- If no config exists, the pipeline falls back to defaults (codex/claude/gemini)
+- If no config exists, the pipeline falls back to defaults (codex/claude/antigravity)
 - Use `--expanded` flag with `/vern:discovery` to override the default pipeline mode for a single run
 - The `default_discovery_path` setting is shared with the TUI — changes in either place are visible to both
 

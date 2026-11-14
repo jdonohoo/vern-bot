@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: go
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+          cache-dependency-path: go/go.sum
+
+      - name: Embedded agents and config are up to date
+        if: runner.os == 'Linux'
+        run: |
+          go generate ./internal/embedded/
+          git diff --exit-code -- internal/embedded/agents_generated.go
+
+      - name: Build
+        run: go build ./...
+
+      - name: Build and vet for Windows
+        if: runner.os == 'Linux'
+        run: GOOS=windows go vet ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...

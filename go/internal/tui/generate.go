@@ -54,13 +54,9 @@ var ModelOptions = []huh.Option[string]{
 	huh.NewOption("Claude Opus — deep thinker, thorough analysis", "opus"),
 	huh.NewOption("Claude Sonnet — fast and scrappy", "sonnet"),
 	huh.NewOption("Claude Haiku — brief and minimal", "haiku"),
-	huh.NewOption("Gemini 3 — 2M context window, large-scale analysis", "gemini-3"),
-	huh.NewOption("Gemini Pro — deep reasoning", "gemini-pro"),
-	huh.NewOption("Gemini Flash — speed-optimized", "gemini-flash"),
+	huh.NewOption("Antigravity — Google's agent, large-context analysis", "antigravity"),
 	huh.NewOption("Codex — raw computational power", "codex"),
 	huh.NewOption("Codex Mini — lighter and faster", "codex-mini"),
-	huh.NewOption("Copilot — code-focused assistance", "copilot"),
-	huh.NewOption("Copilot GPT-4 — GPT-4 backbone", "copilot-gpt4"),
 }
 
 // ColorOptions are the color choices for persona TUI display.

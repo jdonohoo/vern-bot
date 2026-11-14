@@ -43,7 +43,7 @@ set "PERSONA=%~4"
 
 if "%LLM%"=="" (
     echo Usage: vern-run ^<llm^> "^<prompt^>" [output_file] [persona]
-    echo   llm: claude ^| codex ^| gemini
+    echo   llm: claude ^| codex ^| antigravity (alias: gemini)
     exit /b 1
 )
 if "%PROMPT%"=="" (

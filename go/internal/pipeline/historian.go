@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,7 +20,7 @@ type HistorianOptions struct {
 	PromptFile string // Optional: prompt.md to update with reference to the index
 	AgentsDir  string
 	Timeout    int // seconds
-	LLMName     string // override LLM (default: gemini)
+	LLMName     string // override LLM (default: antigravity)
 	QuietStderr bool   // suppress stderr (TUI mode)
 	OnLog       func(string)
 }
@@ -32,12 +31,12 @@ type HistorianResult struct {
 	CharCount  int
 	Duration   time.Duration
 	LLMUsed    string
-	FellBack   bool // true if gemini wasn't available
+	FellBack   bool // true if antigravity wasn't available
 	Skipped    bool // true if no indexable files found (prompt-only)
 }
 
 // RunHistorian scans a directory, builds a prompt from its contents, calls an LLM
-// (preferring gemini for its large context window), and writes input-history.md.
+// (preferring antigravity for its large context window), and writes input-history.md.
 func RunHistorian(opts HistorianOptions) (*HistorianResult, error) {
 	if opts.Ctx == nil {
 		opts.Ctx = context.Background()
@@ -78,7 +77,7 @@ func RunHistorian(opts HistorianOptions) (*HistorianResult, error) {
 		return &HistorianResult{Skipped: true}, nil
 	}
 
-	// Resolve LLM: prefer gemini, fall back if unavailable
+	// Resolve LLM: prefer antigravity, fall back if unavailable
 	llmName, fellBack := resolveHistorianLLM(opts.LLMName)
 
 	logFn := opts.OnLog
@@ -87,10 +86,10 @@ func RunHistorian(opts HistorianOptions) (*HistorianResult, error) {
 	}
 
 	if fellBack {
-		logFn(fmt.Sprintf("WARNING: Gemini is not installed. Falling back to %s.", llmName))
-		logFn("The Historian is designed for Gemini's 2M token context window.")
+		logFn(fmt.Sprintf("WARNING: Antigravity (agy) is not installed. Falling back to %s.", llmName))
+		logFn("The Historian is designed for a large-context model.")
 		logFn(fmt.Sprintf("Using %s may FAIL or produce incomplete results on large input directories.", llmName))
-		logFn("For best results: install the Gemini CLI (https://ai.google.dev/gemini-api/docs/downloads/cli)")
+		logFn("For best results: install the Antigravity CLI (https://antigravity.google/cli)")
 	}
 
 	logFn(fmt.Sprintf("Indexing %d files from %s using %s (LLM will crawl directory)...", fileCount, absDir, llmName))
@@ -198,7 +197,7 @@ Tag key items inline as they appear:
 
 	output := result.Output
 
-	// Agentic LLMs (especially Gemini --yolo) may write the output file directly
+	// Agentic LLMs may write the output file directly
 	// instead of returning content on stdout. Check both sources.
 	if strings.TrimSpace(output) == "" {
 		if data, readErr := os.ReadFile(outputFile); readErr == nil && len(strings.TrimSpace(string(data))) > 0 {
@@ -257,20 +256,20 @@ func updatePromptFile(promptFile string, logFn func(string)) {
 }
 
 // resolveHistorianLLM picks the LLM for the Historian.
-// Prefers gemini for its 2M context window. Falls back to config fallback or claude.
+// Prefers antigravity for its large context window. Falls back to config fallback or claude.
 func resolveHistorianLLM(override string) (llmName string, fellBack bool) {
-	if override != "" && override != "gemini" {
+	if override != "" && llm.Canonical(override) != "antigravity" {
 		return override, false
 	}
 
-	if _, err := exec.LookPath("gemini"); err == nil {
-		return "gemini", false
+	if p, ok := llm.Lookup("antigravity"); ok && p.Available() {
+		return "antigravity", false
 	}
 
-	// Gemini not available — fall back
+	// Antigravity not available — fall back
 	cfg := config.Load("")
-	fallback := cfg.GetFallbackLLM("gemini")
-	if fallback == "" || fallback == "gemini" {
+	fallback := cfg.GetFallbackLLM("antigravity")
+	if fallback == "" || fallback == "antigravity" {
 		fallback = "claude"
 	}
 	return fallback, true

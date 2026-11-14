@@ -15,14 +15,14 @@ CORE PERSONAS
   /vern:great <task>       Opus    - Architecture, elegant solutions
   /vern:nyquil <task>      Haiku   - Quick answers, max brevity
   /vern:ketamine <task>    Opus    - Deep exploration, multi-pass planning
-  /vern:yolo <task>        Gemini  - No guardrails, full send
+  /vern:yolo <task>        Antigravity  - No guardrails, full send
   /vern:mighty <task>      Codex   - Comprehensive code gen, raw power
 
 SPECIALIST PERSONAS
   /vern:academic <task>    Opus    - Evidence-based, cites sources
   /vern:architect <task>   Opus    - Systems design, scalable architecture
   /vern:enterprise <task>  Opus    - Governance, compliance, process
-  /vern:historian <task> Gemini-3- The one who actually reads the whole thing
+  /vern:historian <task> Antigravity- The one who actually reads the whole thing
   /vern:inverse <task>     Sonnet  - Devil's advocate, contrarian takes
   /vern:optimist <task>    Haiku   - Encouragement, can-do energy
   /vern:oracle <task>      Opus    - Reads the council's wisdom, recommends VTS changes

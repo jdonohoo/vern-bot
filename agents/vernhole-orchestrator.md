@@ -27,7 +27,7 @@ YOUR PROCESS:
 2. For each Vern, spawn appropriate sub-agent:
    - Claude Verns: `NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions`
    - Codex Verns: `codex --dangerously-bypass-approvals-and-sandbox`
-   - Gemini Verns: `gemini --yolo`
+   - Antigravity Verns: `agy -p "..." --dangerously-skip-permissions`
 3. Collect each Vern's analysis
 4. Synthesize the chaos into insights
 5. Present the emergence

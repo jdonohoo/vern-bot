@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jdonohoo/vern-bot/go/internal/config"
+	"github.com/jdonohoo/vern-bot/go/internal/llm"
 )
 
 type settingsState int
@@ -255,8 +256,7 @@ func (m *SettingsModel) buildLLMToggleForm() *huh.Form {
 	options := []huh.Option[string]{
 		huh.NewOption[string]("Claude (always enabled)", "claude").Selected(true),
 		huh.NewOption[string]("Codex", "codex"),
-		huh.NewOption[string]("Gemini", "gemini"),
-		huh.NewOption[string]("Copilot", "copilot"),
+		huh.NewOption[string]("Antigravity", "antigravity"),
 	}
 	// Pre-select currently enabled LLMs
 	for i, opt := range options {
@@ -379,7 +379,7 @@ func (m *SettingsModel) applyFormResult() {
 		}
 		// Always ensure claude is enabled
 		enabledSet["claude"] = true
-		for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
+		for _, name := range llm.Names() {
 			m.cfg.LLMs[name] = enabledSet[name]
 		}
 	case settingsActionPipeline:
@@ -404,7 +404,7 @@ func (m *SettingsModel) applyFormResult() {
 
 func (m SettingsModel) currentEnabledLLMs() []string {
 	var enabled []string
-	for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
+	for _, name := range llm.Names() {
 		if e, ok := m.cfg.LLMs[name]; ok && e {
 			enabled = append(enabled, name)
 		}
@@ -457,7 +457,7 @@ func (m SettingsModel) configSummary() string {
 	b.WriteString(fmt.Sprintf("  %s  %s\n", label("LLM Mode:"), val(llmMode)))
 
 	b.WriteString(fmt.Sprintf("  %s      ", label("LLMs:")))
-	for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
+	for _, name := range llm.Names() {
 		if enabled, ok := m.cfg.LLMs[name]; ok && enabled {
 			b.WriteString(stepOKStyle.Render(name) + "  ")
 		} else {

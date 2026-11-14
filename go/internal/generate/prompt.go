@@ -222,16 +222,11 @@ Create a new persona with:
    - opus — for deep thinkers, architects, thorough analyzers
    - sonnet — for fast workers, scrappy builders, quick responders
    - haiku — for brief/minimal personas, quick answers
-   **Gemini models:**
-   - gemini-3 — Gemini 3, massive 2M context window, good for large-scale analysis
-   - gemini-pro — Gemini Pro, deep reasoning
-   - gemini-flash — Gemini Flash, speed-optimized
+   **Antigravity:**
+   - antigravity — Google's Antigravity agent, large context, good for large-scale analysis
    **Codex models:**
    - codex — OpenAI Codex, raw computational power, code generation
    - codex-mini — Codex Mini, lighter and faster
-   **Copilot models:**
-   - copilot — GitHub Copilot, code-focused assistance
-   - copilot-gpt4 — Copilot with GPT-4 backbone
 4. Choose a color that matches the persona's personality (e.g. red, blue, green, yellow, pink, cyan, orange, purple, gray, etc.)
 5. Create unique, memorable catchphrases (5-6 of them)
 6. The SIGN-OFF must instruct the persona to end with a themed dad joke and include an example
@@ -275,7 +270,7 @@ func BuildPrompt(name, desc, model, color string) string {
 	if model != "" {
 		data.ModelDirective = "**Model override:** Use `" + model + "` as the model value in the agent frontmatter."
 	} else {
-		data.ModelDirective = "Choose the model (opus/sonnet/haiku/gemini-3/gemini-pro/gemini-flash/codex/codex-mini/copilot/copilot-gpt4) that best fits this persona's vibe and described LLM."
+		data.ModelDirective = "Choose the model (opus/sonnet/haiku/antigravity/codex/codex-mini) that best fits this persona's vibe and described LLM."
 	}
 
 	if color != "" {

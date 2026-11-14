@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -17,16 +18,16 @@ const (
 
 // RunOptions configures an LLM subprocess invocation.
 type RunOptions struct {
-	Ctx            context.Context // optional parent context for cancellation
-	LLM            string          // claude, codex, gemini, copilot
-	Prompt         string
-	OutputFile     string // optional: write output to this file
-	Persona        string // optional: persona context to inject
-	Timeout        time.Duration
-	WorkingDir     string // working directory for the LLM subprocess
-	AgentsDir      string // path to agents/ for persona loading
-	AllowFileRead  bool   // when true, permit the LLM to read files from the filesystem
-	QuietStderr    bool   // when true, discard stderr (TUI mode — prevents display corruption)
+	Ctx           context.Context // optional parent context for cancellation
+	LLM           string          // provider name or alias: claude, codex, antigravity (gemini)
+	Prompt        string
+	OutputFile    string // optional: write output to this file
+	Persona       string // optional: persona context to inject
+	Timeout       time.Duration
+	WorkingDir    string // working directory for the LLM subprocess
+	AgentsDir     string // path to agents/ for persona loading
+	AllowFileRead bool   // when true, permit the LLM to read files from the filesystem
+	QuietStderr   bool   // when true, discard stderr (TUI mode — prevents display corruption)
 }
 
 // Result holds the output of an LLM run.
@@ -55,14 +56,6 @@ func Run(opts RunOptions) (*Result, error) {
 		personaContext = loadPersonaContext(opts.AgentsDir, opts.Persona)
 	}
 
-	// Text-only directive for claude/gemini
-	var textOnly string
-	if opts.AllowFileRead {
-		textOnly = "IMPORTANT: You MAY read files from the filesystem to gather information. Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files.\n\n"
-	} else {
-		textOnly = "IMPORTANT: Output your complete analysis as plain text to stdout. Do NOT create, write, or modify any files. Do NOT use any file-writing tools. Just output your analysis directly as text.\n\n"
-	}
-
 	// Sign-off / dad joke
 	var dadJoke string
 	if personaContext != "" {
@@ -71,6 +64,13 @@ func Run(opts RunOptions) (*Result, error) {
 		dadJoke = "\n\n---\nSIGN-OFF: You MUST end your response with a dad joke followed by a persona attribution. Format as a horizontal rule, your joke, then '-- [Your Name]' with a witty sign-off. This is mandatory — it's the law."
 	}
 
+	provider, ok := Lookup(llm)
+	if !ok {
+		return nil, fmt.Errorf("unknown LLM: %s (valid: %s)", llm, strings.Join(Names(), ", "))
+	}
+
+	fullPrompt := provider.Preamble(opts.AllowFileRead) + personaContext + opts.Prompt + dadJoke
+
 	parent := opts.Ctx
 	if parent == nil {
 		parent = context.Background()
@@ -78,101 +78,50 @@ func Run(opts RunOptions) (*Result, error) {
 	ctx, cancel := context.WithTimeout(parent, opts.Timeout)
 	defer cancel()
 
-	start := time.Now()
-
-	var cmd *exec.Cmd
-	var output []byte
-	var err error
-
-	switch llm {
-	case "claude":
-		fullPrompt := textOnly + personaContext + opts.Prompt + dadJoke
-		cmd = exec.CommandContext(ctx, "claude", "--dangerously-skip-permissions", "-p", fullPrompt)
-		cmd.Env = append(os.Environ(), "NODE_OPTIONS=--max-old-space-size=32768")
-
-	case "codex":
-		codexPrefix := "IMPORTANT: You are acting as a PLANNING and ANALYSIS agent for a discovery pipeline. Write your complete analysis, implementation plan, and recommendations as a detailed markdown document. Do NOT create any code files, project scaffolding, or application code. Do NOT build anything. Your entire output should be a thorough written analysis — problem space, architecture, risks, recommendations — not a built project.\n\n"
-		fullPrompt := codexPrefix + personaContext + opts.Prompt + dadJoke
-
-		tmpFile, tmpErr := os.CreateTemp("", "vern-codex.*.md")
+	inv := Invocation{WorkingDir: opts.WorkingDir, Timeout: opts.Timeout}
+	if provider.WritesOutputFile {
+		tmpFile, tmpErr := os.CreateTemp("", "vern-"+provider.Name+".*.md")
 		if tmpErr != nil {
-			return nil, fmt.Errorf("create temp file for codex: %w", tmpErr)
+			return nil, fmt.Errorf("create temp file for %s: %w", provider.Name, tmpErr)
 		}
-		tmpPath := tmpFile.Name()
+		inv.OutputPath = tmpFile.Name()
 		tmpFile.Close()
-		defer os.Remove(tmpPath)
-
-		codexDir := opts.WorkingDir
-		if codexDir == "" {
-			codexDir = "."
-		}
-
-		cmd = exec.CommandContext(ctx, "codex", "exec",
-			"--dangerously-bypass-approvals-and-sandbox",
-			"--skip-git-repo-check",
-			"--cd", codexDir,
-			"-o", tmpPath,
-			fullPrompt,
-		)
-		// Codex writes to tmpPath; we'll read it after
-
-		// Set process group so we can kill children
-		setProcGroup(cmd)
-		cmd.Stdout = nil // codex output goes to -o file
-		var stderrBuf bytes.Buffer
-		if opts.QuietStderr {
-			cmd.Stderr = &stderrBuf
-		} else {
-			cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-		}
-
-		runErr := cmd.Run()
-		duration := time.Since(start)
-
-		exitCode := exitCodeFromErr(runErr)
-		timedOut := ctx.Err() == context.DeadlineExceeded
-		if timedOut {
-			killProcessGroup(cmd)
-			exitCode = ExitTimeout
-			fmt.Fprintf(os.Stderr, "[vern-run] Timeout: codex exceeded %s limit\n", opts.Timeout)
-		}
-
-		// Read codex output
-		data, _ := os.ReadFile(tmpPath)
-		outputStr := string(data)
-
-		result := &Result{
-			Output:   outputStr,
-			Stderr:   truncStderr(stderrBuf.String(), 2048),
-			ExitCode: exitCode,
-			TimedOut: timedOut,
-			LLMUsed:  llm,
-			Duration: duration,
-		}
-
-		result, wErr := writeOutput(result, opts.OutputFile)
-		logRun(opts, llmRequested, result, runErr, wErr)
-		return result, wErr
-
-	case "gemini":
-		fullPrompt := textOnly + personaContext + opts.Prompt + dadJoke
-		cmd = exec.CommandContext(ctx, "gemini", "--yolo", fullPrompt)
-
-	case "copilot":
-		fullPrompt := textOnly + personaContext + opts.Prompt + dadJoke
-		cmd = exec.CommandContext(ctx, "copilot", "--prompt", fullPrompt)
-
-	default:
-		return nil, fmt.Errorf("unknown LLM: %s (valid: claude, codex, gemini, copilot)", llm)
+		defer os.Remove(inv.OutputPath)
 	}
 
-	// Set working directory so the LLM can access files there (e.g. Gemini sandbox)
-	if opts.WorkingDir != "" {
+	start := time.Now()
+
+	if provider.PromptAsArg {
+		inv.Prompt = fullPrompt
+		if len(fullPrompt) > maxArgPrompt() {
+			promptFile, pErr := writePromptFile(fullPrompt)
+			if pErr != nil {
+				return nil, pErr
+			}
+			defer os.RemoveAll(filepath.Dir(promptFile))
+			inv.PromptFile = promptFile
+			inv.Prompt = promptFilePointer(promptFile)
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, provider.Binary, provider.Args(inv)...)
+	if len(provider.Env) > 0 {
+		cmd.Env = append(os.Environ(), provider.Env...)
+	}
+	// Providers that write their own output file get WorkingDir through their
+	// args (codex --cd); the rest run in it so they can read files there.
+	if opts.WorkingDir != "" && !provider.WritesOutputFile {
 		cmd.Dir = opts.WorkingDir
 	}
 
-	// Capture stdout only — let stderr pass through to the terminal so the user
-	// sees progress/errors but they don't pollute the captured output.
+	// The prompt goes on stdin unless the CLI only takes it as an argument:
+	// large prompts would overflow the OS command-line limits.
+	if !provider.PromptAsArg {
+		cmd.Stdin = strings.NewReader(fullPrompt)
+	}
+
+	// Capture stdout only — stderr passes through to the terminal (unless
+	// QuietStderr) so the user sees progress, but it never pollutes the output.
 	var stdoutBuf bytes.Buffer
 	var stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
@@ -182,14 +131,13 @@ func Run(opts RunOptions) (*Result, error) {
 		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 	}
 
-	// Set process group for non-codex LLMs
+	// Own process group so a timeout kills the CLI's children too.
 	setProcGroup(cmd)
 
-	err = cmd.Run()
-	output = stdoutBuf.Bytes()
+	runErr := cmd.Run()
 	duration := time.Since(start)
 
-	exitCode := exitCodeFromErr(err)
+	exitCode := exitCodeFromErr(runErr)
 	timedOut := ctx.Err() == context.DeadlineExceeded
 	if timedOut {
 		killProcessGroup(cmd)
@@ -197,8 +145,14 @@ func Run(opts RunOptions) (*Result, error) {
 		fmt.Fprintf(os.Stderr, "[vern-run] Timeout: %s exceeded %s limit\n", llm, opts.Timeout)
 	}
 
+	outputStr := stdoutBuf.String()
+	if provider.WritesOutputFile {
+		data, _ := os.ReadFile(inv.OutputPath)
+		outputStr = string(data)
+	}
+
 	result := &Result{
-		Output:   string(output),
+		Output:   outputStr,
 		Stderr:   truncStderr(stderrBuf.String(), 2048),
 		ExitCode: exitCode,
 		TimedOut: timedOut,
@@ -207,36 +161,23 @@ func Run(opts RunOptions) (*Result, error) {
 	}
 
 	result, wErr := writeOutput(result, opts.OutputFile)
-	logRun(opts, llmRequested, result, err, wErr)
+	logRun(opts, llmRequested, result, runErr, wErr)
 	return result, wErr
 }
 
-// resolveLLM normalizes LLM names and falls back to claude if unavailable.
-func resolveLLM(llm string) string {
-	switch strings.ToLower(llm) {
-	case "claude", "c":
-		return "claude"
-	case "codex", "x":
-		if _, err := exec.LookPath("codex"); err != nil {
-			fmt.Fprintf(os.Stderr, "[vern-run] Warning: codex CLI not found, falling back to claude\n")
-			return "claude"
-		}
-		return "codex"
-	case "gemini", "g":
-		if _, err := exec.LookPath("gemini"); err != nil {
-			fmt.Fprintf(os.Stderr, "[vern-run] Warning: gemini CLI not found, falling back to claude\n")
-			return "claude"
-		}
-		return "gemini"
-	case "copilot", "p":
-		if _, err := exec.LookPath("copilot"); err != nil {
-			fmt.Fprintf(os.Stderr, "[vern-run] Warning: copilot CLI not found, falling back to claude\n")
-			return "claude"
-		}
-		return "copilot"
-	default:
-		return llm
+// writePromptFile writes a prompt to a file in its own temp directory, so a
+// CLI can be given read access to that directory alone.
+func writePromptFile(prompt string) (string, error) {
+	dir, err := os.MkdirTemp("", "vern-prompt-")
+	if err != nil {
+		return "", fmt.Errorf("create prompt dir: %w", err)
 	}
+	path := filepath.Join(dir, "prompt.md")
+	if err := os.WriteFile(path, []byte(prompt), 0600); err != nil {
+		os.RemoveAll(dir)
+		return "", fmt.Errorf("write prompt file: %w", err)
+	}
+	return path, nil
 }
 
 func loadPersonaContext(agentsDir, persona string) string {

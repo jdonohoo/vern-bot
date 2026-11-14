@@ -7,7 +7,7 @@
 # Usage: vern-historian <directory> [flags]
 #
 # Flags:
-#   --llm <name>       Override LLM (default: gemini)
+#   --llm <name>       Override LLM (default: antigravity)
 #   --timeout <secs>   Timeout in seconds (default: 600)
 #
 

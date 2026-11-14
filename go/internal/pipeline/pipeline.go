@@ -231,9 +231,9 @@ func (p *Pipeline) execute(mode string) error {
 				p.printf("    Historian complete (%s, %d chars, LLM: %s)\n",
 					hResult.Duration.Round(100*time.Millisecond), hResult.CharCount, hResult.LLMUsed)
 				if hResult.FellBack {
-					p.printf("    WARNING: Gemini not installed -- used %s fallback.\n", hResult.LLMUsed)
-					p.printf("    The Historian needs Gemini's 2M context window for large inputs.\n")
-					p.printf("    Index may be incomplete. Install Gemini CLI for best results.\n")
+					p.printf("    WARNING: Antigravity (agy) not installed -- used %s fallback.\n", hResult.LLMUsed)
+					p.printf("    The Historian works best with a large-context model for big inputs.\n")
+					p.printf("    Index may be incomplete. Install the Antigravity CLI for best results.\n")
 				}
 				p.log("Historian pre-step OK: %d chars in %s", hResult.CharCount, hResult.Duration)
 

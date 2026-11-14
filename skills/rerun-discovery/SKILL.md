@@ -53,13 +53,12 @@ Ask the user using AskUserQuestion:
 1. **LLM Mode**: How should LLMs be allocated?
    - **Mixed LLMs + Claude fallback** (Recommended)
    - **Mixed LLMs + Codex fallback**
-   - **Mixed LLMs + Gemini fallback**
-   - **Mixed LLMs + Copilot fallback**
+   - **Mixed LLMs + Antigravity fallback**
    - **Single LLM** — All steps use one LLM (ask which one next)
 
    If "Single LLM" is chosen, follow up with:
    > "Which LLM should run all steps?"
-   Options: Claude, Codex, Gemini, Copilot
+   Options: Claude, Codex, Antigravity
 
 2. **Pipeline mode**: Which pipeline to run?
    - `Default (5-step)` (Recommended)
@@ -131,8 +130,7 @@ Re-read `input/prompt.md` to get the idea text (the user may have edited it).
 ### Flag mapping:
 - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit)
 - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
-- Mixed + Gemini FB → `--llm-mode mixed_gemini_fallback`
-- Mixed + Copilot FB → `--llm-mode mixed_copilot_fallback`
+- Mixed + Antigravity FB → `--llm-mode mixed_antigravity_fallback`
 - Single LLM → `--single-llm <chosen_llm>`
 - Expanded pipeline → `--expanded`
 - VernHole councils: random, hammers, conflict, full, inner, round, war
