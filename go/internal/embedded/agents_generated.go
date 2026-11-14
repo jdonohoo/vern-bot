@@ -144,24 +144,30 @@ var DefaultConfigJSON = `{
   "llms": {
     "claude": true,
     "codex": true,
-    "antigravity": true
+    "antigravity": true,
+    "grok": true
   },
   "llm_mode": "mixed_claude_fallback",
   "llm_modes": {
     "mixed_claude_fallback": {
       "description": "Mixed LLMs, claude as safety net",
-      "fallback": {"codex": "claude", "antigravity": "claude"},
+      "fallback": {"codex": "claude", "antigravity": "claude", "grok": "claude"},
       "synthesis_llm": "claude"
     },
     "mixed_codex_fallback": {
       "description": "Mixed LLMs, codex as safety net",
-      "fallback": {"claude": "codex", "antigravity": "codex"},
+      "fallback": {"claude": "codex", "antigravity": "codex", "grok": "codex"},
       "synthesis_llm": "codex"
     },
     "mixed_antigravity_fallback": {
       "description": "Mixed LLMs, antigravity as safety net",
-      "fallback": {"claude": "antigravity", "codex": "antigravity"},
+      "fallback": {"claude": "antigravity", "codex": "antigravity", "grok": "antigravity"},
       "synthesis_llm": "antigravity"
+    },
+    "mixed_grok_fallback": {
+      "description": "Mixed LLMs, grok as safety net",
+      "fallback": {"claude": "grok", "codex": "grok", "antigravity": "grok"},
+      "synthesis_llm": "grok"
     },
     "single_llm": {
       "description": "Single LLM for everything",

@@ -85,6 +85,15 @@ func normalize(cfg *Config) {
 				}
 			}
 		}
+		// A built-in mixed mode covers every provider, including ones added
+		// after the config was written.
+		if safety := strings.TrimSuffix(strings.TrimPrefix(name, "mixed_"), "_fallback"); llm.Canonical(safety) == safety && name == "mixed_"+safety+"_fallback" {
+			for _, other := range llm.Names() {
+				if _, ok := fb[other]; !ok && other != safety {
+					fb[other] = safety
+				}
+			}
+		}
 		m.Fallback = fb
 		m.SynthesisLLM = canonicalLLM(m.SynthesisLLM)
 		m.OverrideLLM = canonicalLLM(m.OverrideLLM)

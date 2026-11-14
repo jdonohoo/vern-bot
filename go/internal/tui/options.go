@@ -25,6 +25,7 @@ var LLMModeOptions = []huh.Option[string]{
 	huh.NewOption("Mixed LLMs + Claude fallback (Recommended)", "mixed_claude_fallback"),
 	huh.NewOption("Mixed LLMs + Codex fallback", "mixed_codex_fallback"),
 	huh.NewOption("Mixed LLMs + Antigravity fallback", "mixed_antigravity_fallback"),
+	huh.NewOption("Mixed LLMs + Grok fallback", "mixed_grok_fallback"),
 	huh.NewOption("Single LLM", "single_llm"),
 }
 
@@ -33,6 +34,7 @@ var SingleLLMOptions = []huh.Option[string]{
 	huh.NewOption("Claude", "claude"),
 	huh.NewOption("Codex", "codex"),
 	huh.NewOption("Antigravity", "antigravity"),
+	huh.NewOption("Grok", "grok"),
 }
 
 // CouncilOptions are the VernHole council tier options.

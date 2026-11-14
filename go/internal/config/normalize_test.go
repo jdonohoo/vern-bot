@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jdonohoo/vern-bot/go/internal/llm"
 )
 
 // A config written by v2 (gemini and copilot) keeps working.
@@ -46,7 +48,9 @@ func TestNormalizeLegacyConfig(t *testing.T) {
 	if fb := cfg.GetFallbackLLM("gemini"); fb != "claude" {
 		t.Errorf("gemini (antigravity) fallback = %q", fb)
 	}
-	if fb := cfg.LLMModes["mixed_claude_fallback"].Fallback; len(fb) != 2 || fb["antigravity"] != "claude" {
+	// Every other provider falls back to claude, including providers added
+	// after the config was written (grok).
+	if fb := cfg.LLMModes["mixed_claude_fallback"].Fallback; len(fb) != len(llm.Names())-1 || fb["antigravity"] != "claude" || fb["grok"] != "claude" {
 		t.Errorf("claude mode fallback = %v", fb)
 	}
 
@@ -59,7 +63,7 @@ func TestNormalizeLegacyConfig(t *testing.T) {
 	if steps[0].LLM != "antigravity" || steps[1].LLM != "claude" {
 		t.Errorf("steps = %q, %q", steps[0].LLM, steps[1].LLM)
 	}
-	if _, ok := cfg.LLMs["copilot"]; ok || !cfg.LLMs["antigravity"] || len(cfg.LLMs) != 3 {
+	if _, ok := cfg.LLMs["copilot"]; ok || !cfg.LLMs["antigravity"] || len(cfg.LLMs) != 3 { // claude, codex, antigravity
 		t.Errorf("llms = %v", cfg.LLMs)
 	}
 }

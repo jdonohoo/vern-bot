@@ -154,6 +154,8 @@ func ModelToLLM(model string) string {
 		return "claude"
 	case "antigravity", "agy", "gemini", "gemini-3", "gemini-pro", "gemini-flash":
 		return "antigravity"
+	case "grok", "xai":
+		return "grok"
 	case "codex", "codex-mini":
 		return "codex"
 	default:

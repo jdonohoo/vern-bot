@@ -137,7 +137,7 @@ vern tui
 
 **Available binaries:** macOS (Intel + Apple Silicon), Linux (x64 + ARM64), Windows (x64 + ARM64).
 
-**Required:** At least one LLM CLI installed — `claude`, `codex`, or `agy` ([Antigravity CLI](https://antigravity.google/cli), which replaced the Gemini CLI).
+**Required:** At least one LLM CLI installed — `claude`, `codex`, `agy` ([Antigravity CLI](https://antigravity.google/cli), which replaced the Gemini CLI), or `grok` (xAI Grok Build).
 
 ## Standalone TUI
 
@@ -190,6 +190,7 @@ vern tobeads --apply ./discovery/my-project/output/vts/
 | `claude` | `claude` | `c` | Claude Code. Always the last-resort fallback. |
 | `codex` | `codex` | `x` | OpenAI Codex CLI. |
 | `antigravity` | `agy` | `a`, `agy`, `gemini`, `g` | Google's Antigravity CLI, which replaced the Gemini CLI. `gemini` in old configs and flags runs `agy`. |
+| `grok` | `grok` | `k`, `xai` | xAI's [Grok Build CLI](https://docs.x.ai/build/cli/headless-scripting). Sign in with `grok login` or set `XAI_API_KEY`. |
 
 Copilot support was removed in v3; configs that still name it fall back to claude.
 
@@ -202,6 +203,7 @@ Control which LLMs handle your pipeline steps and where failures fall back to:
 | `mixed_claude_fallback` | Default. Mixed LLMs per step, claude catches failures |
 | `mixed_codex_fallback` | Mixed LLMs, codex as safety net |
 | `mixed_antigravity_fallback` | Mixed LLMs, antigravity as safety net |
+| `mixed_grok_fallback` | Mixed LLMs, grok as safety net |
 | `single_llm` | One LLM for everything |
 
 ```bash
@@ -479,7 +481,7 @@ Oracle and Historian are excluded from all council rosters (15 summonable person
 
 **As a plugin:** No additional dependencies. The CLI binary auto-downloads on first use.
 
-**Standalone:** At least one LLM CLI installed — `claude`, `codex`, or `agy` (Antigravity). Supports 3 LLMs with configurable fallback chains.
+**Standalone:** At least one LLM CLI installed — `claude`, `codex`, `agy` (Antigravity) or `grok` (Grok Build). Supports 4 LLMs with configurable fallback chains.
 
 Cross-platform: macOS (Intel + Apple Silicon), Linux (x64 + ARM64), Windows (x64 + ARM64).
 

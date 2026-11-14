@@ -65,9 +65,10 @@ Options:
 - **Mixed LLMs + Claude fallback** (Recommended)
 - **Mixed LLMs + Codex fallback**
 - **Mixed LLMs + Antigravity fallback**
+- **Mixed LLMs + Grok fallback**
 - **Single LLM**
 
-If "Single LLM", follow up: Claude, Codex, Antigravity
+If "Single LLM", follow up: Claude, Codex, Antigravity, Grok
 
 ## Step 5: Output Location
 
@@ -112,6 +113,7 @@ If outputting to the same project and a `vernhole/` directory already exists, wa
 - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit)
 - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
 - Mixed + Antigravity FB → `--llm-mode mixed_antigravity_fallback`
+- Mixed + Grok FB → `--llm-mode mixed_grok_fallback`
 - Single LLM → `--single-llm <chosen_llm>`
 
 ### Important:
