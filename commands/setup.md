@@ -34,8 +34,9 @@ Ask using AskUserQuestion:
 Options (multiSelect: true):
 - **Codex** (used by MightyVern for raw analysis power)
 - **Antigravity** (used by YOLO Vern for chaos checks)
+- **Grok** (xAI Grok Build CLI, available for any step or single-LLM runs)
 
-Based on their answer, set `llms.codex` and `llms.antigravity` to true/false. `llms.claude` is always true.
+Based on their answer, set `llms.codex`, `llms.antigravity` and `llms.grok` to true/false. `llms.claude` is always true.
 
 ## Step 2.5: Default LLM Mode
 
@@ -44,15 +45,17 @@ Ask using AskUserQuestion:
 > "What should be your default LLM mode?"
 
 Options:
-- **Mixed LLMs + Claude fallback** (Recommended) — Pipeline uses codex/claude/antigravity per step config, falls back to claude on failure
+- **Mixed LLMs + Claude fallback** (Recommended) — Pipeline uses codex/claude/antigravity/grok per step config, falls back to claude on failure
 - **Mixed LLMs + Codex fallback** — Same pipeline, falls back to codex instead
 - **Mixed LLMs + Antigravity fallback** — Falls back to antigravity
+- **Mixed LLMs + Grok fallback** — Falls back to grok
 - **Single LLM** — All steps use one LLM (ask which one)
 
 Track the answer as `llm_mode`:
 - Mixed + Claude FB → `"mixed_claude_fallback"`
 - Mixed + Codex FB → `"mixed_codex_fallback"`
 - Mixed + Antigravity FB → `"mixed_antigravity_fallback"`
+- Mixed + Grok FB → `"mixed_grok_fallback"`
 - Single LLM → `"single_llm"` (also ask which LLM and set `llm_modes.single_llm.override_llm`)
 
 ## Step 3: Pipeline Mode

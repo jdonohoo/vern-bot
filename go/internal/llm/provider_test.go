@@ -16,6 +16,7 @@ func TestLookupAliases(t *testing.T) {
 		"antigravity": "antigravity", "agy": "antigravity", "a": "antigravity",
 		// The Gemini CLI was replaced by Antigravity: the old name runs agy.
 		"gemini": "antigravity", "g": "antigravity",
+		"grok": "grok", "k": "grok", "xai": "grok",
 	}
 	for in, want := range tests {
 		if got := Canonical(in); got != want {
@@ -41,7 +42,7 @@ func TestCopilotRetired(t *testing.T) {
 
 func TestNamesOrder(t *testing.T) {
 	got := strings.Join(Names(), ",")
-	if got != "claude,codex,antigravity" {
+	if got != "claude,codex,antigravity,grok" {
 		t.Errorf("Names() = %s", got)
 	}
 }
@@ -134,5 +135,30 @@ printf 'POINTER:%s\n' "$p" | head -c 200; echo; cat "$f"
 	}
 	if !strings.Contains(res.Output, "FILE-MARKER") {
 		t.Error("prompt file did not hold the full prompt")
+	}
+}
+
+func TestGrokArgs(t *testing.T) {
+	p, _ := Lookup("grok")
+	if !p.PromptAsArg {
+		t.Fatal("grok takes the prompt as an argument")
+	}
+	args := p.Args(Invocation{Prompt: "-dash first", WorkingDir: "/work"})
+	joined := strings.Join(args, " ")
+	for _, want := range []string{"--single=-dash first", "--always-approve", "--output-format plain", "--no-auto-update", "--cwd /work"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("grok args missing %q: %v", want, args)
+		}
+	}
+}
+
+func TestRunGrok(t *testing.T) {
+	fakeCLI(t, "grok", `for a in "$@"; do case "$a" in --single=*) printf '%s' "${a#--single=}";; esac; done`+"\n")
+	res, err := Run(RunOptions{LLM: "grok", Prompt: "hello grok", Timeout: 30 * time.Second, QuietStderr: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.LLMUsed != "grok" || !strings.Contains(res.Output, "hello grok") {
+		t.Errorf("LLMUsed=%q output=%q", res.LLMUsed, res.Output)
 	}
 }

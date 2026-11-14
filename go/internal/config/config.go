@@ -343,6 +343,7 @@ func hardcodedDefaults() *Config {
 			"claude":      true,
 			"codex":       true,
 			"antigravity": true,
+			"grok":        true,
 		},
 		Pipelines: map[string][]PipelineStep{
 			"default": {

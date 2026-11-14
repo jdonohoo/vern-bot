@@ -257,6 +257,7 @@ func (m *SettingsModel) buildLLMToggleForm() *huh.Form {
 		huh.NewOption[string]("Claude (always enabled)", "claude").Selected(true),
 		huh.NewOption[string]("Codex", "codex"),
 		huh.NewOption[string]("Antigravity", "antigravity"),
+		huh.NewOption[string]("Grok", "grok"),
 	}
 	// Pre-select currently enabled LLMs
 	for i, opt := range options {

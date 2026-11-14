@@ -121,6 +121,25 @@ var providers = []*Provider{
 			return args
 		},
 	},
+	{
+		// xAI's Grok Build CLI. Like agy it takes the prompt only as an
+		// argument (-p/--single); --single=<prompt> keeps a prompt that
+		// starts with "-" from being read as a flag.
+		Name:        "grok",
+		Binary:      "grok",
+		Label:       "Grok",
+		Aliases:     []string{"k", "xai"},
+		Preamble:    textPreamble,
+		PromptAsArg: true,
+		Args: func(inv Invocation) []string {
+			args := []string{"--no-auto-update", "--single=" + inv.Prompt,
+				"--always-approve", "--output-format", "plain"}
+			if inv.WorkingDir != "" {
+				args = append(args, "--cwd", inv.WorkingDir)
+			}
+			return args
+		},
+	},
 }
 
 // retired names map to a reason shown when someone still asks for them.

@@ -68,11 +68,12 @@ Options:
 - **Mixed LLMs + Claude fallback** (Recommended)
 - **Mixed LLMs + Codex fallback**
 - **Mixed LLMs + Antigravity fallback**
+- **Mixed LLMs + Grok fallback**
 - **Single LLM**
 
 If "Single LLM" is chosen, follow up with:
 > "Which LLM?"
-Options: Claude, Codex, Antigravity
+Options: Claude, Codex, Antigravity, Grok
 
 ## Step 3: Execute via CLI
 
@@ -117,6 +118,7 @@ Options: Claude, Codex, Antigravity
   - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit, it's the default)
   - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
   - Mixed + Antigravity FB → `--llm-mode mixed_antigravity_fallback`
+  - Mixed + Grok FB → `--llm-mode mixed_grok_fallback`
   - Single LLM → `--single-llm <llm_name>`
 
 ## Step 4: Report Results

@@ -224,6 +224,8 @@ Create a new persona with:
    - haiku — for brief/minimal personas, quick answers
    **Antigravity:**
    - antigravity — Google's Antigravity agent, large context, good for large-scale analysis
+   **Grok:**
+   - grok — xAI's Grok Build agent, blunt and fast
    **Codex models:**
    - codex — OpenAI Codex, raw computational power, code generation
    - codex-mini — Codex Mini, lighter and faster
@@ -270,7 +272,7 @@ func BuildPrompt(name, desc, model, color string) string {
 	if model != "" {
 		data.ModelDirective = "**Model override:** Use `" + model + "` as the model value in the agent frontmatter."
 	} else {
-		data.ModelDirective = "Choose the model (opus/sonnet/haiku/antigravity/codex/codex-mini) that best fits this persona's vibe and described LLM."
+		data.ModelDirective = "Choose the model (opus/sonnet/haiku/antigravity/grok/codex/codex-mini) that best fits this persona's vibe and described LLM."
 	}
 
 	if color != "" {

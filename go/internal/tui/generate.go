@@ -55,6 +55,7 @@ var ModelOptions = []huh.Option[string]{
 	huh.NewOption("Claude Sonnet — fast and scrappy", "sonnet"),
 	huh.NewOption("Claude Haiku — brief and minimal", "haiku"),
 	huh.NewOption("Antigravity — Google's agent, large-context analysis", "antigravity"),
+	huh.NewOption("Grok — xAI's Grok Build agent", "grok"),
 	huh.NewOption("Codex — raw computational power", "codex"),
 	huh.NewOption("Codex Mini — lighter and faster", "codex-mini"),
 }

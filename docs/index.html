@@ -1786,7 +1786,7 @@
             </div>
             <div class="tui-benefit">
                 <h4>4 LLMs, Your Rules</h4>
-                <p>Claude, Codex, and Antigravity. Pick your fallback chain. Run everything on one LLM, or let each step use its best match. Configurable per run.</p>
+                <p>Claude, Codex, Antigravity, and Grok. Pick your fallback chain. Run everything on one LLM, or let each step use its best match. Configurable per run.</p>
             </div>
             <div class="tui-benefit">
                 <h4>Interactive TUI</h4>
@@ -1945,16 +1945,18 @@ signature, attach user context.
 
             <div class="example-block">
                 <div class="example-cmd"><span class="prompt">$ </span>/vern:setup</div>
-                <div class="example-explain">Interactive setup wizard. Walks you through: which LLMs you have installed (Codex, Antigravity), your default LLM mode (fallback chain), which persona and LLM to use for each discovery pipeline step, VernHole council defaults, and Oracle preferences. Saves to <code>~/.claude/vern-bot-config.json</code>.</div>
+                <div class="example-explain">Interactive setup wizard. Walks you through: which LLMs you have installed (Codex, Antigravity, Grok), your default LLM mode (fallback chain), which persona and LLM to use for each discovery pipeline step, VernHole council defaults, and Oracle preferences. Saves to <code>~/.claude/vern-bot-config.json</code>.</div>
                 <div class="example-output"><span class="out-label">Prompts:</span>
 Which LLMs do you have available?
  [x] Codex (OpenAI)
  [x] Antigravity (Google)
+ [x] Grok (xAI)
 
 Default LLM mode:
  > Mixed LLMs + Claude fallback (Recommended)
    Mixed LLMs + Codex fallback
    Mixed LLMs + Antigravity fallback
+   Mixed LLMs + Grok fallback
    Single LLM
 
 Step 1 - Analysis:
@@ -1969,7 +1971,7 @@ Config saved to ~/.claude/vern-bot-config.json</div>
             </div>
 
             <div class="tip-box">
-                <strong>Note:</strong> If you skip setup, the default pipeline runs with mixed LLMs and Claude as fallback. Failed steps automatically fall back based on your LLM mode. Supports Claude, Codex, and Antigravity.
+                <strong>Note:</strong> If you skip setup, the default pipeline runs with mixed LLMs and Claude as fallback. Failed steps automatically fall back based on your LLM mode. Supports Claude, Codex, Antigravity, and Grok.
             </div>
         </div>
 
