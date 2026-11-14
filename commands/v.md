@@ -19,7 +19,7 @@ Parse the first argument to determine which Vern persona to invoke:
 | `great` / `vernile` / `g` | `/vern:great` | Opus excellence |
 | `nyquil` / `nq` / `n` | `/vern:nyquil` | Haiku, brilliant but brief |
 | `ketamine` / `ket` / `k` | `/vern:ketamine` | Multi-pass planning |
-| `yolo` / `y` | `/vern:yolo` | Gemini chaos mode |
+| `yolo` / `y` | `/vern:yolo` | Antigravity chaos mode |
 | `mighty` / `codex` / `c` | `/vern:mighty` | Codex power |
 
 ### Specialist Personas

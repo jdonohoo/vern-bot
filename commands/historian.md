@@ -41,14 +41,14 @@ The plugin root is the directory containing `.claude-plugin/plugin.json` that TH
 ```
 
 Flags:
-- **--llm**: Override LLM (default: gemini). The Historian prefers Gemini for its 2M context window. Falls back automatically if Gemini is unavailable.
+- **--llm**: Override LLM (default: antigravity). The Historian prefers Antigravity for its large context window. Falls back automatically if Antigravity is unavailable.
 - **--timeout**: Timeout in seconds (default: 600 / 10 minutes). Large input directories may need more time.
 
 ## Step 3: Execute
 
 Run via Bash with 600000ms timeout (10 minutes).
-The Historian requires Gemini for best results (2M context window).
-If Gemini is not configured, it will fall back to the configured fallback LLM with a warning.
+The Historian requires Antigravity for best results (large context window).
+If Antigravity is not configured, it will fall back to the configured fallback LLM with a warning.
 
 ### Important:
 - Use a long timeout (at least 600000ms / 10 minutes) for the Bash call — large directories need time
@@ -59,7 +59,7 @@ If Gemini is not configured, it will fall back to the configured fallback LLM wi
 After the command completes, tell the user:
 - Where `input-history.md` was written
 - How many files were indexed
-- Whether Gemini or a fallback LLM was used
+- Whether Antigravity or a fallback LLM was used
 - If `prompt.md` was updated with a reference to the index
 - Remind: downstream pipeline steps will automatically see this index when running discovery
 

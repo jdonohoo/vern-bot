@@ -6,17 +6,19 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/huh"
+	"github.com/jdonohoo/vern-bot/go/internal/config"
+	"github.com/jdonohoo/vern-bot/go/internal/llm"
 )
 
 func TestLLMModeOptionsCount(t *testing.T) {
-	if len(LLMModeOptions) != 5 {
-		t.Errorf("expected 5 LLM mode options, got %d", len(LLMModeOptions))
+	if len(LLMModeOptions) != len(config.ModeNames()) {
+		t.Errorf("expected %d LLM mode options, got %d", len(config.ModeNames()), len(LLMModeOptions))
 	}
 }
 
 func TestSingleLLMOptionsCount(t *testing.T) {
-	if len(SingleLLMOptions) != 4 {
-		t.Errorf("expected 4 single LLM options, got %d", len(SingleLLMOptions))
+	if len(SingleLLMOptions) != len(llm.Names()) {
+		t.Errorf("expected %d single LLM options, got %d", len(llm.Names()), len(SingleLLMOptions))
 	}
 }
 
@@ -86,12 +88,10 @@ func TestCouncilLabel(t *testing.T) {
 }
 
 func TestExpectedLLMValues(t *testing.T) {
-	expected := map[string]bool{
-		"mixed_claude_fallback":  false,
-		"mixed_codex_fallback":   false,
-		"mixed_gemini_fallback":  false,
-		"mixed_copilot_fallback": false,
-		"single_llm":            false,
+	// Every built-in mode must be selectable, and nothing else.
+	expected := map[string]bool{}
+	for _, name := range config.ModeNames() {
+		expected[name] = false
 	}
 	for _, opt := range LLMModeOptions {
 		if _, ok := expected[opt.Value]; !ok {
@@ -141,7 +141,11 @@ func TestExpandHomeContainsNoTilde(t *testing.T) {
 }
 
 func TestExpectedSingleLLMValues(t *testing.T) {
-	expected := map[string]bool{"claude": false, "codex": false, "gemini": false, "copilot": false}
+	// Every registered provider must be selectable, and nothing else.
+	expected := map[string]bool{}
+	for _, name := range llm.Names() {
+		expected[name] = false
+	}
 	for _, opt := range SingleLLMOptions {
 		if _, ok := expected[opt.Value]; !ok {
 			t.Errorf("unexpected single LLM value %q", opt.Value)

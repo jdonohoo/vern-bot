@@ -18,8 +18,8 @@ var historianCmd = &cobra.Command{
 crawl the filesystem, read all files, build a structured concept map with source
 references, and write input-history.md.
 
-Uses Gemini by default for its 2M context window. Falls back to the configured
-fallback LLM if Gemini is not available.`,
+Uses Antigravity (agy) by default for its large context window. Falls back to
+the configured fallback LLM if agy is not available.`,
 	Args: cobra.ExactArgs(1),
 	RunE: runHistorian,
 }
@@ -30,7 +30,7 @@ var (
 )
 
 func init() {
-	historianCmd.Flags().StringVar(&historianLLM, "llm", "", "Override LLM (default: gemini, falls back if unavailable)")
+	historianCmd.Flags().StringVar(&historianLLM, "llm", "", "Override LLM (default: antigravity, falls back if unavailable)")
 	historianCmd.Flags().IntVar(&historianTimeout, "timeout", 0, "Timeout in seconds (default: from config, 1200)")
 	rootCmd.AddCommand(historianCmd)
 }
@@ -101,10 +101,10 @@ func runHistorian(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Duration: %s\n", result.Duration.Round(100*time.Millisecond))
 	fmt.Printf("LLM: %s\n", result.LLMUsed)
 	if result.FellBack {
-		fmt.Printf("\nWARNING: Gemini is not installed. Used %s as fallback.\n", result.LLMUsed)
-		fmt.Printf("The Historian is designed for Gemini's 2M token context window.\n")
+		fmt.Printf("\nWARNING: Antigravity (agy) is not installed. Used %s as fallback.\n", result.LLMUsed)
+		fmt.Printf("The Historian is designed for a large-context model.\n")
 		fmt.Printf("Using %s may produce incomplete results on large input directories.\n", result.LLMUsed)
-		fmt.Printf("Install the Gemini CLI for best results.\n")
+		fmt.Printf("Install the Antigravity CLI for best results.\n")
 	}
 
 	return nil

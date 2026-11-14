@@ -1,34 +1,28 @@
 {
-  "version": "2.9.1",
+  "version": "3.0.0",
   "timeout_seconds": 1200,
   "max_retries": 1,
   "llms": {
     "claude": true,
     "codex": true,
-    "gemini": true,
-    "copilot": true
+    "antigravity": true
   },
   "llm_mode": "mixed_claude_fallback",
   "llm_modes": {
     "mixed_claude_fallback": {
       "description": "Mixed LLMs, claude as safety net",
-      "fallback": {"codex": "claude", "gemini": "claude", "copilot": "claude"},
+      "fallback": {"codex": "claude", "antigravity": "claude"},
       "synthesis_llm": "claude"
     },
     "mixed_codex_fallback": {
       "description": "Mixed LLMs, codex as safety net",
-      "fallback": {"claude": "codex", "gemini": "codex", "copilot": "codex"},
+      "fallback": {"claude": "codex", "antigravity": "codex"},
       "synthesis_llm": "codex"
     },
-    "mixed_gemini_fallback": {
-      "description": "Mixed LLMs, gemini as safety net",
-      "fallback": {"claude": "gemini", "codex": "gemini", "copilot": "gemini"},
-      "synthesis_llm": "gemini"
-    },
-    "mixed_copilot_fallback": {
-      "description": "Mixed LLMs, copilot as safety net",
-      "fallback": {"claude": "copilot", "codex": "copilot", "gemini": "copilot"},
-      "synthesis_llm": "copilot"
+    "mixed_antigravity_fallback": {
+      "description": "Mixed LLMs, antigravity as safety net",
+      "fallback": {"claude": "antigravity", "codex": "antigravity"},
+      "synthesis_llm": "antigravity"
     },
     "single_llm": {
       "description": "Single LLM for everything",
@@ -60,7 +54,7 @@
         "step": 3,
         "name": "Chaos Check",
         "persona": "yolo",
-        "llm": "gemini",
+        "llm": "antigravity",
         "context_mode": "previous",
         "prompt_prefix": "You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
       },
@@ -110,7 +104,7 @@
         "step": 4,
         "name": "Chaos Check",
         "persona": "yolo",
-        "llm": "gemini",
+        "llm": "antigravity",
         "context_mode": "previous",
         "prompt_prefix": "You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."
       },

@@ -7,26 +7,27 @@ import (
 	"path/filepath"
 
 	"github.com/jdonohoo/vern-bot/go/internal/embedded"
+	"github.com/jdonohoo/vern-bot/go/internal/llm"
 )
 
 // Config represents the vern-bot configuration.
 type Config struct {
-	Version        string                      `json:"version"`
-	TimeoutSeconds int                         `json:"timeout_seconds"`
-	MaxRetries     int                         `json:"max_retries"`
-	PipelineMode   string                      `json:"pipeline_mode"`
-	Pipelines      map[string][]PipelineStep   `json:"discovery_pipelines"`
-	LLMs           map[string]bool             `json:"llms"`
-	LLMMode        string                      `json:"llm_mode"`
-	LLMModes       map[string]LLMModeConfig    `json:"llm_modes"`
-	VernHole       VernHoleConfig              `json:"vernhole"`
-	Timeouts       TimeoutConfig               `json:"timeouts"`
+	Version        string                    `json:"version"`
+	TimeoutSeconds int                       `json:"timeout_seconds"`
+	MaxRetries     int                       `json:"max_retries"`
+	PipelineMode   string                    `json:"pipeline_mode"`
+	Pipelines      map[string][]PipelineStep `json:"discovery_pipelines"`
+	LLMs           map[string]bool           `json:"llms"`
+	LLMMode        string                    `json:"llm_mode"`
+	LLMModes       map[string]LLMModeConfig  `json:"llm_modes"`
+	VernHole       VernHoleConfig            `json:"vernhole"`
+	Timeouts       TimeoutConfig             `json:"timeouts"`
 
 	// User preferences (persisted across sessions)
-	DefaultDiscoveryPath string               `json:"default_discovery_path,omitempty"`
+	DefaultDiscoveryPath string `json:"default_discovery_path,omitempty"`
 
 	// Backward compat: old config format
-	LegacyPipeline []PipelineStep              `json:"discovery_pipeline"`
+	LegacyPipeline []PipelineStep `json:"discovery_pipeline"`
 
 	// SourcePath is the file this config was loaded from (not serialized).
 	SourcePath string `json:"-"`
@@ -134,6 +135,7 @@ func loadEmbeddedConfig() (*Config, error) {
 		cfg.LLMModes = defaultLLMModes()
 	}
 	applyTimeoutDefaults(cfg)
+	normalize(cfg)
 
 	return cfg, nil
 }
@@ -180,6 +182,7 @@ func loadFile(path string) (*Config, error) {
 		cfg.LLMModes = defaultLLMModes()
 	}
 	applyTimeoutDefaults(cfg)
+	normalize(cfg)
 
 	return cfg, nil
 }
@@ -202,6 +205,7 @@ func (c *Config) GetPipeline(mode string) []PipelineStep {
 // GetFallbackLLM returns the fallback LLM for a given original LLM based on the active LLM mode.
 // Returns empty string if no fallback is configured.
 func (c *Config) GetFallbackLLM(originalLLM string) string {
+	originalLLM = canonicalLLM(originalLLM)
 	mode := c.getActiveMode()
 	if mode == nil {
 		return "claude" // backward compat default
@@ -216,7 +220,7 @@ func (c *Config) GetFallbackLLM(originalLLM string) string {
 func (c *Config) GetSynthesisLLM() string {
 	mode := c.getActiveMode()
 	if mode != nil && mode.SynthesisLLM != "" {
-		return mode.SynthesisLLM
+		return canonicalLLM(mode.SynthesisLLM)
 	}
 	return "claude" // backward compat default
 }
@@ -225,7 +229,7 @@ func (c *Config) GetSynthesisLLM() string {
 func (c *Config) GetOverrideLLM() string {
 	mode := c.getActiveMode()
 	if mode != nil {
-		return mode.OverrideLLM
+		return canonicalLLM(mode.OverrideLLM)
 	}
 	return ""
 }
@@ -266,7 +270,7 @@ func (c *Config) getActiveMode() *LLMModeConfig {
 	if c.LLMMode == "" || c.LLMModes == nil {
 		return nil
 	}
-	mode, ok := c.LLMModes[c.LLMMode]
+	mode, ok := c.LLMModes[CanonicalMode(c.LLMMode)]
 	if !ok {
 		return nil
 	}
@@ -292,27 +296,7 @@ func applyTimeoutDefaults(cfg *Config) {
 }
 
 func defaultLLMModes() map[string]LLMModeConfig {
-	return map[string]LLMModeConfig{
-		"mixed_claude_fallback": {
-			Description:  "Mixed LLMs, claude as safety net",
-			Fallback:     map[string]string{"codex": "claude", "gemini": "claude", "copilot": "claude"},
-			SynthesisLLM: "claude",
-		},
-		"mixed_codex_fallback": {
-			Description:  "Mixed LLMs, codex as safety net",
-			Fallback:     map[string]string{"claude": "codex", "gemini": "codex", "copilot": "codex"},
-			SynthesisLLM: "codex",
-		},
-		"mixed_gemini_fallback": {
-			Description:  "Mixed LLMs, gemini as safety net",
-			Fallback:     map[string]string{"claude": "gemini", "codex": "gemini", "copilot": "gemini"},
-			SynthesisLLM: "gemini",
-		},
-		"mixed_copilot_fallback": {
-			Description:  "Mixed LLMs, copilot as safety net",
-			Fallback:     map[string]string{"claude": "copilot", "codex": "copilot", "gemini": "copilot"},
-			SynthesisLLM: "copilot",
-		},
+	modes := map[string]LLMModeConfig{
 		"single_llm": {
 			Description:  "Single LLM for everything",
 			OverrideLLM:  "",
@@ -320,11 +304,26 @@ func defaultLLMModes() map[string]LLMModeConfig {
 			SynthesisLLM: "",
 		},
 	}
+	// One mixed mode per provider: every other provider falls back to it.
+	for _, safety := range llm.Names() {
+		fb := map[string]string{}
+		for _, other := range llm.Names() {
+			if other != safety {
+				fb[other] = safety
+			}
+		}
+		modes["mixed_"+safety+"_fallback"] = LLMModeConfig{
+			Description:  "Mixed LLMs, " + safety + " as safety net",
+			Fallback:     fb,
+			SynthesisLLM: safety,
+		}
+	}
+	return modes
 }
 
 func hardcodedDefaults() *Config {
 	return &Config{
-		Version:        "2.9.1",
+		Version:        "3.0.0",
 		TimeoutSeconds: 1200,
 		MaxRetries:     2,
 		PipelineMode:   "default",
@@ -341,10 +340,9 @@ func hardcodedDefaults() *Config {
 			OracleApply:  1200,
 		},
 		LLMs: map[string]bool{
-			"claude":  true,
-			"codex":   true,
-			"gemini":  true,
-			"copilot": true,
+			"claude":      true,
+			"codex":       true,
+			"antigravity": true,
 		},
 		Pipelines: map[string][]PipelineStep{
 			"default": {
@@ -352,7 +350,7 @@ func hardcodedDefaults() *Config {
 					PromptPrefix: "You are MightyVern. Analyze this idea and provide comprehensive initial analysis including: problem space, technical requirements, proposed architecture, unknowns and risks."},
 				{Step: 2, Name: "Refinement", Persona: "great", LLM: "claude", ContextMode: "previous",
 					PromptPrefix: "You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."},
-				{Step: 3, Name: "Chaos Check", Persona: "yolo", LLM: "gemini", ContextMode: "previous",
+				{Step: 3, Name: "Chaos Check", Persona: "yolo", LLM: "antigravity", ContextMode: "previous",
 					PromptPrefix: "You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."},
 				{Step: 4, Name: "Consolidation", Persona: "mighty", LLM: "codex", ContextMode: "all_previous",
 					PromptPrefix: "You are MightyVern. Synthesize all inputs into a master plan. Merge insights, resolve contradictions, create unified vision, prioritize features."},
@@ -366,7 +364,7 @@ func hardcodedDefaults() *Config {
 					PromptPrefix: "You are Vernile the Great. Review and refine this analysis. Identify gaps, add architectural considerations, consider maintainability and elegance."},
 				{Step: 3, Name: "Reality Check", Persona: "mediocre", LLM: "claude", ContextMode: "previous",
 					PromptPrefix: "You are Vern the Mediocre. Reality-check this plan. What's over-engineered? What can be simplified? Where is cleverness hiding complexity? Cut the fluff, keep what ships."},
-				{Step: 4, Name: "Chaos Check", Persona: "yolo", LLM: "gemini", ContextMode: "previous",
+				{Step: 4, Name: "Chaos Check", Persona: "yolo", LLM: "antigravity", ContextMode: "previous",
 					PromptPrefix: "You are YOLO Vern. Challenge and stress-test this plan. What could go wrong? What unconventional approaches exist? No sacred cows."},
 				{Step: 5, Name: "MVP Lens", Persona: "startup", LLM: "claude", ContextMode: "previous",
 					PromptPrefix: "You are Startup Vern. What's the MVP here? Cut scope ruthlessly. What can ship in week one? What's a nice-to-have disguised as a must-have? If you're not embarrassed by v1, you shipped too late."},

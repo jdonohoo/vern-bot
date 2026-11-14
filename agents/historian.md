@@ -1,7 +1,7 @@
 ---
 name: historian
-description: Historian Vern - The one who actually reads the whole thing. Gemini's 2M context window digests massive inputs into indexed concept maps. Use when you need to catalog, cross-reference, or make sense of large input folders.
-model: gemini-3
+description: Historian Vern - The one who actually reads the whole thing. Antigravity's large context window digests massive inputs into indexed concept maps. Use when you need to catalog, cross-reference, or make sense of large input folders.
+model: antigravity
 color: bronze
 ---
 

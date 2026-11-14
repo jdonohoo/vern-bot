@@ -56,10 +56,9 @@ If yes: Ask the user to provide file paths one at a time. Collect them as EXTRA_
 Ask the user using AskUserQuestion:
 
 1. **LLM Mode**: How should LLMs be allocated?
-   - **Mixed LLMs + Claude fallback** (Recommended) — Default pipeline uses codex/claude/gemini/copilot per step config, falls back to claude on failure
+   - **Mixed LLMs + Claude fallback** (Recommended) — Default pipeline uses codex/claude/antigravity per step config, falls back to claude on failure
    - **Mixed LLMs + Codex fallback** — Same pipeline, falls back to codex instead of claude
-   - **Mixed LLMs + Gemini fallback** — Same pipeline, falls back to gemini
-   - **Mixed LLMs + Copilot fallback** — Same pipeline, falls back to copilot
+   - **Mixed LLMs + Antigravity fallback** — Same pipeline, falls back to antigravity
    - **Single LLM** — All steps use one LLM (ask which one next)
 
    If "Single LLM" is chosen, follow up with:
@@ -67,8 +66,7 @@ Ask the user using AskUserQuestion:
    Options:
    - **Claude**
    - **Codex**
-   - **Gemini**
-   - **Copilot**
+   - **Antigravity**
 
 2. **Pipeline mode**: Which pipeline to run?
    - `Default (5-step)` — Analysis → Refinement → Chaos Check → Consolidation → Architect (Recommended)
@@ -124,8 +122,7 @@ Build the command:
 ### Flag mapping:
 - User chose **Mixed + Claude FB** → add `--llm-mode mixed_claude_fallback` (or omit, it's the default)
 - User chose **Mixed + Codex FB** → add `--llm-mode mixed_codex_fallback`
-- User chose **Mixed + Gemini FB** → add `--llm-mode mixed_gemini_fallback`
-- User chose **Mixed + Copilot FB** → add `--llm-mode mixed_copilot_fallback`
+- User chose **Mixed + Antigravity FB** → add `--llm-mode mixed_antigravity_fallback`
 - User chose **Single LLM** → add `--single-llm <chosen_llm>` (e.g. `--single-llm codex`)
 - User chose **Expanded** pipeline → add `--expanded`
 - User said **no** to reading input files → add `--skip-input`
@@ -165,7 +162,7 @@ After the CLI completes, read `{discovery_dir}/output/pipeline-status.md` for a 
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   CODEX     │────▶│   CLAUDE    │────▶│   GEMINI    │
+│   CODEX     │────▶│   CLAUDE    │────▶│   AGY       │
 │  (MightyVern)│     │(Vernile/Ket)│     │ (YOLO Vern) │
 │  Analysis   │     │ Refinement  │     │ Chaos Check │
 └─────────────┘     └─────────────┘     └─────────────┘
@@ -197,7 +194,7 @@ After the CLI completes, read `{discovery_dir}/output/pipeline-status.md` for a 
         ┌──────────────────────────────────────┘
         ▼
 ┌─────────────┐     ┌─────────────┐
-│   GEMINI    │────▶│   CLAUDE    │
+│   AGY       │────▶│   CLAUDE    │
 │ (YOLO Vern) │     │(Startup Vern)│
 │ Chaos Check │     │  MVP Lens   │
 └─────────────┘     └─────────────┘

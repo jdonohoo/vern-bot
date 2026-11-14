@@ -67,13 +67,12 @@ Ask the user using AskUserQuestion:
 Options:
 - **Mixed LLMs + Claude fallback** (Recommended)
 - **Mixed LLMs + Codex fallback**
-- **Mixed LLMs + Gemini fallback**
-- **Mixed LLMs + Copilot fallback**
+- **Mixed LLMs + Antigravity fallback**
 - **Single LLM**
 
 If "Single LLM" is chosen, follow up with:
 > "Which LLM?"
-Options: Claude, Codex, Gemini, Copilot
+Options: Claude, Codex, Antigravity
 
 ## Step 3: Execute via CLI
 
@@ -117,8 +116,7 @@ Options: Claude, Codex, Gemini, Copilot
 - LLM mode flags:
   - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit, it's the default)
   - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
-  - Mixed + Gemini FB → `--llm-mode mixed_gemini_fallback`
-  - Mixed + Copilot FB → `--llm-mode mixed_copilot_fallback`
+  - Mixed + Antigravity FB → `--llm-mode mixed_antigravity_fallback`
   - Single LLM → `--single-llm <llm_name>`
 
 ## Step 4: Report Results

@@ -27,13 +27,9 @@ Options:
 - **Claude Opus** - Deep thinkers, thorough analyzers
 - **Claude Sonnet** - Fast workers, scrappy builders
 - **Claude Haiku** - Brief/minimal, quick answers
-- **Gemini 3** - 2M context window, large-scale analysis
-- **Gemini Pro** - Deep reasoning
-- **Gemini Flash** - Speed-optimized
+- **Antigravity** - Google's agent, large context, large-scale analysis
 - **Codex** - Raw computational power, code generation
 - **Codex Mini** - Lighter and faster
-- **Copilot** - Code-focused assistance
-- **Copilot GPT-4** - GPT-4 backbone
 
 Then ask:
 
@@ -65,13 +61,9 @@ Map model choice to flag:
 - Claude Opus → `--model opus`
 - Claude Sonnet → `--model sonnet`
 - Claude Haiku → `--model haiku`
-- Gemini 3 → `--model gemini-3`
-- Gemini Pro → `--model gemini-pro`
-- Gemini Flash → `--model gemini-flash`
+- Antigravity → `--model antigravity`
 - Codex → `--model codex`
 - Codex Mini → `--model codex-mini`
-- Copilot → `--model copilot`
-- Copilot GPT-4 → `--model copilot-gpt4`
 
 Map color choice to flag:
 - Auto → no flag

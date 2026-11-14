@@ -61,7 +61,7 @@ func init() {
 	discoveryCmd.Flags().StringArrayVar(&discExtraContext, "extra-context", nil, "Extra context files (repeatable)")
 	discoveryCmd.Flags().IntVar(&discResumeFrom, "resume-from", 0, "Resume pipeline from step N")
 	discoveryCmd.Flags().IntVar(&discMaxRetries, "max-retries", 0, "Max retry attempts per step")
-	discoveryCmd.Flags().StringVar(&discLLMMode, "llm-mode", "", "LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, mixed_gemini_fallback, mixed_copilot_fallback, single_llm)")
+	discoveryCmd.Flags().StringVar(&discLLMMode, "llm-mode", "", "LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, mixed_antigravity_fallback, single_llm)")
 	discoveryCmd.Flags().StringVar(&discSingleLLM, "single-llm", "", "Use a single LLM for all steps (shorthand for --llm-mode single_llm)")
 	rootCmd.AddCommand(discoveryCmd)
 }

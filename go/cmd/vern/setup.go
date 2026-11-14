@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/jdonohoo/vern-bot/go/internal/config"
+	"github.com/jdonohoo/vern-bot/go/internal/llm"
 	"github.com/spf13/cobra"
 )
 
@@ -30,20 +30,15 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	// Detect available LLMs
-	llms := map[string]bool{
-		"claude":  detectCLI("claude"),
-		"codex":   detectCLI("codex"),
-		"gemini":  detectCLI("gemini"),
-		"copilot": detectCLI("copilot"),
-	}
+	llms := llm.Detect()
 
 	fmt.Println("Detected LLMs:")
-	for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
+	for _, p := range llm.Providers() {
 		status := "not found"
-		if llms[name] {
+		if llms[p.Name] {
 			status = "found"
 		}
-		fmt.Printf("  %s: %s\n", name, status)
+		fmt.Printf("  %s (%s): %s\n", p.Name, p.Binary, status)
 	}
 	fmt.Println()
 
@@ -57,7 +52,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	cfg.LLMMode = "mixed_claude_fallback"
 	if !llms["claude"] {
 		// If no claude, pick first available as fallback
-		for _, name := range []string{"codex", "gemini", "copilot"} {
+		for _, name := range llm.Names() {
 			if llms[name] {
 				cfg.LLMMode = "mixed_" + name + "_fallback"
 				break
@@ -93,7 +88,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Printf("LLM Mode: %s\n", cfg.LLMMode)
 	fmt.Print("LLMs: ")
-	for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
+	for _, name := range llm.Names() {
 		if llms[name] {
 			fmt.Printf("%s ✓  ", name)
 		} else {
@@ -106,9 +101,4 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	fmt.Println("Run 'vern tui' for interactive mode, or 'vern discovery' to start a pipeline.")
 
 	return nil
-}
-
-func detectCLI(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
 }

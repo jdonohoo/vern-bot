@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jdonohoo/vern-bot/go/internal/config"
+	"github.com/jdonohoo/vern-bot/go/internal/llm"
 )
 
 // MenuModel is the main menu screen.
@@ -119,7 +120,7 @@ func (m MenuModel) View() string {
 	}
 
 	var llms []string
-	for _, name := range []string{"claude", "codex", "gemini", "copilot"} {
+	for _, name := range llm.Names() {
 		if enabled, ok := m.cfg.LLMs[name]; ok && enabled {
 			llms = append(llms, name)
 		}

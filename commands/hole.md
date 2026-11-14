@@ -41,8 +41,7 @@ Ask the user using AskUserQuestion:
 Options:
 - **Mixed LLMs + Claude fallback** (Recommended) — Each Vern uses its configured LLM, falls back to claude on failure
 - **Mixed LLMs + Codex fallback** — Falls back to codex instead
-- **Mixed LLMs + Gemini fallback** — Falls back to gemini
-- **Mixed LLMs + Copilot fallback** — Falls back to copilot
+- **Mixed LLMs + Antigravity fallback** — Falls back to antigravity
 - **Single LLM** — All Verns and synthesis use one LLM
 
 If "Single LLM" is chosen, follow up with:
@@ -50,8 +49,7 @@ If "Single LLM" is chosen, follow up with:
 Options:
 - **Claude**
 - **Codex**
-- **Gemini**
-- **Copilot**
+- **Antigravity**
 
 ## Step 2: Output Location
 
@@ -99,8 +97,7 @@ Flags:
 - **--llm-mode**: LLM fallback mode from step 1.5:
   - Mixed + Claude FB → `--llm-mode mixed_claude_fallback` (or omit, it's the default)
   - Mixed + Codex FB → `--llm-mode mixed_codex_fallback`
-  - Mixed + Gemini FB → `--llm-mode mixed_gemini_fallback`
-  - Mixed + Copilot FB → `--llm-mode mixed_copilot_fallback`
+  - Mixed + Antigravity FB → `--llm-mode mixed_antigravity_fallback`
 - **--single-llm**: Single LLM mode (e.g. `--single-llm codex`)
 - **--context** (optional): If this VernHole is being run on a discovery plan, pass the master plan file path
 - **--count N**: Alternative to --council — summon exactly N random Verns (min 3)

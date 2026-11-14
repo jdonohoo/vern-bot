@@ -24,8 +24,7 @@ func expandHome(path string) string {
 var LLMModeOptions = []huh.Option[string]{
 	huh.NewOption("Mixed LLMs + Claude fallback (Recommended)", "mixed_claude_fallback"),
 	huh.NewOption("Mixed LLMs + Codex fallback", "mixed_codex_fallback"),
-	huh.NewOption("Mixed LLMs + Gemini fallback", "mixed_gemini_fallback"),
-	huh.NewOption("Mixed LLMs + Copilot fallback", "mixed_copilot_fallback"),
+	huh.NewOption("Mixed LLMs + Antigravity fallback", "mixed_antigravity_fallback"),
 	huh.NewOption("Single LLM", "single_llm"),
 }
 
@@ -33,8 +32,7 @@ var LLMModeOptions = []huh.Option[string]{
 var SingleLLMOptions = []huh.Option[string]{
 	huh.NewOption("Claude", "claude"),
 	huh.NewOption("Codex", "codex"),
-	huh.NewOption("Gemini", "gemini"),
-	huh.NewOption("Copilot", "copilot"),
+	huh.NewOption("Antigravity", "antigravity"),
 }
 
 // CouncilOptions are the VernHole council tier options.
