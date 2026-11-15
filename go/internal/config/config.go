@@ -8,6 +8,7 @@ import (
 
 	"github.com/jdonohoo/vern-bot/go/internal/embedded"
 	"github.com/jdonohoo/vern-bot/go/internal/llm"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 )
 
 // Config represents the vern-bot configuration.
@@ -38,6 +39,10 @@ type Config struct {
 
 	// SourcePath is the file this config was loaded from (not serialized).
 	SourcePath string `json:"-"`
+	// ProjectDir is the project's .vern folder, when one applied.
+	ProjectDir string `json:"-"`
+	// PipelineInfo describes each pipeline (kind, pack). Not serialized.
+	PipelineInfo map[string]PipelineInfo `json:"-"`
 }
 
 // LLMModeConfig defines fallback behavior for a given LLM mode.
@@ -77,13 +82,16 @@ type VernHoleConfig struct {
 	Min            int    `json:"min"`
 }
 
-// Load reads configuration using the 4-tier chain:
+// Load reads configuration using the chain below, then adds the active
+// packs' pipelines and the project's .vern/config.json (see internal/packs):
 //  1. ~/.claude/vern-bot-config.json (user config, Claude Code plugin)
 //  2. ~/.config/vern/config.json (standalone user config)
 //  3. {projectRoot}/config.default.json (project defaults)
 //  4. Hardcoded defaults
 func Load(projectRoot string) *Config {
 	cfg := load(projectRoot)
+	applyPacks(cfg)
+	applyProject(cfg, packs.ActiveProject())
 	llm.SetPolicy(cfg.Policy())
 	return cfg
 }

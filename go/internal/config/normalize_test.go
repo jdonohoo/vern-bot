@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jdonohoo/vern-bot/go/internal/llm"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 )
 
 // A config written by v2 (gemini and copilot) keeps working.
@@ -138,5 +139,46 @@ func TestLoadSetsRunPolicy(t *testing.T) {
 	}
 	if p.Tiers["deep"].Models["codex"] != "gpt-6-astra" || p.Tiers["deep"].Models["claude"] != "opus" {
 		t.Errorf("tiers should reach the run policy: %+v", p.Tiers)
+	}
+}
+
+func TestPackPipelinesAndProject(t *testing.T) {
+	defer packs.Reset()
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	t.Setenv("USERPROFILE", root)
+	t.Setenv("VERN_PATH", "")
+	repo := filepath.Join(root, "repo")
+	os.MkdirAll(filepath.Join(repo, ".vern", "pipelines"), 0755)
+	os.WriteFile(filepath.Join(repo, ".vern", "pipelines", "story.json"), []byte(`{"name": "story", "kind": "creative",
+	  "steps": [{"step": 1, "name": "Outline", "persona": "editor", "llm": "gemini", "context_mode": "prompt_only", "effort": "HIGH"}]}`), 0644)
+	os.WriteFile(filepath.Join(repo, ".vern", "pipelines", "default.json"), []byte(`{"name": "default", "steps": [{"step": 1, "llm": "claude"}]}`), 0644)
+	os.WriteFile(filepath.Join(repo, ".vern", "config.json"), []byte(`{"pipeline": "story", "llm_mode": "mixed_gemini_fallback",
+	  "allow_writes": true, "tiers": {"deep": {"models": {"codex": "gpt-6-astra"}, "effort": "max"}}}`), 0644)
+	if _, _, err := packs.Setup(nil, repo, root); err != nil {
+		t.Fatal(err)
+	}
+	defer llm.SetPolicy(llm.Policy{})
+
+	cfg := Load(root)
+	steps := cfg.Pipelines["story"]
+	if len(steps) != 1 || steps[0].LLM != "antigravity" || steps[0].Effort != "high" {
+		t.Errorf("story pipeline = %+v", steps)
+	}
+	if cfg.PipelineInfo["story"].Kind != "creative" || cfg.PipelineInfo["story"].Pack == "" {
+		t.Errorf("story info = %+v", cfg.PipelineInfo["story"])
+	}
+	if len(cfg.Pipelines["default"]) != 5 {
+		t.Error("a pack must not replace a pipeline the config already has")
+	}
+	if cfg.PipelineMode != "story" || cfg.LLMMode != "mixed_antigravity_fallback" || !cfg.AllowWrites {
+		t.Errorf("project overlay: mode %s llm_mode %s writes %v", cfg.PipelineMode, cfg.LLMMode, cfg.AllowWrites)
+	}
+	deep := cfg.Tiers["deep"]
+	if deep.Models["codex"] != "gpt-6-astra" || deep.Models["claude"] != "opus" || deep.Effort != "max" {
+		t.Errorf("project tiers should merge over the defaults: %+v", deep)
+	}
+	if cfg.Tiers["fast"].Models["claude"] != "haiku" {
+		t.Errorf("other tiers keep their models: %+v", cfg.Tiers["fast"])
 	}
 }

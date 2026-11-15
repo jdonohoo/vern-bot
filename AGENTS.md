@@ -37,6 +37,7 @@ Things to know:
 - Discovery takes minutes (one LLM call per step, 20 minutes timeout each by default). Run it in the background and read `output/run.json`, which is updated after every step.
 - `--single-llm claude` (or another LLM) runs every step on one CLI when others are missing; `vern doctor` tells you which are installed.
 - `--resume-from N` reruns a discovery from step N after a failure.
+- `--sink exec:<command>` pipes `tasks.json` to your own program after the run (for example, to file the tasks in a tracker); `vern sink <dir> --sink ...` does it for a finished run. A project's `.vern/config.json` can set the sink, pipeline and packs once. See [docs/packs.md](docs/packs.md).
 
 ## Working on this repo
 

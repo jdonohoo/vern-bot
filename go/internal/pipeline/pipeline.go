@@ -24,6 +24,7 @@ type Options struct {
 	ReadInput         bool
 	SkipHistorian     bool
 	Expanded          bool
+	Pipeline          string // pipeline name from config or a pack; overrides Expanded
 	ResumeFrom        int
 	MaxRetries        int
 	VernHoleCount     int
@@ -109,6 +110,12 @@ func RunWithManifest(opts Options) (*Manifest, error) {
 	mode := cfg.PipelineMode
 	if opts.Expanded {
 		mode = "expanded"
+	}
+	if opts.Pipeline != "" {
+		if !cfg.HasPipeline(opts.Pipeline) {
+			return nil, fmt.Errorf("unknown pipeline %q (available: %s)", opts.Pipeline, strings.Join(cfg.PipelineNames(), ", "))
+		}
+		mode = opts.Pipeline
 	}
 
 	steps := cfg.GetPipeline(mode)
@@ -227,14 +234,14 @@ func (p *Pipeline) execute(mode string) error {
 			promptFile := filepath.Join(inputDir, "prompt.md")
 
 			hResult, hErr := RunHistorian(HistorianOptions{
-				Ctx:          opts.Ctx,
-				TargetDir:    inputDir,
-				OutputFile:   historianOut,
-				PromptFile:   promptFile,
-				AgentsDir:    opts.AgentsDir,
-				Timeout:      opts.Timeout,
-				OnLog:        opts.OnLog,
-				QuietStderr:  opts.OnLog != nil,
+				Ctx:         opts.Ctx,
+				TargetDir:   inputDir,
+				OutputFile:  historianOut,
+				PromptFile:  promptFile,
+				AgentsDir:   opts.AgentsDir,
+				Timeout:     opts.Timeout,
+				OnLog:       opts.OnLog,
+				QuietStderr: opts.OnLog != nil,
 			})
 
 			if hErr != nil {

@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 
 	"github.com/jdonohoo/vern-bot/go/internal/embedded"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 	"github.com/jdonohoo/vern-bot/go/internal/persona"
 )
 
@@ -21,49 +20,48 @@ type Vern struct {
 	Desc string // tagline (e.g. "Good vibes only")
 }
 
-// ScanRoster builds the roster by scanning agents/*.md files.
-// Falls back to embedded agent data if the directory isn't available.
-// Skips vernhole-orchestrator and oracle (pipeline-only personas).
+// ScanRoster builds the roster from agents/*.md and the personas of every
+// active pack (see internal/packs); a pack persona with the same name
+// replaces vern's own. Without an agents dir on disk it starts from the
+// personas built into the binary.
 func ScanRoster(agentsDir string) []Vern {
 	skip := map[string]bool{
 		"vernhole-orchestrator": true,
-		"oracle":               true,
-		"historian":            true,
+		"oracle":                true,
+		"historian":             true,
 	}
 
-	entries, err := os.ReadDir(agentsDir)
-	if err != nil {
-		// No agents dir on disk — use embedded data
-		return scanEmbeddedRoster(skip)
-	}
-
-	var roster []Vern
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
+	byID := map[string]Vern{}
+	var files map[string]string
+	if info, err := os.Stat(agentsDir); err == nil && info.IsDir() {
+		files = packs.AgentFiles(agentsDir)
+	} else {
+		for _, v := range scanEmbeddedRoster(skip) {
+			byID[v.ID] = v
 		}
-		id := strings.TrimSuffix(entry.Name(), ".md")
+		files = packs.PackAgentFiles()
+	}
+
+	for id, path := range files {
 		if skip[id] {
 			continue
 		}
-
-		p, err := persona.LoadFile(filepath.Join(agentsDir, entry.Name()))
+		p, err := persona.LoadFile(path)
 		if err != nil {
 			continue
 		}
-
-		llm := persona.ModelToLLM(p.Model)
-		name := persona.DisplayName(p.Description)
-		desc := persona.ShortDescription(p.Description)
-
-		roster = append(roster, Vern{
+		byID[id] = Vern{
 			ID:   id,
-			Name: name,
-			LLM:  llm,
-			Desc: desc,
-		})
+			Name: persona.DisplayName(p.Description),
+			LLM:  persona.ModelToLLM(p.Model),
+			Desc: persona.ShortDescription(p.Description),
+		}
 	}
 
+	roster := make([]Vern, 0, len(byID))
+	for _, v := range byID {
+		roster = append(roster, v)
+	}
 	sort.Slice(roster, func(i, j int) bool { return roster[i].ID < roster[j].ID })
 
 	if len(roster) == 0 {
@@ -72,7 +70,6 @@ func ScanRoster(agentsDir string) []Vern {
 	return roster
 }
 
-// scanEmbeddedRoster builds the roster from compiled-in agent data.
 func scanEmbeddedRoster(skip map[string]bool) []Vern {
 	names := embedded.ListAgents()
 	var roster []Vern

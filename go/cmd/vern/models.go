@@ -11,6 +11,7 @@ import (
 	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/embedded"
 	"github.com/jdonohoo/vern-bot/go/internal/llm"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 	"github.com/spf13/cobra"
 )
 
@@ -144,6 +145,9 @@ func personaTiers(agentsDir string) map[string]string {
 		for _, n := range embeddedAgentNames() {
 			names[n] = true
 		}
+	}
+	for n := range packs.PackAgentFiles() {
+		names[n] = true
 	}
 	for n := range names {
 		out[n] = llm.PersonaTier(agentsDir, n)

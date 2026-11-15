@@ -3,11 +3,11 @@ package llm
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/jdonohoo/vern-bot/go/internal/embedded"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 )
 
 // Tier is a persona's weight class. Config maps each tier to a model per
@@ -109,8 +109,8 @@ func PersonaTier(agentsDir, persona string) string {
 func personaFrontmatter(agentsDir, persona string) map[string]string {
 	out := map[string]string{}
 	var content string
-	if agentsDir != "" {
-		if data, err := os.ReadFile(filepath.Join(agentsDir, persona+".md")); err == nil {
+	if path, ok := packs.FindAgent(agentsDir, persona); ok {
+		if data, err := os.ReadFile(path); err == nil {
 			content = string(data)
 		}
 	}

@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jdonohoo/vern-bot/go/internal/embedded"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 )
 
 const (
@@ -241,10 +244,16 @@ func writePromptFile(prompt string) (string, error) {
 }
 
 func loadPersonaContext(agentsDir, persona string) string {
-	path := agentsDir + "/" + persona + ".md"
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
+	var data []byte
+	if path, ok := packs.FindAgent(agentsDir, persona); ok {
+		data, _ = os.ReadFile(path)
+	}
+	if len(data) == 0 {
+		content, ok := embedded.GetAgent(persona)
+		if !ok {
+			return ""
+		}
+		data = []byte(content)
 	}
 
 	// Strip YAML frontmatter (between first two --- lines)

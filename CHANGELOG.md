@@ -22,6 +22,14 @@ All notable changes to vern-bot. Versions follow [Semantic Versioning](https://s
 - **`--json`** on `discovery`, `hole` and `run`: JSON on stdout, progress on stderr. `discovery --json` exits 0 when the run is ok, 3 when partial and 1 when it failed.
 - **`vern report <dir>`** renders a run (steps, tasks, VernHole, Oracle) as one self-contained HTML page; discovery writes `output/report.html` at the end of every run.
 - **AGENTS.md** tells coding agents how to drive vern and how to work on this repo.
+- **Packs**: extra personas (`agents/*.md`) and pipelines (`pipelines/*.json`) from `--pack`, a project's `.vern/`, `VERN_PATH` or `~/.config/vern/packs/`. Pack personas join the VernHole roster and can replace built-in ones. New `vern packs`, `vern pipelines` and `vern discovery --pipeline <name>`.
+- **Project config**: `.vern/config.json` sets the default pipeline, sink, packs, LLM mode, tiers and write access for runs in that project.
+- **Task sinks**: `vern discovery --sink vts|json[:<path>]|beads|exec:<command>` sends the tasks on after a run; `exec` pipes `tasks.json` to any program, saves its output to `output/sink.log` and records the result in `run.json`. `vern sink <dir>` resends a finished run.
+- [docs/packs.md](docs/packs.md): how to write, configure and share packs and sinks.
+
+### Fixed
+
+- Standalone installs (Homebrew, Scoop, Winget) now send each persona's prompt to the LLM. Without an `agents/` folder next to the binary, runs used to go out with no persona text at all; they now use the personas built into the binary.
 
 ## 3.0.0
 

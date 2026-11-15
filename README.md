@@ -477,6 +477,14 @@ discovery/{name}/
 └── oracle-vision.md           # Only if Oracle ran
 ```
 
+### Packs, project config and task sinks
+
+- **Packs** add personas and pipelines without forking vern: a folder with `agents/*.md` and `pipelines/*.json`, found through `--pack <dir>`, a project's `.vern/` folder, `VERN_PATH` or `~/.config/vern/packs/`. `vern packs` and `vern pipelines` show what's loaded; `vern discovery --pipeline <name>` runs a pack's pipeline.
+- **Project config**: `.vern/config.json` sets a project's default pipeline, sink, packs, LLM mode and tiers.
+- **Task sinks** send the tasks on after a run: `--sink vts` (default), `json[:<path>]`, `beads`, or `exec:<command>`, which pipes `tasks.json` to any program. `vern sink <dir>` resends a finished run.
+
+[docs/packs.md](docs/packs.md) explains all three and how to share a pack.
+
 ### For agents and scripts
 
 `vern discovery --json`, `vern hole --json`, `vern run --json`, `vern doctor --json` and `vern models --json` print JSON on stdout and progress on stderr, so an agent can run vern and read the result without parsing markdown. Read `output/tasks.json` for the tasks ([schema v1](schemas/tasks.v1.json)) and `output/run.json` for what happened. `vern report <dir>` rebuilds `report.html` for any run, including ones from before v3.1. [AGENTS.md](AGENTS.md) lists the commands, outputs and exit codes.
@@ -635,6 +643,9 @@ vern run <llm> <prompt>              # Single LLM run (--model, --effort, --tier
 vern doctor                           # Check CLIs, sign-ins and the flags vern uses
 vern models [llm]                     # Persona tiers and the models each CLI offers
 vern report <discovery-dir>           # Render a run as one HTML page
+vern sink <discovery-dir> --sink S    # Send a run's tasks to a sink (vts, json, beads, exec:<cmd>)
+vern packs                            # Packs in use, with their personas and pipelines
+vern pipelines                        # Pipelines you can pass to discovery --pipeline
 vern discovery <prompt>               # Full discovery pipeline
 vern hole <idea>                      # VernHole council
 vern tobeads <vts-dir>               # Import VTS tasks into Beads

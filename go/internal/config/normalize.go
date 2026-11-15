@@ -52,16 +52,7 @@ func canonicalLLM(name string) string {
 // current set, so configs written before v3 (gemini, copilot) keep working.
 func normalize(cfg *Config) {
 	for mode, steps := range cfg.Pipelines {
-		for i := range steps {
-			steps[i].LLM = canonicalLLM(steps[i].LLM)
-			steps[i].Tier = strings.ToLower(steps[i].Tier)
-			steps[i].Effort = strings.ToLower(steps[i].Effort)
-			if !llm.ValidEffort(steps[i].Effort) {
-				fmt.Fprintf(os.Stderr, "[vern] pipeline %s step %d: unknown effort %q ignored\n", mode, steps[i].Step, steps[i].Effort)
-				steps[i].Effort = ""
-			}
-		}
-		cfg.Pipelines[mode] = steps
+		cfg.Pipelines[mode] = normalizeSteps(mode, steps)
 	}
 
 	if cfg.LLMs != nil {
@@ -155,4 +146,18 @@ func normalizeTiers(in map[string]llm.Tier) map[string]llm.Tier {
 		out[name] = t
 	}
 	return out
+}
+
+// normalizeSteps canonicalizes a pipeline's LLM names, tiers and efforts.
+func normalizeSteps(mode string, steps []PipelineStep) []PipelineStep {
+	for i := range steps {
+		steps[i].LLM = canonicalLLM(steps[i].LLM)
+		steps[i].Tier = strings.ToLower(steps[i].Tier)
+		steps[i].Effort = strings.ToLower(steps[i].Effort)
+		if !llm.ValidEffort(steps[i].Effort) {
+			fmt.Fprintf(os.Stderr, "[vern] pipeline %s step %d: unknown effort %q ignored\n", mode, steps[i].Step, steps[i].Effort)
+			steps[i].Effort = ""
+		}
+	}
+	return steps
 }

@@ -37,6 +37,7 @@ type Manifest struct {
 	Tasks       *TaskSummary `json:"tasks,omitempty"`
 	VernHole    *Extra       `json:"vernhole,omitempty"`
 	Oracle      *Extra       `json:"oracle,omitempty"`
+	Sink        *SinkInfo    `json:"sink,omitempty"`
 	Usage       *llm.Usage   `json:"usage,omitempty"` // summed over steps that reported it
 }
 
@@ -51,6 +52,29 @@ type TaskSummary struct {
 type Extra struct {
 	Status string `json:"status"` // ok, failed
 	Path   string `json:"path"`
+}
+
+// SinkInfo records where the tasks were sent after the run.
+type SinkInfo struct {
+	Sink     string `json:"sink"`
+	Status   string `json:"status"` // ok, failed, skipped
+	ExitCode int    `json:"exit_code,omitempty"`
+	Detail   string `json:"detail,omitempty"`
+	Log      string `json:"log,omitempty"` // output/sink.log for exec sinks
+}
+
+// UpdateManifest applies fn to a saved run.json and writes it back.
+func UpdateManifest(discoveryDir string, fn func(*Manifest)) (*Manifest, error) {
+	m, err := ReadManifest(discoveryDir)
+	if err != nil {
+		return nil, err
+	}
+	fn(m)
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return m, os.WriteFile(filepath.Join(discoveryDir, "output", ManifestFile), append(data, '\n'), 0644)
 }
 
 // ReadManifest loads output/run.json from a discovery folder.
