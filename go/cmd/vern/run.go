@@ -87,6 +87,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		Models:     llm.ModelsFor(llmName, runModel),
 		Effort:     strings.ToLower(runEffort),
 		Tier:       strings.ToLower(runTier),
+		Plain:      true,
 	}
 
 	result, err := llm.Run(opts)

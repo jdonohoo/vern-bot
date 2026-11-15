@@ -197,13 +197,20 @@ func TestMissingFlags(t *testing.T) {
 }
 
 func TestParseModelIDs(t *testing.T) {
-	codex := `{"models":[{"slug":"gpt-6-astra","visibility":"list"},{"slug":"gpt-6-luna"}]}`
+	codex := "WARNING: proceeding\n" + `{"models":[{"slug":"gpt-6-astra","visibility":"list","service_tiers":[{"id":"priority"}]},{"slug":"gpt-6-luna"},{"slug":"internal-x","visibility":"hide"}]}`
 	if got := strings.Join(parseModelIDs(codex), ","); got != "gpt-6-astra,gpt-6-luna" {
 		t.Errorf("codex models = %s", got)
 	}
-	agy := "Fetching available models...\ngemini-4-argon-high | Gemini 4 Argon (High)\nclaude-opus-5-5-low   Claude Opus 5.5\n"
-	if got := strings.Join(parseModelIDs(agy), ","); got != "gemini-4-argon-high,claude-opus-5-5-low" {
+	agy := "Fetching available models...\nAvailable models:\ngemini-4-argon-high | Gemini 4 Argon (High)\nclaude-opus-5-5-low   Claude Opus 5.5\n  - gemini-3.8-flash-low\n\x1b[1mgpt-6-sol\x1b[0m (default)\n"
+	if got := strings.Join(parseModelIDs(agy), ","); got != "gemini-4-argon-high,claude-opus-5-5-low,gemini-3.8-flash-low,gpt-6-sol" {
 		t.Errorf("agy models = %s", got)
+	}
+}
+
+func TestParseModelIDsNameFirst(t *testing.T) {
+	out := "Name                 ID\nGemini 4 Argon       gemini-4-argon-high\nClaude Opus 5.5      claude-opus-5-5-low\n"
+	if got := strings.Join(parseModelIDs(out), ","); got != "gemini-4-argon-high,claude-opus-5-5-low" {
+		t.Errorf("name-first models = %s", got)
 	}
 }
 
@@ -249,5 +256,28 @@ func TestParseCodexUsage(t *testing.T) {
 	_, u, _ = parseCodexUsage("answer", "tokens used 7,501")
 	if u.TotalTokens != 7501 {
 		t.Errorf("usage = %+v", u)
+	}
+}
+
+func TestPlainRunAndPersonaWithoutAgentsDir(t *testing.T) {
+	t.Setenv("VERN_LOG", "0")
+	t.Setenv("VERN_FAKE_CLI", "args")
+	SetPolicy(Policy{})
+	withFakeProvider(t, &Provider{Name: "fake", ReadOnly: true, PromptAsArg: true,
+		Preamble: func(bool) string { return "DISCOVERY PREAMBLE " },
+		Args:     func(inv Invocation) []string { return []string{inv.Prompt} }})
+
+	res, err := Run(RunOptions{LLM: "fake", Prompt: "hi", Plain: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(res.Output, "SIGN-OFF") || strings.Contains(res.Output, "DISCOVERY PREAMBLE") {
+		t.Errorf("plain run should send no sign-off or discovery preamble: %q", res.Output)
+	}
+
+	// The built-in persona reaches the prompt with no agents dir.
+	res, _ = Run(RunOptions{LLM: "fake", Prompt: "hi", Plain: true, Persona: "nyquil"})
+	if !strings.Contains(res.Output, "=== PERSONA ===") || !strings.Contains(res.Output, "SIGN-OFF") {
+		t.Errorf("persona run should carry the persona and its sign-off: %.200q", res.Output)
 	}
 }

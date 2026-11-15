@@ -44,6 +44,9 @@ type RunOptions struct {
 	// AllowWrites lets this run's agent modify files even when the policy
 	// is read-only.
 	AllowWrites bool
+	// Plain sends the prompt as is: no discovery preamble beyond the
+	// output rules, and no sign-off when there is no persona (vern run).
+	Plain bool
 }
 
 // Result holds the output of an LLM run.
@@ -72,15 +75,18 @@ func Run(opts RunOptions) (*Result, error) {
 
 	// Build persona context
 	personaContext := ""
-	if opts.Persona != "" && opts.AgentsDir != "" {
+	if opts.Persona != "" {
 		personaContext = loadPersonaContext(opts.AgentsDir, opts.Persona)
 	}
 
 	// Sign-off / dad joke
 	var dadJoke string
-	if personaContext != "" {
+	switch {
+	case opts.Plain && personaContext == "":
+		// A plain prompt gets a plain answer.
+	case personaContext != "":
 		dadJoke = "\n\n---\nSIGN-OFF REMINDER: Follow your persona's sign-off instructions above (dad joke in your style). After the joke, add your persona attribution on a new line starting with '-- ' followed by your persona name and a witty tag that fits your character. Examples: '-- MightyVern *mic drop*', '-- NyQuil Vern zzz...', '-- YOLO Vern 🚀', '-- Architect Vern (measure twice, deploy once)'. This is mandatory."
-	} else {
+	default:
 		dadJoke = "\n\n---\nSIGN-OFF: You MUST end your response with a dad joke followed by a persona attribution. Format as a horizontal rule, your joke, then '-- [Your Name]' with a witty sign-off. This is mandatory — it's the law."
 	}
 
@@ -97,7 +103,11 @@ func Run(opts RunOptions) (*Result, error) {
 		warnReadOnlyUnsupported(provider)
 	}
 
-	fullPrompt := provider.Preamble(opts.AllowFileRead) + personaContext + opts.Prompt + dadJoke
+	preamble := provider.Preamble(opts.AllowFileRead)
+	if opts.Plain {
+		preamble = textPreamble(opts.AllowFileRead)
+	}
+	fullPrompt := preamble + personaContext + opts.Prompt + dadJoke
 
 	parent := opts.Ctx
 	if parent == nil {

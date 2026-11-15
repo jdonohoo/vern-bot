@@ -66,8 +66,11 @@ func runModels(cmd *cobra.Command, args []string) error {
 	for _, p := range providers {
 		mp := modelsProvider{Name: p.Name, Installed: p.Available(), Hint: p.ModelsHint}
 		if mp.Installed {
-			if ids, _, ok := p.ListModels(); ok {
+			if ids, raw, ok := p.ListModels(); ok {
 				mp.Models = ids
+				if len(ids) == 0 && mp.Hint == "" {
+					mp.Hint = "no model ids found in: " + firstLines(raw, 5)
+				}
 			} else if mp.Hint == "" && len(p.ModelsArgs) > 0 {
 				mp.Hint = "could not list models (" + p.Binary + " " + strings.Join(p.ModelsArgs, " ") + " failed)"
 			}
@@ -156,3 +159,20 @@ func personaTiers(agentsDir string) map[string]string {
 }
 
 func embeddedAgentNames() []string { return embedded.ListAgents() }
+
+// firstLines returns up to n non-empty lines of s, joined with " / ".
+func firstLines(s string, n int) string {
+	var out []string
+	for _, l := range strings.Split(s, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
+			if len(out) == n {
+				break
+			}
+		}
+	}
+	if len(out) == 0 {
+		return "(empty output)"
+	}
+	return strings.Join(out, " / ")
+}

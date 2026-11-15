@@ -121,11 +121,19 @@ func (p *Provider) ListModels() (ids []string, raw string, ok bool) {
 	return parseModelIDs(out), out, true
 }
 
-var slugRe = regexp.MustCompile(`"(?:slug|id)"\s*:\s*"([^"]+)"`)
-var modelLineRe = regexp.MustCompile(`^\s*([A-Za-z0-9][A-Za-z0-9._:/-]*[A-Za-z0-9])\s*(\||$|\s{2,})`)
+var (
+	slugRe      = regexp.MustCompile(`"(?:slug|id)"\s*:\s*"([^"]+)"`)
+	ansiRe      = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
+	modelLineRe = regexp.MustCompile(`^[\s\-*•>]*([A-Za-z0-9][A-Za-z0-9._:/-]*[A-Za-z0-9])(?:\s|\||$)`)
+	modelIDRe   = regexp.MustCompile(`^[a-z0-9][a-z0-9._:/-]*$`)
+	// anyIDRe finds id-shaped words anywhere, for tables that put the
+	// display name first ("Gemini 4 Argon  gemini-4-argon-high").
+	anyIDRe = regexp.MustCompile(`\b[a-z][a-z0-9]*(?:[-.][a-z0-9]+){2,}\b`)
+)
 
-// parseModelIDs reads model ids from JSON ("slug"/"id" fields, as codex
-// debug models prints) or from lines that start with an id (agy models).
+// parseModelIDs reads model ids from a JSON catalog (codex debug models:
+// {"models": [{"slug": ...}]}) or from lines that start with an id (agy
+// models), skipping headings, prose and status lines.
 func parseModelIDs(out string) []string {
 	seen := map[string]bool{}
 	var ids []string
@@ -135,19 +143,83 @@ func parseModelIDs(out string) []string {
 			ids = append(ids, id)
 		}
 	}
-	trimmed := strings.TrimSpace(out)
-	if strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[") {
+	if js := jsonStart(out); js != "" {
+		if catalog, ok := decodeModelCatalog(js); ok {
+			for _, id := range catalog {
+				add(id)
+			}
+			return ids
+		}
 		for _, m := range slugRe.FindAllStringSubmatch(out, -1) {
 			add(m[1])
 		}
 		return ids
 	}
-	for _, line := range strings.Split(out, "\n") {
+	for _, line := range strings.Split(ansiRe.ReplaceAllString(out, ""), "\n") {
 		m := modelLineRe.FindStringSubmatch(line)
-		if m == nil || !strings.ContainsAny(m[1], "-.") {
-			continue // headings and prose, not ids
+		if m == nil || !modelIDRe.MatchString(m[1]) || !strings.ContainsAny(m[1], "-.") || !strings.ContainsAny(m[1], "0123456789") {
+			continue // headings, prose and "Fetching..." lines, not ids
 		}
 		add(m[1])
 	}
+	if len(ids) == 0 {
+		for _, id := range anyIDRe.FindAllString(ansiRe.ReplaceAllString(out, ""), -1) {
+			if strings.ContainsAny(id, "0123456789") {
+				add(id)
+			}
+		}
+	}
 	return ids
+}
+
+// jsonStart returns out from its first line that opens a JSON value, so
+// CLI chatter before it (warnings on stderr) is skipped. "" when none does.
+func jsonStart(out string) string {
+	off := 0
+	for _, line := range strings.SplitAfter(out, "\n") {
+		t := strings.TrimSpace(line)
+		if strings.HasPrefix(t, "{") || strings.HasPrefix(t, "[") {
+			return strings.TrimSpace(out[off:])
+		}
+		off += len(line)
+	}
+	return ""
+}
+
+// decodeModelCatalog reads the top-level model list of a JSON catalog,
+// skipping models marked hidden.
+func decodeModelCatalog(s string) ([]string, bool) {
+	type entry struct {
+		Slug       string `json:"slug"`
+		ID         string `json:"id"`
+		Visibility string `json:"visibility"`
+	}
+	var list []entry
+	dec := json.NewDecoder(strings.NewReader(s))
+	if strings.HasPrefix(s, "[") {
+		if dec.Decode(&list) != nil {
+			return nil, false
+		}
+	} else {
+		var doc struct {
+			Models []entry `json:"models"`
+			Data   []entry `json:"data"`
+		}
+		if dec.Decode(&doc) != nil {
+			return nil, false
+		}
+		list = append(doc.Models, doc.Data...)
+	}
+	var ids []string
+	for _, e := range list {
+		id := e.Slug
+		if id == "" {
+			id = e.ID
+		}
+		if id == "" || strings.EqualFold(e.Visibility, "hide") || strings.EqualFold(e.Visibility, "hidden") {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids, len(ids) > 0
 }
