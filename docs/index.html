@@ -8,7 +8,15 @@
     <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
     <meta property="og:title" content="Vern-Bot">
     <meta property="og:description" content="AI discovery pipelines with personality disorders. Multi-LLM orchestration, competing AI personas, VernHole council tiers, and Oracle vision. One idea in, battle-tested plan out.">
-    <meta property="og:image" content="images/favicon-512.png">
+    <meta name="description" content="AI discovery pipelines with personality disorders. Multi-LLM orchestration across Claude Code, Codex, Antigravity and Grok, competing AI personas, VernHole councils and Oracle vision.">
+    <link rel="canonical" href="https://jdonohoo.github.io/vern-bot/">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://jdonohoo.github.io/vern-bot/">
+    <meta property="og:image" content="https://jdonohoo.github.io/vern-bot/images/favicon-512.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Vern-Bot">
+    <meta name="twitter:description" content="AI discovery pipelines with personality disorders. One idea in, battle-tested plan out.">
+    <meta name="twitter:image" content="https://jdonohoo.github.io/vern-bot/images/favicon-512.png">
     <style>
         :root {
             --bg: #0d1117;
@@ -1059,6 +1067,7 @@
         </div>
         <p class="value-hook">Stop asking one AI for the answer. Make them argue about it.</p>
         <p class="value-hook-sub">Your idea runs a gauntlet of competing models and personas. Each one challenges, refines, and tears apart the last. What survives is worth building.</p>
+        <p class="value-hook-sub">See it on real ideas: <a href="https://github.com/jdonohoo/vern-bot/tree/master/sample-output/todo-web" style="color: var(--accent);">todo-web</a>, <a href="https://github.com/jdonohoo/vern-bot/tree/master/sample-output/browser-kanban" style="color: var(--accent);">browser-kanban</a> and <a href="https://github.com/jdonohoo/vern-bot/tree/master/sample-output/simple-swag-shop" style="color: var(--accent);">simple-swag-shop</a>, each with the full pipeline, the VernHole council and the Oracle's vision.</p>
     </div>
 </div>
 
@@ -1415,14 +1424,14 @@
 
         <div class="persona-card" data-agent="buildmaster" style="opacity: 0.6; cursor: pointer;">
             <div class="persona-img-wrap">
-                <img src="images/buildmaster-vern.png" alt="BuildMaster Vern - Coming Soon" loading="lazy">
+                <img src="images/buildmaster-vern.png" alt="BuildMaster Vern - Planned" loading="lazy">
             </div>
             <div class="persona-body">
                 <div class="persona-command" style="color: var(--text-muted);">/vern:buildmaster</div>
-                <div class="persona-quote">"Coming soon..."</div>
+                <div class="persona-quote">"Planned for after v3..."</div>
                 <div class="persona-desc">Takes the VTS tasks from Beads and makes them happen. Assigns each task to the right Vern. Tracks progress. Yells when things stall. The foreman who turns plans into shipped code.</div>
                 <div class="persona-meta">
-                    <span class="tag" style="border-color: var(--yellow); color: var(--yellow);">coming soon</span>
+                    <span class="tag" style="border-color: var(--yellow); color: var(--yellow);">planned</span>
                     <span class="tag tag-trait">pipeline</span>
                 </div>
             </div>
@@ -1519,7 +1528,7 @@
         <h2>Introducing Vern-Bot Standalone</h2>
         <p class="tagline">You asked. The Verns listened.</p>
         <p class="intro-text">
-            Hit your Claude Code token limit? Prefer a native terminal workflow? Now you can run the full Vern-Bot experience &mdash; discovery pipelines, VernHole councils, and all 18 personas &mdash; without Claude Code. Just the <code>vern</code> binary, your LLMs, and a terminal.
+            Hit your Claude Code token limit? Prefer a native terminal workflow? Now you can run the full Vern-Bot experience &mdash; discovery pipelines, VernHole councils, and all 17 personas &mdash; without Claude Code. Just the <code>vern</code> binary, your LLMs, and a terminal.
         </p>
 
         <div class="tui-carousel" id="tuiCarousel">
@@ -1530,7 +1539,7 @@
                     <div class="tui-preview">
                         <div class="tui-titlebar"><span class="tui-titlebar-dot red"></span><span class="tui-titlebar-dot yellow"></span><span class="tui-titlebar-dot green"></span><span class="tui-titlebar-title">vern tui</span></div>
                         <div class="tui-body">
-                        <div class="tui-header">VERN-BOT v2.9</div>
+                        <div class="tui-header">VERN-BOT v3.0</div>
                         <span class="tui-item">[1]</span> Discovery Pipeline<br>
                         <span class="tui-item">[2]</span> VernHole Council<br>
                         <span class="tui-item">[3]</span> Single LLM Run<br>
@@ -1782,7 +1791,7 @@
         <div class="tui-benefits">
             <div class="tui-benefit">
                 <h4>Beat the Usage Limits</h4>
-                <p>Waiting on Claude Code usage resets? Route pipeline work to codex or antigravity instead. Juggle your subscriptions and keep the Verns in action while your limits cool down.</p>
+                <p>Waiting on Claude Code usage resets? Route pipeline work to codex, antigravity or grok instead. Juggle your subscriptions and keep the Verns in action while your limits cool down.</p>
             </div>
             <div class="tui-benefit">
                 <h4>4 LLMs, Your Rules</h4>
@@ -1807,7 +1816,7 @@
         </div>
 
         <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 24px;">
-            Requires at least one LLM CLI: <code>claude</code>, <code>codex</code>, or <code>agy</code> (Antigravity).
+            Requires at least one LLM CLI: <code>claude</code>, <code>codex</code>, <code>agy</code> (Antigravity), or <code>grok</code> (Grok Build).
             <br>Install via <code style="color: var(--cyan);">brew install jdonohoo/vern/vern</code>, <code style="color: var(--cyan);">scoop install vern</code>, <code style="color: var(--cyan);">winget install jdonohoo.vern</code>, or download from <a href="https://github.com/jdonohoo/vern-bot/releases" style="color: var(--accent);">GitHub Releases</a>.
         </p>
     </div>

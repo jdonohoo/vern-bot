@@ -63,8 +63,9 @@ func TestAntigravityArgs(t *testing.T) {
 	if strings.Contains(joined, "--add-dir") {
 		t.Errorf("no --add-dir without a prompt file: %s", joined)
 	}
-	args = p.Args(Invocation{Prompt: "read it", PromptFile: "/tmp/vern-prompt-1/prompt.md"})
-	if !strings.Contains(strings.Join(args, " "), "--add-dir /tmp/vern-prompt-1") {
+	promptDir := filepath.Join(os.TempDir(), "vern-prompt-1")
+	args = p.Args(Invocation{Prompt: "read it", PromptFile: filepath.Join(promptDir, "prompt.md")})
+	if !strings.Contains(strings.Join(args, " "), "--add-dir "+promptDir) {
 		t.Errorf("prompt file dir should be readable: %v", args)
 	}
 }

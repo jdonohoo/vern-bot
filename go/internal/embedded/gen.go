@@ -83,6 +83,39 @@ func main() {
 	}
 
 	fmt.Printf("Generated agents_generated.go with %d agents\n", len(agents))
+
+	// The website embeds each agent file for its persona viewer. Keep those
+	// copies in step with agents/ so the site never shows a stale persona.
+	sitePath := filepath.Join(repoRoot, "docs", "index.html")
+	site, err := os.ReadFile(sitePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to read docs/index.html: %v\n", err)
+		os.Exit(1)
+	}
+	updated := string(site)
+	synced := 0
+	for _, a := range agents {
+		open := `<script type="text/plain" id="agent-` + a.name + `">`
+		start := strings.Index(updated, open)
+		if start < 0 {
+			continue // persona not shown on the site
+		}
+		bodyStart := start + len(open)
+		end := strings.Index(updated[bodyStart:], "</script>")
+		if end < 0 {
+			fmt.Fprintf(os.Stderr, "docs/index.html: unterminated block for %s\n", a.name)
+			os.Exit(1)
+		}
+		updated = updated[:bodyStart] + strings.TrimRight(a.content, "\n") + updated[bodyStart+end:]
+		synced++
+	}
+	if updated != string(site) {
+		if err := os.WriteFile(sitePath, []byte(updated), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to write docs/index.html: %v\n", err)
+			os.Exit(1)
+		}
+	}
+	fmt.Printf("Synced %d agent files into docs/index.html\n", synced)
 }
 
 // goStringLiteral returns a Go string literal, using raw strings when possible.
