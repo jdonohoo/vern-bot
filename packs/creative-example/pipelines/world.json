@@ -1,0 +1,17 @@
+{
+  "name": "world",
+  "description": "Build a setting: its history, rules and peoples, checked for consistency and broken into worldbuilding deliverables",
+  "kind": "creative",
+  "steps": [
+    {"step": 1, "name": "World Sketch", "persona": "worldbuilder", "llm": "claude", "context_mode": "prompt_only",
+     "prompt_prefix": "Sketch this world: its geography, its history in a few defining events, its peoples and powers, the rules that make it different (magic, technology, gods, economics), and the tensions that could drive stories."},
+    {"step": 2, "name": "Canon Check", "persona": "lorekeeper", "llm": "claude", "context_mode": "previous",
+     "prompt_prefix": "Check this world for consistency. List every rule and fact it establishes, then every contradiction, gap or rule that is too convenient. Propose fixes that keep what is interesting."},
+    {"step": 3, "name": "Player and Reader View", "persona": "skeptic-reader", "llm": "claude", "context_mode": "previous",
+     "prompt_prefix": "Look at this world from outside: what would a newcomer find confusing, generic or hard to care about? What is the one thing they would remember? What should they learn first?"},
+    {"step": 4, "name": "World Bible", "persona": "lorekeeper", "llm": "claude", "context_mode": "all_previous",
+     "prompt_prefix": "Consolidate everything above into one world bible: the canon facts and rules, a short timeline, the peoples and factions, the places that matter, and the open questions. Mark which facts are fixed and which are still open."},
+    {"step": 5, "name": "Deliverables", "persona": "editor", "llm": "claude", "context_mode": "consolidation",
+     "prompt_prefix": "Break this world bible into worldbuilding deliverables: timeline, faction sheets, location notes, a glossary, a newcomer primer, and the open questions to decide. Use ### DELIVERABLE N: Title headers."}
+  ]
+}

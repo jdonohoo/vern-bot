@@ -20,25 +20,26 @@ var Version = "dev"
 // which LLM and model, how long it took, what it cost where the CLIs say,
 // and where the results are. Paths are relative to the discovery folder.
 type Manifest struct {
-	Version     int          `json:"manifest_version"`
-	Kind        string       `json:"kind"` // discovery
-	VernVersion string       `json:"vern_version"`
-	Status      string       `json:"status"` // running, ok, partial, failed
-	Idea        string       `json:"idea"`
-	Dir         string       `json:"dir"`
-	Pipeline    string       `json:"pipeline"`
-	LLMMode     string       `json:"llm_mode"`
-	ReadOnly    bool         `json:"read_only"`
-	StartedAt   string       `json:"started_at"`
-	FinishedAt  string       `json:"finished_at,omitempty"`
-	DurationMS  int64        `json:"duration_ms"`
-	Steps       []StepResult `json:"steps"`
-	FailedSteps []int        `json:"failed_steps,omitempty"`
-	Tasks       *TaskSummary `json:"tasks,omitempty"`
-	VernHole    *Extra       `json:"vernhole,omitempty"`
-	Oracle      *Extra       `json:"oracle,omitempty"`
-	Sink        *SinkInfo    `json:"sink,omitempty"`
-	Usage       *llm.Usage   `json:"usage,omitempty"` // summed over steps that reported it
+	Version      int          `json:"manifest_version"`
+	Kind         string       `json:"kind"` // discovery
+	VernVersion  string       `json:"vern_version"`
+	Status       string       `json:"status"` // running, ok, partial, failed
+	Idea         string       `json:"idea"`
+	Dir          string       `json:"dir"`
+	Pipeline     string       `json:"pipeline"`
+	PipelineKind string       `json:"pipeline_kind"` // software or creative
+	LLMMode      string       `json:"llm_mode"`
+	ReadOnly     bool         `json:"read_only"`
+	StartedAt    string       `json:"started_at"`
+	FinishedAt   string       `json:"finished_at,omitempty"`
+	DurationMS   int64        `json:"duration_ms"`
+	Steps        []StepResult `json:"steps"`
+	FailedSteps  []int        `json:"failed_steps,omitempty"`
+	Tasks        *TaskSummary `json:"tasks,omitempty"`
+	VernHole     *Extra       `json:"vernhole,omitempty"`
+	Oracle       *Extra       `json:"oracle,omitempty"`
+	Sink         *SinkInfo    `json:"sink,omitempty"`
+	Usage        *llm.Usage   `json:"usage,omitempty"` // summed over steps that reported it
 }
 
 // TaskSummary points at a run's tasks.
@@ -100,19 +101,20 @@ func (p *Pipeline) manifest(final bool) *Manifest {
 		return filepath.ToSlash(path)
 	}
 	m := &Manifest{
-		Version:     1,
-		Kind:        "discovery",
-		VernVersion: Version,
-		Status:      "running",
-		Idea:        p.opts.Idea,
-		Dir:         dir,
-		Pipeline:    p.mode,
-		LLMMode:     p.cfg.LLMMode,
-		ReadOnly:    !llm.WritesAllowed(),
-		StartedAt:   p.startTime.UTC().Format(time.RFC3339),
-		DurationMS:  time.Since(p.startTime).Milliseconds(),
-		FailedSteps: p.failed,
-		Steps:       []StepResult{},
+		Version:      1,
+		Kind:         "discovery",
+		VernVersion:  Version,
+		Status:       "running",
+		Idea:         p.opts.Idea,
+		Dir:          dir,
+		Pipeline:     p.mode,
+		PipelineKind: p.kind,
+		LLMMode:      p.cfg.LLMMode,
+		ReadOnly:     !llm.WritesAllowed(),
+		StartedAt:    p.startTime.UTC().Format(time.RFC3339),
+		DurationMS:   time.Since(p.startTime).Milliseconds(),
+		FailedSteps:  p.failed,
+		Steps:        []StepResult{},
 	}
 	if abs, err := filepath.Abs(dir); err == nil {
 		m.Dir = abs

@@ -84,12 +84,12 @@ footer { margin-top: 48px; color: var(--muted); font-size: 12px; }
 {{end}}
 
 {{if .Tasks}}
-<h2>Tasks ({{len .Tasks}})</h2>
+<h2>{{if eq .Manifest.PipelineKind "creative"}}Deliverables{{else}}Tasks{{end}} ({{len .Tasks}})</h2>
 <div class="tasks">
 {{range .Tasks}}
 <div class="task">
   <h3><span class="id">{{.ID}}</span>{{.Title}}</h3>
-  <div>{{if .Complexity}}<span class="chip">{{.Complexity}}</span>{{end}}{{if .Dependencies}}<span class="chip">after {{join .Dependencies ", "}}</span>{{end}}</div>
+  <div>{{if .Type}}<span class="chip">{{.Type}}</span>{{end}}{{if .Complexity}}<span class="chip">{{.Complexity}}</span>{{end}}{{if .Dependencies}}<span class="chip">after {{join .Dependencies ", "}}</span>{{end}}</div>
   {{if .Description}}<p>{{.Description}}</p>{{end}}
   {{if .AcceptanceCriteria}}<ul>{{range .AcceptanceCriteria}}<li>{{.}}</li>{{end}}</ul>{{end}}
   {{if .Files}}<p class="small">Files: {{join .Files ", "}}</p>{{end}}

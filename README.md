@@ -483,7 +483,9 @@ discovery/{name}/
 - **Project config**: `.vern/config.json` sets a project's default pipeline, sink, packs, LLM mode and tiers.
 - **Task sinks** send the tasks on after a run: `--sink vts` (default), `json[:<path>]`, `beads`, or `exec:<command>`, which pipes `tasks.json` to any program. `vern sink <dir>` resends a finished run.
 
-[docs/packs.md](docs/packs.md) explains all three and how to share a pack.
+- **Creative pipelines** (`"kind": "creative"`) end in deliverables (an outline, a beat sheet, character sheets, open questions) instead of code tasks. [packs/creative-example](packs/creative-example) has four personas (Editor, Worldbuilder, Skeptic Reader, Lorekeeper) and three pipelines: `story`, `world` and `idea`. Try `vern discovery --pack packs/creative-example --pipeline story "a lighthouse keeper's last night"`.
+
+[docs/packs.md](docs/packs.md) explains all of this and how to share a pack.
 
 ### For agents and scripts
 

@@ -1,8 +1,10 @@
 package packs
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -107,5 +109,49 @@ func TestFindProjectBadConfig(t *testing.T) {
 	p, err := FindProject(dir)
 	if err == nil || p == nil {
 		t.Errorf("a broken config should return the folder and an error: %+v, %v", p, err)
+	}
+}
+
+// The example pack in the repo must load: personas with tiers, pipelines
+// that parse and end in a consolidation step.
+func TestCreativeExamplePack(t *testing.T) {
+	defer Reset()
+	dir := filepath.Join("..", "..", "..", "packs", "creative-example")
+	if _, _, err := Setup([]string{dir}, t.TempDir(), t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"editor", "worldbuilder", "skeptic-reader", "lorekeeper"} {
+		path, ok := FindAgent("", name)
+		if !ok {
+			t.Errorf("persona %s not found", name)
+			continue
+		}
+		data, _ := os.ReadFile(path)
+		if !strings.Contains(string(data), "name: "+name+"\n") || !strings.Contains(string(data), "\ntier: ") {
+			t.Errorf("%s needs a matching name and a tier", name)
+		}
+	}
+	pls, errs := Pipelines()
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	if len(pls) != 3 {
+		t.Fatalf("want 3 pipelines, got %d", len(pls))
+	}
+	for _, pl := range pls {
+		var steps []struct {
+			Persona     string `json:"persona"`
+			ContextMode string `json:"context_mode"`
+		}
+		if err := json.Unmarshal(pl.Steps, &steps); err != nil || len(steps) == 0 {
+			t.Errorf("%s: bad steps: %v", pl.Name, err)
+			continue
+		}
+		if pl.Kind != "creative" {
+			t.Errorf("%s: kind %q, want creative", pl.Name, pl.Kind)
+		}
+		if last := steps[len(steps)-1]; last.ContextMode != "consolidation" {
+			t.Errorf("%s: last step should be consolidation, got %q", pl.Name, last.ContextMode)
+		}
 	}
 }

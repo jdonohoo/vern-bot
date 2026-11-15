@@ -26,10 +26,16 @@ All notable changes to vern-bot. Versions follow [Semantic Versioning](https://s
 - **Project config**: `.vern/config.json` sets the default pipeline, sink, packs, LLM mode, tiers and write access for runs in that project.
 - **Task sinks**: `vern discovery --sink vts|json[:<path>]|beads|exec:<command>` sends the tasks on after a run; `exec` pipes `tasks.json` to any program, saves its output to `output/sink.log` and records the result in `run.json`. `vern sink <dir>` resends a finished run.
 - [docs/packs.md](docs/packs.md): how to write, configure and share packs and sinks.
+- **Creative pipelines**: a pipeline with `"kind": "creative"` ends in deliverables (`### DELIVERABLE N:` with a `**Type:**`) instead of code tasks; `tasks.json` marks them `"kind": "deliverable"` with their type. [packs/creative-example](packs/creative-example) ships Editor, Worldbuilder, Skeptic Reader and Lorekeeper personas and `story`, `world` and `idea` pipelines.
+- `vern run` sends a plain prompt as is: no discovery preamble and no mandatory sign-off unless you pass `--persona`.
+- Batch discovery runs keep the CLIs' progress chatter off the terminal (a failed step still records it); `VERN_VERBOSE=1` streams it again.
 
 ### Fixed
 
-- Standalone installs (Homebrew, Scoop, Winget) now send each persona's prompt to the LLM. Without an `agents/` folder next to the binary, runs used to go out with no persona text at all; they now use the personas built into the binary.
+- `vern models` lists Codex models from its catalog's top-level entries only (no stray ids from nested fields) and finds Antigravity ids in more list layouts; when it finds none it shows the start of the CLI's output.
+- VTS `files:` entries no longer keep the backticks models put around paths.
+- The rewritten breakdown file always starts with a title.
+- Standalone installs (Homebrew, Scoop, Winget) now send each persona's prompt to the LLM. Without an `agents/` folder next to the binary, runs used to go out with no persona text at all; they now use the personas built into the binary, including `vern run --persona`.
 
 ## 3.0.0
 

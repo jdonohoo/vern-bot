@@ -138,6 +138,8 @@ func ParseVTSFile(content string) (*Task, error) {
 					task.Source = val
 				case "source_ref":
 					task.SourceRef = val
+				case "type":
+					task.Type = val
 				}
 			}
 		case 2:

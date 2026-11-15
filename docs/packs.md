@@ -56,17 +56,35 @@ Pack personas join the VernHole roster like vern's own.
 {
   "name": "story",
   "description": "Outline, stress-test and break a story idea into writing tasks",
-  "kind": "software",
+  "kind": "creative",
   "steps": [
     {"step": 1, "name": "Premise", "persona": "editor", "llm": "claude", "context_mode": "prompt_only",
      "prompt_prefix": "Develop this premise: stakes, protagonist, the question the story asks."},
     {"step": 2, "name": "Architect Breakdown", "persona": "architect", "llm": "claude", "context_mode": "previous",
-     "prompt_prefix": "Break this into tasks with ### TASK N: headers..."}
+     "prompt_prefix": "Break this into writing deliverables..."}
   ]
 }
 ```
 
-Each step takes the same fields as `discovery_pipelines` in the config: `persona`, `llm`, `context_mode` (`prompt_only`, `previous`, `all_previous`, `consolidation`), `prompt_prefix`, and optionally `model`, `effort` and `tier`. The last step's output is split into tasks, so it should use `### TASK N: Title` headers.
+Each step takes the same fields as `discovery_pipelines` in the config: `persona`, `llm`, `context_mode` (`prompt_only`, `previous`, `all_previous`, `consolidation`), `prompt_prefix`, and optionally `model`, `effort` and `tier`. The last step's output is split into tasks, so it should use `### TASK N: Title` headers. An `all_previous` step is the consolidation that a later `consolidation` step reads.
+
+## Creative pipelines
+
+Set `"kind": "creative"` for work that ends in writing rather than code: a story, a world, a campaign, a pitch. The last step is then asked for `### DELIVERABLE N: Title` sections, each with a `**Type:**` (outline, beats, character, setting, question...), a description, acceptance criteria and dependencies, and no files or complexity. In `tasks.json` they have `"kind": "deliverable"` and their `type`; the VTS files and the report call them deliverables.
+
+[packs/creative-example](../packs/creative-example) is a working pack to copy:
+
+| Pipeline | Steps |
+|---|---|
+| `story` | Worldbuilder premise, Skeptic Reader stress test, Editor pass, Lorekeeper story bible, Editor deliverables |
+| `world` | Worldbuilder sketch, Lorekeeper canon check, Skeptic Reader newcomer view, Lorekeeper world bible, Editor deliverables |
+| `idea` | Great pitch, Skeptic Reader audience test, Startup smallest version, Mighty concept brief, Editor deliverables |
+
+```sh
+vern discovery --pack packs/creative-example --pipeline story "a lighthouse keeper's last night"
+```
+
+Every step in the example runs on Claude. Change `llm` per step to spread them across CLIs, or run with `--single-llm`.
 
 ## Project config: `.vern/config.json`
 

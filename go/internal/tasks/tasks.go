@@ -44,6 +44,7 @@ type Task struct {
 	Num                int      `json:"num"`
 	Title              string   `json:"title"`
 	Kind               string   `json:"kind,omitempty"` // task (default) or deliverable
+	Type               string   `json:"type,omitempty"` // a deliverable's type: outline, beats, character...
 	Description        string   `json:"description,omitempty"`
 	AcceptanceCriteria []string `json:"acceptance_criteria,omitempty"`
 	Complexity         string   `json:"complexity,omitempty"` // S, M, L, XL
@@ -79,6 +80,7 @@ func FromVTS(in []vts.Task, source, idea string) Doc {
 			Num:                t.Num,
 			Title:              t.Title,
 			Kind:               "task",
+			Type:               t.Type,
 			Description:        t.Description,
 			AcceptanceCriteria: t.Criteria,
 			Complexity:         t.Complexity,
@@ -90,6 +92,14 @@ func FromVTS(in []vts.Task, source, idea string) Doc {
 		})
 	}
 	return doc
+}
+
+// AsDeliverables marks every task as a deliverable (creative pipelines).
+func (d Doc) AsDeliverables() Doc {
+	for i := range d.Tasks {
+		d.Tasks[i].Kind = "deliverable"
+	}
+	return d
 }
 
 // Validate checks the rules schema v1 cannot express: unique ids, and

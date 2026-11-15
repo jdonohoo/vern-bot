@@ -3,6 +3,7 @@ package vts
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -183,6 +184,15 @@ func TestWriteSummary(t *testing.T) {
 	if !contains(s, "## VTS Task Index") {
 		t.Error("missing task index header")
 	}
+
+	// A breakdown with no text before its first task still gets a title.
+	if err := WriteSummary(tasks, file, "\n\n", "", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	content, _ = os.ReadFile(file)
+	if !strings.HasPrefix(string(content), "# Task Breakdown\n") {
+		t.Errorf("summary should start with a title, got %q", string(content)[:30])
+	}
 }
 
 func TestSlugify(t *testing.T) {
@@ -323,4 +333,23 @@ func containsStr(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestParseDeliverables(t *testing.T) {
+	out := "# Story deliverables\n\n" +
+		"### DELIVERABLE 1: Outline\n**Type:** Outline\n**Description:** Three-act outline.\n**Acceptance Criteria:**\n- Every act has a turning point\n**Dependencies:** None\n\n" +
+		"### DELIVERABLE 2: Beat Sheet\n**Type:** `beats`\n**Description:** Beats per act.\n**Acceptance Criteria:**\n- 15 beats\n**Dependencies:** Deliverable 1\n**Files:**\n- `drafts/beats.md`\n"
+	tasks, _, _ := ParseArchitectOutput(out)
+	if len(tasks) != 2 {
+		t.Fatalf("expected 2 deliverables, got %d", len(tasks))
+	}
+	if tasks[0].Type != "outline" || tasks[1].Type != "beats" {
+		t.Errorf("types = %q, %q", tasks[0].Type, tasks[1].Type)
+	}
+	if len(tasks[1].Dependencies) != 1 || tasks[1].Dependencies[0] != "VTS-001" {
+		t.Errorf("deliverable 2 deps = %v", tasks[1].Dependencies)
+	}
+	if len(tasks[1].Files) != 1 || tasks[1].Files[0] != "drafts/beats.md" {
+		t.Errorf("files should lose their backticks: %q", tasks[1].Files)
+	}
 }
