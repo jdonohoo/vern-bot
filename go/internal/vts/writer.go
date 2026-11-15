@@ -46,6 +46,9 @@ func WriteVTSFiles(tasks []Task, dir string, source string, sourceRef string, on
 		lines = append(lines, fmt.Sprintf("id: %s", taskID))
 		lines = append(lines, fmt.Sprintf("title: %q", task.Title))
 		lines = append(lines, fmt.Sprintf("complexity: %s", task.Complexity))
+		if task.Type != "" {
+			lines = append(lines, fmt.Sprintf("type: %s", task.Type))
+		}
 		lines = append(lines, "status: pending")
 		lines = append(lines, `owner: ""`)
 		lines = append(lines, fmt.Sprintf("source: %s", source))
@@ -121,6 +124,16 @@ func WriteSummary(tasks []Task, architectFile string, header string, footer stri
 	}
 
 	taskIndex := strings.Join(lines, "\n")
+
+	// The model's text before the first task, or a title when it wrote none.
+	header = strings.TrimSpace(header)
+	if !strings.HasPrefix(header, "#") {
+		title := "# Task Breakdown"
+		if len(tasks) > 0 && tasks[0].Type != "" {
+			title = "# Deliverables"
+		}
+		header = strings.TrimSpace(title + "\n\n" + header)
+	}
 
 	var content strings.Builder
 	content.WriteString(header)

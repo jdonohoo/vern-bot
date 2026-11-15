@@ -1,0 +1,17 @@
+{
+  "name": "idea",
+  "description": "Take a raw creative idea (a game, show, campaign or product concept) from pitch to a set of next-step deliverables",
+  "kind": "creative",
+  "steps": [
+    {"step": 1, "name": "Pitch", "persona": "great", "llm": "claude", "context_mode": "prompt_only",
+     "prompt_prefix": "Turn this raw idea into a pitch: what it is in one sentence, who it is for, what makes it different, and what the first version would be."},
+    {"step": 2, "name": "Audience Stress Test", "persona": "skeptic-reader", "llm": "claude", "context_mode": "previous",
+     "prompt_prefix": "Read this pitch as the audience it is for. What would make you care, and what would make you shrug? What have you seen before that this reminds you of, and how is it different?"},
+    {"step": 3, "name": "Smallest Version", "persona": "startup", "llm": "claude", "context_mode": "previous",
+     "prompt_prefix": "Find the smallest version of this idea worth making: what to make first, what to test with it, and what to leave for later."},
+    {"step": 4, "name": "Concept Brief", "persona": "mighty", "llm": "claude", "context_mode": "all_previous",
+     "prompt_prefix": "Consolidate everything above into one concept brief: the pitch, the audience, what makes it different, the first version, the risks and the open questions. Resolve disagreements between the earlier passes and say how."},
+    {"step": 5, "name": "Deliverables", "persona": "editor", "llm": "claude", "context_mode": "consolidation",
+     "prompt_prefix": "Break this concept brief into the next creative deliverables: a one-page pitch, a mood or tone guide, a first sample (a scene, a level sketch, a script page), audience questions to test, and the decisions still open. Use ### DELIVERABLE N: Title headers."}
+  ]
+}

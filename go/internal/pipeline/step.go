@@ -3,6 +3,8 @@ package pipeline
 import (
 	"regexp"
 	"strings"
+
+	"github.com/jdonohoo/vern-bot/go/internal/llm"
 )
 
 // StepResult tracks the outcome of a pipeline step.
@@ -19,6 +21,29 @@ type StepResult struct {
 	DurationMS  int64  `json:"duration_ms"`
 	OutputBytes int64  `json:"output_bytes"`
 	ErrorDetail string `json:"error_detail,omitempty"` // stderr snippet on failure
+
+	Persona  string     `json:"persona,omitempty"`
+	Model    string     `json:"model,omitempty"`  // model passed to the CLI ("" = its default)
+	Effort   string     `json:"effort,omitempty"` // effort passed to the CLI ("" = its default)
+	ReadOnly bool       `json:"read_only"`
+	Usage    *llm.Usage `json:"usage,omitempty"` // summed over every attempt
+}
+
+// track records what an llm.Run attempt used.
+func (r *StepResult) track(res *llm.Result) {
+	if res == nil {
+		return
+	}
+	r.Model = res.Model
+	r.Effort = res.Effort
+	r.ReadOnly = res.ReadOnly
+	if !res.Usage.IsZero() {
+		total := res.Usage
+		if r.Usage != nil {
+			total = r.Usage.Add(res.Usage)
+		}
+		r.Usage = &total
+	}
 }
 
 // IsFailedOutput checks if a file is a failure marker or empty/missing.

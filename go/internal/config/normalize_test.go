@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jdonohoo/vern-bot/go/internal/llm"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 )
 
 // A config written by v2 (gemini and copilot) keeps working.
@@ -85,5 +86,99 @@ func TestDefaultModesCoverProviders(t *testing.T) {
 	}
 	if len(modes) != len(ModeNames()) {
 		t.Errorf("modes = %d, names = %d", len(modes), len(ModeNames()))
+	}
+}
+
+func TestNormalizeTiers(t *testing.T) {
+	cfg := &Config{
+		Tiers: map[string]llm.Tier{
+			"Deep": {Models: map[string]string{"gemini": "gemini-4-argon-high", "claude": ""}, Effort: "HIGH"},
+			"fast": {Effort: "warp"},
+		},
+		Pipelines: map[string][]PipelineStep{
+			"default": {{Step: 1, LLM: "g", Effort: "Max", Tier: "FAST"}, {Step: 2, LLM: "claude", Effort: "nope"}},
+		},
+	}
+	normalize(cfg)
+
+	deep := cfg.Tiers["deep"]
+	if deep.Models["antigravity"] != "gemini-4-argon-high" || deep.Effort != "high" {
+		t.Errorf("deep tier not normalized: %+v", deep)
+	}
+	if m, ok := deep.Models["claude"]; !ok || m != "" {
+		t.Errorf("an explicit empty model should keep claude on its default: %+v", deep)
+	}
+	if cfg.Tiers["fast"].Effort != "" {
+		t.Errorf("unknown effort should be dropped: %+v", cfg.Tiers["fast"])
+	}
+	if cfg.Tiers["balanced"].Models["claude"] != "sonnet" {
+		t.Errorf("missing tiers should get defaults: %+v", cfg.Tiers)
+	}
+	steps := cfg.Pipelines["default"]
+	if steps[0].Effort != "max" || steps[0].Tier != "fast" || steps[0].LLM != "antigravity" {
+		t.Errorf("step not normalized: %+v", steps[0])
+	}
+	if steps[1].Effort != "" {
+		t.Errorf("unknown step effort should be dropped: %+v", steps[1])
+	}
+}
+
+func TestLoadSetsRunPolicy(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
+	os.MkdirAll(filepath.Join(dir, ".config", "vern"), 0755)
+	os.WriteFile(filepath.Join(dir, ".config", "vern", "config.json"),
+		[]byte(`{"allow_writes": true, "tiers": {"deep": {"models": {"codex": "gpt-6-astra"}}}}`), 0644)
+	defer llm.SetPolicy(llm.Policy{})
+
+	Load(dir)
+	p := llm.CurrentPolicy()
+	if !p.AllowWrites {
+		t.Error("allow_writes should reach the run policy")
+	}
+	if p.Tiers["deep"].Models["codex"] != "gpt-6-astra" || p.Tiers["deep"].Models["claude"] != "opus" {
+		t.Errorf("tiers should reach the run policy: %+v", p.Tiers)
+	}
+}
+
+func TestPackPipelinesAndProject(t *testing.T) {
+	defer packs.Reset()
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	t.Setenv("USERPROFILE", root)
+	t.Setenv("VERN_PATH", "")
+	repo := filepath.Join(root, "repo")
+	os.MkdirAll(filepath.Join(repo, ".vern", "pipelines"), 0755)
+	os.WriteFile(filepath.Join(repo, ".vern", "pipelines", "story.json"), []byte(`{"name": "story", "kind": "creative",
+	  "steps": [{"step": 1, "name": "Outline", "persona": "editor", "llm": "gemini", "context_mode": "prompt_only", "effort": "HIGH"}]}`), 0644)
+	os.WriteFile(filepath.Join(repo, ".vern", "pipelines", "default.json"), []byte(`{"name": "default", "steps": [{"step": 1, "llm": "claude"}]}`), 0644)
+	os.WriteFile(filepath.Join(repo, ".vern", "config.json"), []byte(`{"pipeline": "story", "llm_mode": "mixed_gemini_fallback",
+	  "allow_writes": true, "tiers": {"deep": {"models": {"codex": "gpt-6-astra"}, "effort": "max"}}}`), 0644)
+	if _, _, err := packs.Setup(nil, repo, root); err != nil {
+		t.Fatal(err)
+	}
+	defer llm.SetPolicy(llm.Policy{})
+
+	cfg := Load(root)
+	steps := cfg.Pipelines["story"]
+	if len(steps) != 1 || steps[0].LLM != "antigravity" || steps[0].Effort != "high" {
+		t.Errorf("story pipeline = %+v", steps)
+	}
+	if cfg.PipelineInfo["story"].Kind != "creative" || cfg.PipelineInfo["story"].Pack == "" {
+		t.Errorf("story info = %+v", cfg.PipelineInfo["story"])
+	}
+	if len(cfg.Pipelines["default"]) != 5 {
+		t.Error("a pack must not replace a pipeline the config already has")
+	}
+	if cfg.PipelineMode != "story" || cfg.LLMMode != "mixed_antigravity_fallback" || !cfg.AllowWrites {
+		t.Errorf("project overlay: mode %s llm_mode %s writes %v", cfg.PipelineMode, cfg.LLMMode, cfg.AllowWrites)
+	}
+	deep := cfg.Tiers["deep"]
+	if deep.Models["codex"] != "gpt-6-astra" || deep.Models["claude"] != "opus" || deep.Effort != "max" {
+		t.Errorf("project tiers should merge over the defaults: %+v", deep)
+	}
+	if cfg.Tiers["fast"].Models["claude"] != "haiku" {
+		t.Errorf("other tiers keep their models: %+v", cfg.Tiers["fast"])
 	}
 }

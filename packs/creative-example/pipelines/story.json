@@ -1,0 +1,17 @@
+{
+  "name": "story",
+  "description": "Grow a story idea into a premise, stress-test it, and break it into writing deliverables",
+  "kind": "creative",
+  "steps": [
+    {"step": 1, "name": "Premise", "persona": "worldbuilder", "llm": "claude", "context_mode": "prompt_only",
+     "prompt_prefix": "Develop this story idea into a premise: the protagonist, what they want, what stands in the way, the stakes, the setting, and the question the story asks. Offer two or three directions where the idea could go, and say which is strongest and why."},
+    {"step": 2, "name": "Reader Stress Test", "persona": "skeptic-reader", "llm": "claude", "context_mode": "previous",
+     "prompt_prefix": "Read this premise as a skeptical reader. Where would you stop reading? What is predictable, unearned or confusing? What promise does the opening make, and does the premise keep it?"},
+    {"step": 3, "name": "Editorial Pass", "persona": "editor", "llm": "claude", "context_mode": "previous",
+     "prompt_prefix": "Take the premise and the reader's notes and decide: what to cut, what to keep, what is missing. Give a revised premise and a rough shape for the story (acts or movements, the turning points)."},
+    {"step": 4, "name": "Story Bible", "persona": "lorekeeper", "llm": "claude", "context_mode": "all_previous",
+     "prompt_prefix": "Consolidate everything above into one story bible: the final premise, the cast with their wants and arcs, the setting rules, the structure with its turning points, and the open questions. Resolve contradictions between the earlier passes and say which way you resolved each."},
+    {"step": 5, "name": "Deliverables", "persona": "editor", "llm": "claude", "context_mode": "consolidation",
+     "prompt_prefix": "Break this story bible into writing deliverables a writer can pick up one at a time: an outline, a beat sheet, character sheets, setting notes, key scenes to draft first, and the open questions to settle. Use ### DELIVERABLE N: Title headers."}
+  ]
+}

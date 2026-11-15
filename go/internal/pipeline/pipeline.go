@@ -11,6 +11,7 @@ import (
 
 	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/llm"
+	taskspkg "github.com/jdonohoo/vern-bot/go/internal/tasks"
 	"github.com/jdonohoo/vern-bot/go/internal/vts"
 )
 
@@ -23,6 +24,7 @@ type Options struct {
 	ReadInput         bool
 	SkipHistorian     bool
 	Expanded          bool
+	Pipeline          string // pipeline name from config or a pack; overrides Expanded
 	ResumeFrom        int
 	MaxRetries        int
 	VernHoleCount     int
@@ -50,6 +52,12 @@ type Pipeline struct {
 	statusPath    string    // path to pipeline-status.md
 	startTime     time.Time // pipeline start time
 	mode          string    // pipeline mode (default/expanded)
+	kind          string    // software (default) or creative
+	tasksWritten  bool      // this run wrote output/tasks.json
+	failed        []int     // failed step numbers
+	vernhole      string    // "", ok or failed
+	// Result is the final run manifest, set when Run returns.
+	Result *Manifest
 }
 
 // printf prints to stdout in CLI mode, or routes to OnLog in TUI mode.
@@ -67,6 +75,13 @@ func (p *Pipeline) printf(format string, args ...interface{}) {
 
 // Run executes the full discovery pipeline.
 func Run(opts Options) error {
+	_, err := RunWithManifest(opts)
+	return err
+}
+
+// RunWithManifest executes the pipeline and returns its run manifest
+// (also saved as output/run.json).
+func RunWithManifest(opts Options) (*Manifest, error) {
 	cfg := config.Load(opts.ProjectRoot)
 
 	// Apply LLM mode overrides from CLI flags
@@ -98,6 +113,12 @@ func Run(opts Options) error {
 	if opts.Expanded {
 		mode = "expanded"
 	}
+	if opts.Pipeline != "" {
+		if !cfg.HasPipeline(opts.Pipeline) {
+			return nil, fmt.Errorf("unknown pipeline %q (available: %s)", opts.Pipeline, strings.Join(cfg.PipelineNames(), ", "))
+		}
+		mode = opts.Pipeline
+	}
 
 	steps := cfg.GetPipeline(mode)
 
@@ -106,9 +127,17 @@ func Run(opts Options) error {
 		cfg:     cfg,
 		steps:   steps,
 		results: make([]StepResult, len(steps)),
+		kind:    cfg.PipelineInfo[mode].Kind,
+	}
+	if p.kind == "" {
+		p.kind = "software"
 	}
 
-	return p.execute(mode)
+	err := p.execute(mode)
+	if p.statusPath != "" {
+		p.Result = p.writeManifest(true)
+	}
+	return p.Result, err
 }
 
 func (p *Pipeline) execute(mode string) error {
@@ -211,14 +240,14 @@ func (p *Pipeline) execute(mode string) error {
 			promptFile := filepath.Join(inputDir, "prompt.md")
 
 			hResult, hErr := RunHistorian(HistorianOptions{
-				Ctx:          opts.Ctx,
-				TargetDir:    inputDir,
-				OutputFile:   historianOut,
-				PromptFile:   promptFile,
-				AgentsDir:    opts.AgentsDir,
-				Timeout:      opts.Timeout,
-				OnLog:        opts.OnLog,
-				QuietStderr:  opts.OnLog != nil,
+				Ctx:         opts.Ctx,
+				TargetDir:   inputDir,
+				OutputFile:  historianOut,
+				PromptFile:  promptFile,
+				AgentsDir:   opts.AgentsDir,
+				Timeout:     opts.Timeout,
+				OnLog:       opts.OnLog,
+				QuietStderr: p.quietStderr(),
 			})
 
 			if hErr != nil {
@@ -307,6 +336,7 @@ func (p *Pipeline) execute(mode string) error {
 
 		var actualLLM string
 		var lastStderr string
+		var tracked StepResult
 		for attempt := 1; attempt <= totalAttempts; attempt++ {
 			if attempt > 1 {
 				p.printf("    Retry %d/%d for step %d (%s) with %s...\n", attempt-1, opts.MaxRetries, stepNum, step.Name, retryLLM)
@@ -321,9 +351,13 @@ func (p *Pipeline) execute(mode string) error {
 				Persona:     retryPersona,
 				Timeout:     time.Duration(opts.Timeout) * time.Second,
 				AgentsDir:   opts.AgentsDir,
-				QuietStderr: opts.OnLog != nil,
+				QuietStderr: p.quietStderr(),
+				Models:      llm.ModelsFor(step.LLM, step.Model),
+				Effort:      step.Effort,
+				Tier:        step.Tier,
 			})
 
+			tracked.track(result)
 			lastExitCode = result.ExitCode
 			attemptCount = attempt
 			duration = result.Duration
@@ -372,9 +406,13 @@ func (p *Pipeline) execute(mode string) error {
 				Persona:     retryPersona,
 				Timeout:     time.Duration(opts.Timeout) * time.Second,
 				AgentsDir:   opts.AgentsDir,
-				QuietStderr: opts.OnLog != nil,
+				QuietStderr: p.quietStderr(),
+				Models:      llm.ModelsFor(step.LLM, step.Model),
+				Effort:      step.Effort,
+				Tier:        step.Tier,
 			})
 
+			tracked.track(result)
 			attemptCount++
 			lastExitCode = result.ExitCode
 			duration = result.Duration
@@ -441,6 +479,7 @@ func (p *Pipeline) execute(mode string) error {
 			os.WriteFile(outputFile, []byte(failureContent), 0644)
 
 			failedSteps = append(failedSteps, stepNum)
+			p.failed = failedSteps
 			p.results[idx] = StepResult{
 				StepNum:     stepNum,
 				Name:        step.Name,
@@ -456,6 +495,12 @@ func (p *Pipeline) execute(mode string) error {
 				ErrorDetail: stderrSnippet,
 			}
 		}
+
+		p.results[idx].Persona = retryPersona
+		p.results[idx].Model = tracked.Model
+		p.results[idx].Effort = tracked.Effort
+		p.results[idx].ReadOnly = tracked.ReadOnly
+		p.results[idx].Usage = tracked.Usage
 
 		// Write structured JSON log entry + update status file
 		p.logJSON(p.results[idx])
@@ -532,6 +577,10 @@ func (p *Pipeline) buildStepPrompt(step config.PipelineStep, idx int) string {
 			data, _ := os.ReadFile(p.consolidation)
 			consolOutput = string(data)
 		}
+		if p.kind == "creative" {
+			reminder := "\n\n---\nCRITICAL REMINDER: Your output MUST be a numbered list of creative deliverables using ### DELIVERABLE N: Title headers. Do NOT review or grade the plan. Break it into 5-15 deliverables (for example an outline, beat sheet, character sheets, setting notes, open questions). Every deliverable MUST have **Type:** (one word, e.g. outline, beats, character, setting, question), **Description:**, **Acceptance Criteria:** (what makes it done), and **Dependencies:** (Deliverable N references or None). This output is machine-parsed: without ### DELIVERABLE N: headers it is worthless."
+			return step.PromptPrefix + "\n\nORIGINAL REQUEST:\n" + p.fullPrompt + "\n\nMASTER PLAN TO BREAK INTO DELIVERABLES (do not review or grade it):\n" + consolOutput + reminder
+		}
 		// Reinforce VTS format after the consolidation content so it isn't buried
 		vtsReminder := "\n\n---\nCRITICAL REMINDER: Your output MUST be a numbered task list using ### TASK N: Title format. Do NOT write a review, essay, grade, or analysis. Decompose the master plan above into 5-15 actionable implementation tasks. Every task MUST have **Description:**, **Acceptance Criteria:**, **Complexity:**, **Dependencies:**, and **Files:**. This output is machine-parsed — if you do not use ### TASK N: headers, the entire output is worthless."
 		return step.PromptPrefix + "\n\nORIGINAL REQUEST:\n" + p.fullPrompt + "\n\nMASTER PLAN TO DECOMPOSE INTO TASKS (do not review or grade this — break it into tasks):\n" + consolOutput + vtsReminder
@@ -594,6 +643,8 @@ func (p *Pipeline) processVTS(architectFile string, vtsDir string, source string
 	}
 
 	p.printf("\n>>> Splitting architect breakdown into VTS task files...\n")
+	// A rerun must not leave the previous run's task graph looking current.
+	os.Remove(filepath.Join(filepath.Dir(vtsDir), taskspkg.FileName))
 
 	tasks, header, footer := vts.ParseArchitectOutput(string(data))
 	if len(tasks) == 0 {
@@ -609,9 +660,44 @@ func (p *Pipeline) processVTS(architectFile string, vtsDir string, source string
 		return
 	}
 
-	if err := vts.WriteSummary(tasks, architectFile, header, footer, "", onLog); err != nil {
+	indexTitle := ""
+	if p.kind == "creative" {
+		indexTitle = "Deliverable Index"
+	}
+	if err := vts.WriteSummary(tasks, architectFile, header, footer, indexTitle, onLog); err != nil {
 		p.printf("  Error writing summary: %v\n", err)
 	}
+
+	p.writeTasksJSON(tasks, filepath.Dir(vtsDir), source)
+}
+
+// quietStderr reports whether the CLIs' stderr stays off the terminal: in
+// the TUI (it would corrupt the display) and in batch runs, where it is
+// mostly the CLIs' progress chatter. A failed step still records the
+// stderr tail in its output file. VERN_VERBOSE=1 streams it again.
+func (p *Pipeline) quietStderr() bool {
+	if v := os.Getenv("VERN_VERBOSE"); v == "1" || strings.EqualFold(v, "true") {
+		return false
+	}
+	return p.opts.OnLog != nil || p.opts.BatchMode
+}
+
+// writeTasksJSON saves the structured task graph next to the VTS folder.
+func (p *Pipeline) writeTasksJSON(parsed []vts.Task, outputDir, source string) {
+	doc := taskspkg.FromVTS(parsed, source, p.opts.Idea)
+	if p.kind == "creative" {
+		doc = doc.AsDeliverables()
+	}
+	if err := doc.Validate(); err != nil {
+		p.printf("  Warning: task graph: %v\n", err)
+	}
+	path := filepath.Join(outputDir, taskspkg.FileName)
+	if err := doc.Write(path); err != nil {
+		p.printf("  Error writing %s: %v\n", taskspkg.FileName, err)
+		return
+	}
+	p.tasksWritten = true
+	p.printf("  Created: %s (%d tasks)\n", taskspkg.FileName, len(doc.Tasks))
 }
 
 func (p *Pipeline) runVernHole() {
@@ -654,10 +740,12 @@ func (p *Pipeline) runVernHole() {
 	if err != nil {
 		p.printf("\nWARNING: VernHole failed: %v\n", err)
 		p.log("VernHole: FAILED (%v)", err)
+		p.vernhole = "failed"
 		p.writeStatus("complete_vernhole_failed", nil)
 		return
 	}
 
+	p.vernhole = "ok"
 	p.log("VernHole: OK")
 
 	// Oracle integration
@@ -902,4 +990,5 @@ func (p *Pipeline) writeStatus(phase string, failedSteps []int) {
 	}
 
 	os.WriteFile(p.statusPath, []byte(b.String()), 0644)
+	p.writeManifest(false)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jdonohoo/vern-bot/go/internal/llm"
+	taskspkg "github.com/jdonohoo/vern-bot/go/internal/tasks"
 	"github.com/jdonohoo/vern-bot/go/internal/vts"
 )
 
@@ -273,6 +274,15 @@ Produce the complete updated task breakdown. Include ALL tasks (not just changed
 		}
 		if err := vts.WriteSummary(tasks, outputFile, header, footer, "", opts.OnLog); err != nil {
 			oracleLog(opts.OnLog, "  Error writing summary: %v\n", err)
+		}
+		// Keep tasks.json in step with the rewritten VTS files.
+		outDir := filepath.Dir(opts.VTSDir)
+		idea := ""
+		if old, err := taskspkg.Read(filepath.Join(outDir, taskspkg.FileName)); err == nil {
+			idea = old.Idea
+		}
+		if err := taskspkg.FromVTS(tasks, "oracle", idea).Write(filepath.Join(outDir, taskspkg.FileName)); err != nil {
+			oracleLog(opts.OnLog, "  Error writing %s: %v\n", taskspkg.FileName, err)
 		}
 	}
 

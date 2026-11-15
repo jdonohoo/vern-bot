@@ -114,7 +114,7 @@ The idea is the only positional argument.
 ### Important:
 - Use a long timeout (at least 1200000ms / 20 minutes) for the Bash call — the CLI spawns multiple LLM subprocesses (one per Vern plus synthesis, run in parallel)
 - The CLI handles ALL file creation, directory setup, and LLM calls internally
-- Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
+- Each LLM subprocess runs read-only and never prompts for permission (vern writes the output files itself); pass `--allow-writes` if a run needs the CLIs to edit files
 
 ## The Councils
 

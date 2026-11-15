@@ -20,32 +20,32 @@ Upgrading from 2.x? See the [changelog](CHANGELOG.md).
 
 ## The 17 Personas
 
-The **Model** column is what each persona's agent file asks for when it runs inside Claude Code. In the standalone CLI, discovery pipeline steps use the LLM set for each step in the config (MightyVern on Codex, YOLO Vern on Antigravity by default), and VernHole council members run on Claude, except the Historian, which prefers Antigravity.
+The **Tier** column is each persona's weight class: `deep`, `balanced` or `fast`. Inside Claude Code it is the model in brackets. In the standalone CLI, discovery pipeline steps use the LLM set for each step in the config (MightyVern on Codex, YOLO Vern on Antigravity by default), VernHole council members run on Claude except the Historian, which prefers Antigravity, and the tier picks the model on whichever LLM runs (see [Models, effort and tiers](#models-effort-and-tiers)).
 
 ### Core Personas
-| Command | Model | Best For |
+| Command | Tier | Best For |
 |---------|-------|----------|
-| `/vern:mediocre` | Sonnet | Quick fixes, scripts, "just make it work" |
-| `/vern:great` | Opus | Architecture, elegant solutions, quality code |
-| `/vern:nyquil` | Haiku | Quick answers, minimal output, brevity |
-| `/vern:ketamine` | Opus | Deep exploration, multi-pass planning, patterns |
-| `/vern:yolo` | Sonnet | Fast execution, no guardrails, chaos |
-| `/vern:mighty` | Opus | Comprehensive code gen, thorough analysis |
+| `/vern:mediocre` | Balanced (Sonnet) | Quick fixes, scripts, "just make it work" |
+| `/vern:great` | Deep (Opus) | Architecture, elegant solutions, quality code |
+| `/vern:nyquil` | Fast (Haiku) | Quick answers, minimal output, brevity |
+| `/vern:ketamine` | Deep (Opus) | Deep exploration, multi-pass planning, patterns |
+| `/vern:yolo` | Balanced (Sonnet) | Fast execution, no guardrails, chaos |
+| `/vern:mighty` | Deep (Opus) | Comprehensive code gen, thorough analysis |
 
 ### Specialist Personas
-| Command | Model | Best For |
+| Command | Tier | Best For |
 |---------|-------|----------|
-| `/vern:architect` | Opus | Systems design, scalable architecture, production-grade thinking |
-| `/vern:inverse` | Sonnet | Devil's advocate, stress-testing assumptions |
-| `/vern:paranoid` | Sonnet | Risk assessment, finding failure modes |
-| `/vern:optimist` | Haiku | Encouragement, positive framing, can-do energy |
-| `/vern:academic` | Opus | Evidence-based analysis, citing prior art |
-| `/vern:startup` | Sonnet | MVP thinking, lean approach, cut scope |
-| `/vern:enterprise` | Opus | Governance, compliance, process rigor |
-| `/vern:ux` | Opus | User experience, empathy-driven design, journey mapping |
-| `/vern:retro` | Sonnet | Historical perspective, proven tech, cutting through hype |
-| `/vern:oracle` | Opus | Reads the council's wisdom, recommends VTS task changes |
-| `/vern:historian` | Antigravity | Indexes massive input folders into structured concept maps |
+| `/vern:architect` | Deep (Opus) | Systems design, scalable architecture, production-grade thinking |
+| `/vern:inverse` | Balanced (Sonnet) | Devil's advocate, stress-testing assumptions |
+| `/vern:paranoid` | Balanced (Sonnet) | Risk assessment, finding failure modes |
+| `/vern:optimist` | Fast (Haiku) | Encouragement, positive framing, can-do energy |
+| `/vern:academic` | Deep (Opus) | Evidence-based analysis, citing prior art |
+| `/vern:startup` | Balanced (Sonnet) | MVP thinking, lean approach, cut scope |
+| `/vern:enterprise` | Deep (Opus) | Governance, compliance, process rigor |
+| `/vern:ux` | Deep (Opus) | User experience, empathy-driven design, journey mapping |
+| `/vern:retro` | Balanced (Sonnet) | Historical perspective, proven tech, cutting through hype |
+| `/vern:oracle` | Deep (Opus) | Reads the council's wisdom, recommends VTS task changes |
+| `/vern:historian` | none (prefers Antigravity) | Indexes massive input folders into structured concept maps |
 
 ### When to Use Each
 
@@ -225,6 +225,40 @@ vern discovery --single-llm antigravity "my idea"
 
 # Same flags work for VernHole
 vern hole --single-llm codex "my idea"
+```
+
+### Read-only by default
+
+Every LLM CLI runs read-only by default: vern writes the output files itself, so the models only need to read. Claude runs with `--permission-mode dontAsk` (reads allowed, edits and shell denied), Codex with `--sandbox read-only`, and Antigravity in plan mode with its terminal sandbox (it may run read commands, and writes the plan files it keeps under `~/.gemini/`). Grok has no documented read-only headless mode yet, so it keeps write access and vern warns once per run.
+
+To let the CLIs edit files and run commands, pass `--allow-writes` to any command, set `VERN_ALLOW_WRITES=1`, or set `"allow_writes": true` in your config.
+
+### Models, effort and tiers
+
+Personas declare a tier (`deep`, `balanced`, `fast`; from `tier:` in the agent file, or derived from its Claude model). Your config maps each tier to a model per LLM and an effort; a provider with no model uses its CLI's default. The defaults only set Claude's models:
+
+```json
+"tiers": {
+  "deep":     {"models": {"claude": "opus", "codex": "gpt-6-astra", "antigravity": "gemini-4-argon-high"}, "effort": "high"},
+  "balanced": {"models": {"claude": "sonnet"}},
+  "fast":     {"models": {"claude": "haiku"}, "effort": "low"}
+}
+```
+
+Pipeline steps can override all three. A step's `model` goes only to that step's own LLM, so a fallback to another LLM uses its tier mapping instead:
+
+```json
+{"step": 1, "name": "Initial Analysis", "persona": "mighty", "llm": "codex",
+ "model": "gpt-6-astra", "effort": "xhigh", "context_mode": "prompt_only", "prompt_prefix": "..."}
+```
+
+Effort is one of `low`, `medium`, `high`, `xhigh`, `max`. For single runs:
+
+```bash
+vern run claude --model sonnet --effort low "summarize this"
+vern run codex --tier deep "review this design"
+vern models            # tiers, personas by tier, and the models each CLI offers
+vern doctor            # which CLIs are installed, signed in, and still take vern's flags
 ```
 
 ## Usage (Claude Code Plugin)
@@ -434,11 +468,28 @@ discovery/{name}/
 │   ├── 04-mighty-consolidation.md   # (or 06-... in expanded)
 │   ├── 05-architect-architect-breakdown.md  # (or 07-... in expanded)
 │   ├── vts/                   # Vern Task Spec files
+│   ├── tasks.json             # The same tasks as JSON (schemas/tasks.v1.json)
+│   ├── run.json               # Run manifest: steps, LLMs, models, timings, usage
+│   ├── report.html            # The whole run as one shareable page
 │   ├── pipeline.log           # Per-step status, timestamps, exit codes
 │   └── pipeline-status.md     # Human-readable progress summary
 ├── vernhole/                  # Only if you opted in
 └── oracle-vision.md           # Only if Oracle ran
 ```
+
+### Packs, project config and task sinks
+
+- **Packs** add personas and pipelines without forking vern: a folder with `agents/*.md` and `pipelines/*.json`, found through `--pack <dir>`, a project's `.vern/` folder, `VERN_PATH` or `~/.config/vern/packs/`. `vern packs` and `vern pipelines` show what's loaded; `vern discovery --pipeline <name>` runs a pack's pipeline.
+- **Project config**: `.vern/config.json` sets a project's default pipeline, sink, packs, LLM mode and tiers.
+- **Task sinks** send the tasks on after a run: `--sink vts` (default), `json[:<path>]`, `beads`, or `exec:<command>`, which pipes `tasks.json` to any program. `vern sink <dir>` resends a finished run.
+
+- **Creative pipelines** (`"kind": "creative"`) end in deliverables (an outline, a beat sheet, character sheets, open questions) instead of code tasks. [packs/creative-example](packs/creative-example) has four personas (Editor, Worldbuilder, Skeptic Reader, Lorekeeper) and three pipelines: `story`, `world` and `idea`. Try `vern discovery --pack packs/creative-example --pipeline story "a lighthouse keeper's last night"`.
+
+[docs/packs.md](docs/packs.md) explains all of this and how to share a pack.
+
+### For agents and scripts
+
+`vern discovery --json`, `vern hole --json`, `vern run --json`, `vern doctor --json` and `vern models --json` print JSON on stdout and progress on stderr, so an agent can run vern and read the result without parsing markdown. Read `output/tasks.json` for the tasks ([schema v1](schemas/tasks.v1.json)) and `output/run.json` for what happened. `vern report <dir>` rebuilds `report.html` for any run, including ones from before v3.1. [AGENTS.md](AGENTS.md) lists the commands, outputs and exit codes.
 
 ## VTS → Beads
 
@@ -590,7 +641,13 @@ cd go && go test ./...
 
 ### Subcommands
 ```bash
-vern run <llm> <prompt>              # Single LLM run
+vern run <llm> <prompt>              # Single LLM run (--model, --effort, --tier)
+vern doctor                           # Check CLIs, sign-ins and the flags vern uses
+vern models [llm]                     # Persona tiers and the models each CLI offers
+vern report <discovery-dir>           # Render a run as one HTML page
+vern sink <discovery-dir> --sink S    # Send a run's tasks to a sink (vts, json, beads, exec:<cmd>)
+vern packs                            # Packs in use, with their personas and pipelines
+vern pipelines                        # Pipelines you can pass to discovery --pipeline
 vern discovery <prompt>               # Full discovery pipeline
 vern hole <idea>                      # VernHole council
 vern tobeads <vts-dir>               # Import VTS tasks into Beads

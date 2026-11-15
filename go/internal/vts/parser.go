@@ -21,9 +21,12 @@ type Task struct {
 	Owner        string
 	Source       string
 	SourceRef    string
+	Type         string // deliverable type in creative pipelines (outline, beats, character...)
 }
 
-var taskPattern = regexp.MustCompile(`(?im)^#{2,3}\s+Task\s+(\d+)\s*[:\.—]\s*(.+)`)
+// taskPattern matches "### TASK 1: Title" and, for creative pipelines,
+// "### DELIVERABLE 1: Title".
+var taskPattern = regexp.MustCompile(`(?im)^#{2,3}\s+(?:Task|Deliverable)\s+(\d+)\s*[:\.—]\s*(.+)`)
 
 // tableTaskPattern matches table rows like: | T-01 | **Title** | or | T-01 | Title |
 var tableTaskPattern = regexp.MustCompile(`(?im)^\|\s*T-(\d+)\s*\|\s*\*{0,2}([^|*]+?)\*{0,2}\s*\|`)
@@ -89,6 +92,7 @@ func ParseArchitectOutput(content string) (tasks []Task, header string, footer s
 			Dependencies: extractDependencies(taskBody),
 			Criteria:     extractList(taskBody, "Acceptance Criteria"),
 			Files:        extractFiles(taskBody),
+			Type:         strings.ToLower(strings.Trim(extractField(taskBody, "Type"), "*` ")),
 		}
 		tasks = append(tasks, task)
 	}
@@ -135,7 +139,7 @@ func extractDescription(body string) string {
 	}
 
 	// Fall back to text between title and first bold field
-	pattern := regexp.MustCompile(`(?im)^#{2,3}\s+Task\s+\d+.*\n+(.*?)(?:\n\*\*|\z)`)
+	pattern := regexp.MustCompile(`(?im)^#{2,3}\s+(?:Task|Deliverable)\s+\d+.*\n+(.*?)(?:\n\*\*|\z)`)
 	m := pattern.FindStringSubmatch(body)
 	if m != nil {
 		return strings.TrimSpace(m[1])
@@ -149,7 +153,7 @@ func extractDependencies(body string) []string {
 		return nil
 	}
 	// Extract task numbers like "Task 1", "Task 2, Task 3", "#1, #2"
-	pattern := regexp.MustCompile(`(?i)(?:Task\s+|#)(\d+)`)
+	pattern := regexp.MustCompile(`(?i)(?:Task\s+|Deliverable\s+|#)(\d+)`)
 	matches := pattern.FindAllStringSubmatch(raw, -1)
 	var deps []string
 	for _, m := range matches {
@@ -164,6 +168,10 @@ func extractFiles(body string) []string {
 	for _, field := range []string{"Files", "Files Touched", "Files Affected", "Key Files"} {
 		files := extractList(body, field)
 		if len(files) > 0 {
+			// Models quote paths as code: `src/app.go`.
+			for i, f := range files {
+				files[i] = strings.TrimSpace(strings.ReplaceAll(f, "`", ""))
+			}
 			return files
 		}
 	}

@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/pipeline"
@@ -26,6 +28,8 @@ Council tiers:
 	RunE: runHole,
 }
 
+var holeJSON bool
+
 var (
 	holeOutputDir string
 	holeCouncil   string
@@ -42,6 +46,7 @@ func init() {
 	holeCmd.Flags().IntVarP(&holeCount, "count", "n", 0, "Number of Verns to summon (min 3)")
 	holeCmd.Flags().StringVar(&holeLLMMode, "llm-mode", "", "LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, etc.)")
 	holeCmd.Flags().StringVar(&holeSingleLLM, "single-llm", "", "Use a single LLM for all Verns and synthesis")
+	holeCmd.Flags().BoolVar(&holeJSON, "json", false, "Print the result (council files, synthesis) as JSON on stdout; progress goes to stderr")
 	rootCmd.AddCommand(holeCmd)
 }
 
@@ -80,6 +85,10 @@ func runHole(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	var onLog func(string)
+	if holeJSON {
+		onLog = func(line string) { fmt.Fprintln(os.Stderr, strings.TrimRight(line, "\n")) }
+	}
 	err := pipeline.RunVernHole(pipeline.VernHoleOptions{
 		Idea:         idea,
 		OutputDir:    holeOutputDir,
@@ -90,7 +99,35 @@ func runHole(cmd *cobra.Command, args []string) error {
 		Timeout:      timeout,
 		SynthesisLLM: synthesisLLM,
 		OverrideLLM:  overrideLLM,
+		OnLog:        onLog,
 	})
+	if holeJSON {
+		out := struct {
+			Status    string   `json:"status"`
+			OutputDir string   `json:"output_dir"`
+			Files     []string `json:"files"`
+			Synthesis string   `json:"synthesis,omitempty"`
+		}{Status: "ok", OutputDir: holeOutputDir, Files: []string{}}
+		if err != nil {
+			out.Status = "failed"
+		}
+		if abs, aerr := filepath.Abs(holeOutputDir); aerr == nil {
+			out.OutputDir = abs
+		}
+		entries, _ := os.ReadDir(holeOutputDir)
+		for _, e := range entries {
+			if strings.HasSuffix(e.Name(), ".md") {
+				if e.Name() == "synthesis.md" {
+					out.Synthesis = e.Name()
+				} else {
+					out.Files = append(out.Files, e.Name())
+				}
+			}
+		}
+		if perr := printJSON(out); perr != nil {
+			return perr
+		}
+	}
 	if err != nil {
 		os.Exit(1)
 	}

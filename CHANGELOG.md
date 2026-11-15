@@ -2,7 +2,42 @@
 
 All notable changes to vern-bot. Versions follow [Semantic Versioning](https://semver.org/).
 
-## 3.0.0 (unreleased)
+## Unreleased
+
+### Changed
+
+- **Read-only by default.** Every LLM CLI now runs without write access: Claude with `--permission-mode dontAsk`, Codex with `--sandbox read-only`, Antigravity in plan mode with its terminal sandbox. vern still writes every output file itself. Use `--allow-writes`, `VERN_ALLOW_WRITES=1` or `"allow_writes": true` to restore the old behaviour. Grok has no read-only headless mode yet and keeps write access, with a warning.
+- **Personas have tiers** (`deep`, `balanced`, `fast`) instead of vendor models. A tier comes from `tier:` in the agent file or from its Claude model, and config maps each tier to a model per LLM. By default deep personas run Claude on Opus, balanced on Sonnet and fast on Haiku; other CLIs keep their own default model.
+
+### Added
+
+- **Model and effort per step**: `model`, `effort` and `tier` on discovery pipeline steps, and `vern run --model/--effort/--tier`. A step's model goes only to its own LLM, never to a fallback.
+- **`vern doctor`**: checks each CLI's install, version, sign-in and whether it still accepts the flags vern passes. `--json` for scripts.
+- **`vern models`**: shows the tier mapping, personas by tier, and the models Codex and Antigravity offer.
+- Antigravity runs that end with "no output produced" (a tool denied in headless mode) now count as failures, so the step retries or falls back instead of keeping an error as its output.
+- The run log records the model, effort, usage and whether the run was read-only.
+- **Structured tasks**: discovery writes `output/tasks.json` next to the VTS files, following the published [task schema v1](schemas/tasks.v1.json) (ids, dependencies, acceptance criteria, files, optional groups and parents). Oracle apply keeps it in step.
+- **Run manifest**: `output/run.json` records every step's persona, LLM and fallback, model, effort, read-only mode, duration and usage, plus the run's status, updated after each step.
+- **Usage and cost**: Claude now runs with `--output-format json`, so vern records its tokens and cost; Codex's token count is read from its output. Totals per run are in `run.json` and the report.
+- **`--json`** on `discovery`, `hole` and `run`: JSON on stdout, progress on stderr. `discovery --json` exits 0 when the run is ok, 3 when partial and 1 when it failed.
+- **`vern report <dir>`** renders a run (steps, tasks, VernHole, Oracle) as one self-contained HTML page; discovery writes `output/report.html` at the end of every run.
+- **AGENTS.md** tells coding agents how to drive vern and how to work on this repo.
+- **Packs**: extra personas (`agents/*.md`) and pipelines (`pipelines/*.json`) from `--pack`, a project's `.vern/`, `VERN_PATH` or `~/.config/vern/packs/`. Pack personas join the VernHole roster and can replace built-in ones. New `vern packs`, `vern pipelines` and `vern discovery --pipeline <name>`.
+- **Project config**: `.vern/config.json` sets the default pipeline, sink, packs, LLM mode, tiers and write access for runs in that project.
+- **Task sinks**: `vern discovery --sink vts|json[:<path>]|beads|exec:<command>` sends the tasks on after a run; `exec` pipes `tasks.json` to any program, saves its output to `output/sink.log` and records the result in `run.json`. `vern sink <dir>` resends a finished run.
+- [docs/packs.md](docs/packs.md): how to write, configure and share packs and sinks.
+- **Creative pipelines**: a pipeline with `"kind": "creative"` ends in deliverables (`### DELIVERABLE N:` with a `**Type:**`) instead of code tasks; `tasks.json` marks them `"kind": "deliverable"` with their type. [packs/creative-example](packs/creative-example) ships Editor, Worldbuilder, Skeptic Reader and Lorekeeper personas and `story`, `world` and `idea` pipelines.
+- `vern run` sends a plain prompt as is: no discovery preamble and no mandatory sign-off unless you pass `--persona`.
+- Batch discovery runs keep the CLIs' progress chatter off the terminal (a failed step still records it); `VERN_VERBOSE=1` streams it again.
+
+### Fixed
+
+- `vern models` lists Codex models from its catalog's top-level entries only (no stray ids from nested fields) and finds Antigravity ids in more list layouts; when it finds none it shows the start of the CLI's output.
+- VTS `files:` entries no longer keep the backticks models put around paths.
+- The rewritten breakdown file always starts with a title.
+- Standalone installs (Homebrew, Scoop, Winget) now send each persona's prompt to the LLM. Without an `agents/` folder next to the binary, runs used to go out with no persona text at all; they now use the personas built into the binary, including `vern run --persona`.
+
+## 3.0.0
 
 ### Breaking
 

@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/jdonohoo/vern-bot/go/internal/embedded"
+	"github.com/jdonohoo/vern-bot/go/internal/packs"
 )
 
 // Persona represents a parsed agent file.
@@ -21,12 +21,13 @@ type Persona struct {
 
 // Load reads an agent file and parses its YAML frontmatter and body.
 // agentsDir is the path to the agents/ directory, name is the persona ID (e.g. "mighty").
-// Falls back to embedded agent data if the file doesn't exist on disk.
+// Packs are searched first (see internal/packs); falls back to embedded
+// agent data if no file exists on disk.
 func Load(agentsDir, name string) (*Persona, error) {
-	path := filepath.Join(agentsDir, name+".md")
-	p, err := LoadFile(path)
-	if err == nil {
-		return p, nil
+	if path, ok := packs.FindAgent(agentsDir, name); ok {
+		if p, err := LoadFile(path); err == nil {
+			return p, nil
+		}
 	}
 
 	// Fall back to embedded data
