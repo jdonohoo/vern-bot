@@ -28,6 +28,19 @@ type RunOptions struct {
 	AgentsDir     string // path to agents/ for persona loading
 	AllowFileRead bool   // when true, permit the LLM to read files from the filesystem
 	QuietStderr   bool   // when true, discard stderr (TUI mode — prevents display corruption)
+
+	// Models maps a canonical provider name to the model to run on it. A
+	// provider with no entry uses the persona's tier mapping, then its CLI
+	// default. Keying by provider keeps a model meant for one CLI from
+	// reaching another when a step falls back.
+	Models map[string]string
+	// Effort is the reasoning effort (one of Efforts); "" uses the tier's.
+	Effort string
+	// Tier overrides the persona's tier.
+	Tier string
+	// AllowWrites lets this run's agent modify files even when the policy
+	// is read-only.
+	AllowWrites bool
 }
 
 // Result holds the output of an LLM run.
@@ -37,6 +50,9 @@ type Result struct {
 	ExitCode int
 	TimedOut bool
 	LLMUsed  string
+	Model    string // model passed to the CLI ("" = its default)
+	Effort   string // effort passed to the CLI ("" = its default)
+	ReadOnly bool   // whether the CLI ran read-only
 	Duration time.Duration
 }
 
@@ -68,6 +84,14 @@ func Run(opts RunOptions) (*Result, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown LLM: %s (valid: %s)", llm, strings.Join(Names(), ", "))
 	}
+	if !ValidEffort(opts.Effort) {
+		return nil, fmt.Errorf("unknown effort %q (valid: %s)", opts.Effort, strings.Join(Efforts, ", "))
+	}
+	sel := selectModel(opts, provider.Name)
+	readOnly := !opts.AllowWrites && !WritesAllowed()
+	if readOnly && !provider.ReadOnly {
+		warnReadOnlyUnsupported(provider)
+	}
 
 	fullPrompt := provider.Preamble(opts.AllowFileRead) + personaContext + opts.Prompt + dadJoke
 
@@ -78,7 +102,13 @@ func Run(opts RunOptions) (*Result, error) {
 	ctx, cancel := context.WithTimeout(parent, opts.Timeout)
 	defer cancel()
 
-	inv := Invocation{WorkingDir: opts.WorkingDir, Timeout: opts.Timeout}
+	inv := Invocation{
+		WorkingDir: opts.WorkingDir,
+		Timeout:    opts.Timeout,
+		ReadOnly:   readOnly && provider.ReadOnly,
+		Model:      sel.Model,
+		Effort:     sel.Effort,
+	}
 	if provider.WritesOutputFile {
 		tmpFile, tmpErr := os.CreateTemp("", "vern-"+provider.Name+".*.md")
 		if tmpErr != nil {
@@ -151,12 +181,28 @@ func Run(opts RunOptions) (*Result, error) {
 		outputStr = string(data)
 	}
 
+	// Some CLIs report a failed turn on stdout with exit 0.
+	if exitCode == 0 {
+		trimmed := strings.TrimSpace(outputStr)
+		for _, prefix := range provider.FailurePrefixes {
+			if strings.HasPrefix(trimmed, prefix) {
+				exitCode = 1
+				stderrBuf.WriteString("\n" + trimmed)
+				outputStr = ""
+				break
+			}
+		}
+	}
+
 	result := &Result{
 		Output:   outputStr,
 		Stderr:   truncStderr(stderrBuf.String(), 2048),
 		ExitCode: exitCode,
 		TimedOut: timedOut,
 		LLMUsed:  llm,
+		Model:    sel.Model,
+		Effort:   sel.Effort,
+		ReadOnly: inv.ReadOnly,
 		Duration: duration,
 	}
 

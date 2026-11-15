@@ -87,3 +87,56 @@ func TestDefaultModesCoverProviders(t *testing.T) {
 		t.Errorf("modes = %d, names = %d", len(modes), len(ModeNames()))
 	}
 }
+
+func TestNormalizeTiers(t *testing.T) {
+	cfg := &Config{
+		Tiers: map[string]llm.Tier{
+			"Deep": {Models: map[string]string{"gemini": "gemini-4-argon-high", "claude": ""}, Effort: "HIGH"},
+			"fast": {Effort: "warp"},
+		},
+		Pipelines: map[string][]PipelineStep{
+			"default": {{Step: 1, LLM: "g", Effort: "Max", Tier: "FAST"}, {Step: 2, LLM: "claude", Effort: "nope"}},
+		},
+	}
+	normalize(cfg)
+
+	deep := cfg.Tiers["deep"]
+	if deep.Models["antigravity"] != "gemini-4-argon-high" || deep.Effort != "high" {
+		t.Errorf("deep tier not normalized: %+v", deep)
+	}
+	if m, ok := deep.Models["claude"]; !ok || m != "" {
+		t.Errorf("an explicit empty model should keep claude on its default: %+v", deep)
+	}
+	if cfg.Tiers["fast"].Effort != "" {
+		t.Errorf("unknown effort should be dropped: %+v", cfg.Tiers["fast"])
+	}
+	if cfg.Tiers["balanced"].Models["claude"] != "sonnet" {
+		t.Errorf("missing tiers should get defaults: %+v", cfg.Tiers)
+	}
+	steps := cfg.Pipelines["default"]
+	if steps[0].Effort != "max" || steps[0].Tier != "fast" || steps[0].LLM != "antigravity" {
+		t.Errorf("step not normalized: %+v", steps[0])
+	}
+	if steps[1].Effort != "" {
+		t.Errorf("unknown step effort should be dropped: %+v", steps[1])
+	}
+}
+
+func TestLoadSetsRunPolicy(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	t.Setenv("USERPROFILE", dir)
+	os.MkdirAll(filepath.Join(dir, ".config", "vern"), 0755)
+	os.WriteFile(filepath.Join(dir, ".config", "vern", "config.json"),
+		[]byte(`{"allow_writes": true, "tiers": {"deep": {"models": {"codex": "gpt-6-astra"}}}}`), 0644)
+	defer llm.SetPolicy(llm.Policy{})
+
+	Load(dir)
+	p := llm.CurrentPolicy()
+	if !p.AllowWrites {
+		t.Error("allow_writes should reach the run policy")
+	}
+	if p.Tiers["deep"].Models["codex"] != "gpt-6-astra" || p.Tiers["deep"].Models["claude"] != "opus" {
+		t.Errorf("tiers should reach the run policy: %+v", p.Tiers)
+	}
+}

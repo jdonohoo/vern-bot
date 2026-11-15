@@ -25,9 +25,10 @@ The roster is dynamic. It's built automatically from every persona in `agents/*.
 YOUR PROCESS:
 1. Randomly select Verns from the roster (use actual randomness)
 2. For each Vern, spawn appropriate sub-agent:
-   - Claude Verns: `NODE_OPTIONS="--max-old-space-size=32768" claude --dangerously-skip-permissions`
-   - Codex Verns: `codex --dangerously-bypass-approvals-and-sandbox`
-   - Antigravity Verns: `agy -p "..." --dangerously-skip-permissions`
+   - Any Vern: `vern run <llm> --persona <vern> "..."` (read-only, uses the Vern's tier)
+   - Claude Verns: `NODE_OPTIONS="--max-old-space-size=32768" claude -p --permission-mode dontAsk`
+   - Codex Verns: `codex exec --sandbox read-only -`
+   - Antigravity Verns: `agy -p="..." --mode plan`
 3. Collect each Vern's analysis
 4. Synthesize the chaos into insights
 5. Present the emergence

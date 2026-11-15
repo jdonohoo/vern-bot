@@ -169,7 +169,7 @@ Build the command:
 ### Important:
 - Use a long timeout (at least 1200000ms / 20 minutes) for the Bash call — the pipeline spawns multiple LLM subprocesses
 - The CLI handles ALL file creation, directory setup, and LLM calls internally
-- Each LLM subprocess uses `--dangerously-skip-permissions` so no permission prompts during execution
+- Each LLM subprocess runs read-only and never prompts for permission (vern writes the output files itself); pass `--allow-writes` if a run needs the CLIs to edit files
 
 ## Step 5: Report Completion
 

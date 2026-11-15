@@ -12,6 +12,9 @@ type logEntry struct {
 	Time          string `json:"time"`
 	LLMRequested  string `json:"llm_requested"`
 	LLMUsed       string `json:"llm_used"`
+	Model         string `json:"model,omitempty"`
+	Effort        string `json:"effort,omitempty"`
+	ReadOnly      bool   `json:"read_only"`
 	ExitCode      int    `json:"exit_code"`
 	TimedOut      bool   `json:"timed_out"`
 	DurationMs    int64  `json:"duration_ms"`
@@ -46,6 +49,9 @@ func logRun(opts RunOptions, llmRequested string, result *Result, runErr error, 
 
 	if result != nil {
 		entry.LLMUsed = result.LLMUsed
+		entry.Model = result.Model
+		entry.Effort = result.Effort
+		entry.ReadOnly = result.ReadOnly
 		entry.ExitCode = result.ExitCode
 		entry.TimedOut = result.TimedOut
 		entry.DurationMs = result.Duration.Milliseconds()

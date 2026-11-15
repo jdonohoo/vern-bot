@@ -2,7 +2,22 @@
 
 All notable changes to vern-bot. Versions follow [Semantic Versioning](https://semver.org/).
 
-## 3.0.0 (unreleased)
+## Unreleased
+
+### Changed
+
+- **Read-only by default.** Every LLM CLI now runs without write access: Claude with `--permission-mode dontAsk`, Codex with `--sandbox read-only`, Antigravity in plan mode with its terminal sandbox. vern still writes every output file itself. Use `--allow-writes`, `VERN_ALLOW_WRITES=1` or `"allow_writes": true` to restore the old behaviour. Grok has no read-only headless mode yet and keeps write access, with a warning.
+- **Personas have tiers** (`deep`, `balanced`, `fast`) instead of vendor models. A tier comes from `tier:` in the agent file or from its Claude model, and config maps each tier to a model per LLM. By default deep personas run Claude on Opus, balanced on Sonnet and fast on Haiku; other CLIs keep their own default model.
+
+### Added
+
+- **Model and effort per step**: `model`, `effort` and `tier` on discovery pipeline steps, and `vern run --model/--effort/--tier`. A step's model goes only to its own LLM, never to a fallback.
+- **`vern doctor`**: checks each CLI's install, version, sign-in and whether it still accepts the flags vern passes. `--json` for scripts.
+- **`vern models`**: shows the tier mapping, personas by tier, and the models Codex and Antigravity offer.
+- Antigravity runs that end with "no output produced" (a tool denied in headless mode) now count as failures, so the step retries or falls back instead of keeping an error as its output.
+- The run log records the model, effort and whether the run was read-only.
+
+## 3.0.0
 
 ### Breaking
 

@@ -54,6 +54,12 @@ func normalize(cfg *Config) {
 	for mode, steps := range cfg.Pipelines {
 		for i := range steps {
 			steps[i].LLM = canonicalLLM(steps[i].LLM)
+			steps[i].Tier = strings.ToLower(steps[i].Tier)
+			steps[i].Effort = strings.ToLower(steps[i].Effort)
+			if !llm.ValidEffort(steps[i].Effort) {
+				fmt.Fprintf(os.Stderr, "[vern] pipeline %s step %d: unknown effort %q ignored\n", mode, steps[i].Step, steps[i].Effort)
+				steps[i].Effort = ""
+			}
 		}
 		cfg.Pipelines[mode] = steps
 	}
@@ -106,8 +112,47 @@ func normalize(cfg *Config) {
 	}
 	cfg.LLMModes = modes
 
+	cfg.Tiers = normalizeTiers(cfg.Tiers)
+
 	if to, ok := modeAliases[cfg.LLMMode]; ok {
 		fmt.Fprintf(os.Stderr, "[vern] llm_mode %s is retired; using %s\n", cfg.LLMMode, to)
 		cfg.LLMMode = to
 	}
+}
+
+// normalizeTiers lower-cases tier names, canonicalizes provider keys and
+// fills in the default tiers and models the config leaves out. An empty
+// model string ("") keeps that provider on its CLI default, so a config
+// can opt out of a default mapping.
+func normalizeTiers(in map[string]llm.Tier) map[string]llm.Tier {
+	out := map[string]llm.Tier{}
+	for name, t := range in {
+		models := map[string]string{}
+		for p, m := range t.Models {
+			if c := canonicalLLM(p); c != "" {
+				models[c] = m
+			}
+		}
+		effort := strings.ToLower(t.Effort)
+		if !llm.ValidEffort(effort) {
+			fmt.Fprintf(os.Stderr, "[vern] tier %s: unknown effort %q ignored\n", name, t.Effort)
+			effort = ""
+		}
+		out[strings.ToLower(name)] = llm.Tier{Models: models, Effort: effort}
+	}
+	// Defaults fill in every tier and provider the config leaves out.
+	for name, def := range llm.DefaultTiers() {
+		t, ok := out[name]
+		if !ok {
+			out[name] = def
+			continue
+		}
+		for p, m := range def.Models {
+			if _, set := t.Models[p]; !set {
+				t.Models[p] = m
+			}
+		}
+		out[name] = t
+	}
+	return out
 }

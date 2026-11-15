@@ -23,6 +23,13 @@ type Config struct {
 	VernHole       VernHoleConfig            `json:"vernhole"`
 	Timeouts       TimeoutConfig             `json:"timeouts"`
 
+	// AllowWrites lets the LLM CLIs edit files and run commands. Off by
+	// default: every CLI runs read-only where it supports it.
+	AllowWrites bool `json:"allow_writes,omitempty"`
+	// Tiers maps a persona tier (deep, balanced, fast) to a model per
+	// provider and an effort. Missing tiers get DefaultTiers.
+	Tiers map[string]llm.Tier `json:"tiers,omitempty"`
+
 	// User preferences (persisted across sessions)
 	DefaultDiscoveryPath string `json:"default_discovery_path,omitempty"`
 
@@ -49,6 +56,11 @@ type PipelineStep struct {
 	LLM          string `json:"llm"`
 	ContextMode  string `json:"context_mode"`
 	PromptPrefix string `json:"prompt_prefix"`
+	// Model is passed to the step's own LLM only; a fallback LLM uses the
+	// tier mapping instead. Effort and Tier apply to whichever LLM runs.
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+	Tier   string `json:"tier,omitempty"`
 }
 
 // TimeoutConfig holds granular timeout settings (all in seconds).
@@ -71,6 +83,17 @@ type VernHoleConfig struct {
 //  3. {projectRoot}/config.default.json (project defaults)
 //  4. Hardcoded defaults
 func Load(projectRoot string) *Config {
+	cfg := load(projectRoot)
+	llm.SetPolicy(cfg.Policy())
+	return cfg
+}
+
+// Policy is the run policy this config sets for every LLM call.
+func (c *Config) Policy() llm.Policy {
+	return llm.Policy{AllowWrites: c.AllowWrites, Tiers: c.Tiers}
+}
+
+func load(projectRoot string) *Config {
 	// Tier 1: Claude Code plugin user config
 	home := homeDir()
 	userConfig := filepath.Join(home, ".claude", "vern-bot-config.json")
@@ -342,6 +365,7 @@ func hardcodedDefaults() *Config {
 		PipelineMode:   "default",
 		LLMMode:        "mixed_claude_fallback",
 		LLMModes:       defaultLLMModes(),
+		Tiers:          llm.DefaultTiers(),
 		VernHole: VernHoleConfig{
 			DefaultCouncil: "random",
 			Min:            3,

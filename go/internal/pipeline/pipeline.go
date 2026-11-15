@@ -322,6 +322,9 @@ func (p *Pipeline) execute(mode string) error {
 				Timeout:     time.Duration(opts.Timeout) * time.Second,
 				AgentsDir:   opts.AgentsDir,
 				QuietStderr: opts.OnLog != nil,
+				Models:      llm.ModelsFor(step.LLM, step.Model),
+				Effort:      step.Effort,
+				Tier:        step.Tier,
 			})
 
 			lastExitCode = result.ExitCode
@@ -373,6 +376,9 @@ func (p *Pipeline) execute(mode string) error {
 				Timeout:     time.Duration(opts.Timeout) * time.Second,
 				AgentsDir:   opts.AgentsDir,
 				QuietStderr: opts.OnLog != nil,
+				Models:      llm.ModelsFor(step.LLM, step.Model),
+				Effort:      step.Effort,
+				Tier:        step.Tier,
 			})
 
 			attemptCount++
