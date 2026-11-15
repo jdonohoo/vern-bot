@@ -173,3 +173,42 @@ func TestCreativePipelineWritesDeliverables(t *testing.T) {
 		t.Errorf("deliverable 2 = %+v", d2)
 	}
 }
+
+// A rerun whose breakdown has no tasks must not report the last run's.
+func TestRerunWithoutTasksIgnoresStaleTasks(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(llm.Register(&llm.Provider{
+		Name: "fake", Binary: exe, Label: "Fake", ReadOnly: true,
+		Preamble: func(bool) string { return "" },
+		Args:     func(llm.Invocation) []string { return nil },
+	}))
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("VERN_LOG", "0")
+	cfgDir := filepath.Join(home, ".config", "vern")
+	os.MkdirAll(cfgDir, 0755)
+	os.WriteFile(filepath.Join(cfgDir, "config.json"), []byte(`{
+	  "discovery_pipelines": {"default": [
+	    {"step": 1, "name": "Architect Breakdown", "persona": "architect", "llm": "fake", "context_mode": "prompt_only", "prompt_prefix": "Break it down."}
+	  ]}
+	}`), 0644)
+	dir := filepath.Join(t.TempDir(), "rerun")
+	opts := Options{Idea: "x", DiscoveryDir: dir, BatchMode: true, SkipHistorian: true, OnLog: func(string) {}}
+
+	t.Setenv("VERN_FAKE_CLI", fakeBreakdown)
+	if m, err := RunWithManifest(opts); err != nil || m.Tasks == nil {
+		t.Fatalf("first run: %+v, %v", m, err)
+	}
+	t.Setenv("VERN_FAKE_CLI", "No tasks here, just an essay about the idea.")
+	m, err := RunWithManifest(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Tasks != nil || m.Status == "ok" {
+		t.Errorf("rerun reported stale tasks: status %s, tasks %+v", m.Status, m.Tasks)
+	}
+}

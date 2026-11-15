@@ -127,7 +127,8 @@ func TestCreativeExamplePack(t *testing.T) {
 			continue
 		}
 		data, _ := os.ReadFile(path)
-		if !strings.Contains(string(data), "name: "+name+"\n") || !strings.Contains(string(data), "\ntier: ") {
+		text := strings.ReplaceAll(string(data), "\r\n", "\n") // Windows checkouts use CRLF
+		if !strings.Contains(text, "name: "+name+"\n") || !strings.Contains(text, "\ntier: ") {
 			t.Errorf("%s needs a matching name and a tier", name)
 		}
 	}

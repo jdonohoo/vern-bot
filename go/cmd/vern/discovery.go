@@ -153,18 +153,26 @@ func runDiscovery(cmd *cobra.Command, args []string) error {
 	}
 
 	if !discJSON {
-		err := pipeline.Run(opts)
+		m, err := pipeline.RunWithManifest(opts)
 		if err != nil {
 			return err
 		}
+		var sinkErr error
 		if spec != "vts" {
-			info := runSink(discoveryDir, spec)
-			fmt.Printf("Sink %s: %s (%s)\n", info.Sink, info.Status, info.Detail)
+			if m == nil || m.Tasks == nil {
+				fmt.Printf("Sink %s: skipped (this run produced no tasks)\n", spec)
+			} else {
+				info := runSink(discoveryDir, spec)
+				fmt.Printf("Sink %s: %s (%s)\n", info.Sink, info.Status, info.Detail)
+				if info.Status == "failed" {
+					sinkErr = fmt.Errorf("sink %s failed: %s", info.Sink, info.Detail)
+				}
+			}
 		}
 		if path, rerr := report.Write(discoveryDir); rerr == nil {
 			fmt.Printf("Report: %s\n", path)
 		}
-		return nil
+		return sinkErr
 	}
 
 	// --json: progress to stderr, the manifest alone on stdout.
@@ -179,6 +187,8 @@ func runDiscovery(cmd *cobra.Command, args []string) error {
 		m.Sink = &info
 		if info.Status == "failed" && m.Status == "ok" {
 			m.Status = "partial"
+			// Save it too, so run.json and the report agree with stdout.
+			pipeline.UpdateManifest(discoveryDir, func(saved *pipeline.Manifest) { saved.Status = "partial" })
 		}
 	}
 	report.Write(discoveryDir)

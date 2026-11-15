@@ -137,7 +137,9 @@ func (p *Pipeline) manifest(final bool) *Manifest {
 	}
 
 	outputDir := filepath.Join(dir, "output")
-	if doc, err := tasks.Load(outputDir); err == nil && len(doc.Tasks) > 0 {
+	// Only tasks this run produced count: files left by an earlier run in
+	// the same folder are not this run's result.
+	if doc, err := tasks.Load(outputDir); p.tasksWritten && err == nil && len(doc.Tasks) > 0 {
 		m.Tasks = &TaskSummary{Count: len(doc.Tasks), File: "output/" + tasks.FileName, VTSDir: "output/vts"}
 	}
 	if p.vernhole != "" {

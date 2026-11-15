@@ -53,6 +53,7 @@ type Pipeline struct {
 	startTime     time.Time // pipeline start time
 	mode          string    // pipeline mode (default/expanded)
 	kind          string    // software (default) or creative
+	tasksWritten  bool      // this run wrote output/tasks.json
 	failed        []int     // failed step numbers
 	vernhole      string    // "", ok or failed
 	// Result is the final run manifest, set when Run returns.
@@ -642,6 +643,8 @@ func (p *Pipeline) processVTS(architectFile string, vtsDir string, source string
 	}
 
 	p.printf("\n>>> Splitting architect breakdown into VTS task files...\n")
+	// A rerun must not leave the previous run's task graph looking current.
+	os.Remove(filepath.Join(filepath.Dir(vtsDir), taskspkg.FileName))
 
 	tasks, header, footer := vts.ParseArchitectOutput(string(data))
 	if len(tasks) == 0 {
@@ -693,6 +696,7 @@ func (p *Pipeline) writeTasksJSON(parsed []vts.Task, outputDir, source string) {
 		p.printf("  Error writing %s: %v\n", taskspkg.FileName, err)
 		return
 	}
+	p.tasksWritten = true
 	p.printf("  Created: %s (%d tasks)\n", taskspkg.FileName, len(doc.Tasks))
 }
 
