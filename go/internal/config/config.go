@@ -72,14 +72,15 @@ type VernHoleConfig struct {
 //  4. Hardcoded defaults
 func Load(projectRoot string) *Config {
 	// Tier 1: Claude Code plugin user config
-	userConfig := filepath.Join(os.Getenv("HOME"), ".claude", "vern-bot-config.json")
+	home := homeDir()
+	userConfig := filepath.Join(home, ".claude", "vern-bot-config.json")
 	if cfg, err := loadFile(userConfig); err == nil {
 		cfg.SourcePath = userConfig
 		return cfg
 	}
 
 	// Tier 2: standalone user config
-	standaloneConfig := filepath.Join(os.Getenv("HOME"), ".config", "vern", "config.json")
+	standaloneConfig := filepath.Join(home, ".config", "vern", "config.json")
 	if cfg, err := loadFile(standaloneConfig); err == nil {
 		cfg.SourcePath = standaloneConfig
 		return cfg
@@ -100,6 +101,18 @@ func Load(projectRoot string) *Config {
 	// Tier 5: hardcoded defaults
 	return hardcodedDefaults()
 }
+
+// homeDir returns the user's home directory (HOME on Unix, USERPROFILE on
+// Windows, where HOME is usually unset).
+func homeDir() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+	return os.Getenv("HOME")
+}
+
+// HomeDir is homeDir for other packages.
+func HomeDir() string { return homeDir() }
 
 func loadEmbeddedConfig() (*Config, error) {
 	data := embedded.GetDefaultConfig()

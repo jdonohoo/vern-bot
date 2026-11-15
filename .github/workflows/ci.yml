@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -26,11 +26,11 @@ jobs:
           go-version-file: go/go.mod
           cache-dependency-path: go/go.sum
 
-      - name: Embedded agents and config are up to date
+      - name: Embedded agents, config and site copies are up to date
         if: runner.os == 'Linux'
         run: |
           go generate ./internal/embedded/
-          git diff --exit-code -- internal/embedded/agents_generated.go
+          git diff --exit-code -- internal/embedded/agents_generated.go ../docs/index.html
 
       - name: Build
         run: go build ./...

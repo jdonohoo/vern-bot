@@ -71,6 +71,7 @@ func TestExitCodeFromErr(t *testing.T) {
 func TestLogRunWritesJSONL(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir) // os.UserHomeDir on Windows
 	// Clear any VERN_LOG setting
 	t.Setenv("VERN_LOG", "")
 
@@ -143,6 +144,7 @@ func TestLogRunWritesJSONL(t *testing.T) {
 func TestLogRunWithError(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir) // os.UserHomeDir on Windows
 	t.Setenv("VERN_LOG", "")
 
 	opts := RunOptions{
@@ -174,6 +176,7 @@ func TestLogRunWithError(t *testing.T) {
 func TestLogRunDisabledByEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir) // os.UserHomeDir on Windows
 	t.Setenv("VERN_LOG", "0")
 
 	opts := RunOptions{LLM: "claude", Prompt: "test"}
@@ -206,6 +209,7 @@ func TestTruncatePrompt(t *testing.T) {
 func TestLogRunAppendsMultipleEntries(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir) // os.UserHomeDir on Windows
 	t.Setenv("VERN_LOG", "")
 
 	opts := RunOptions{LLM: "claude", Prompt: "first"}

@@ -121,7 +121,7 @@ func TestGetPipelineFallback(t *testing.T) {
 
 func TestLoadWithProjectRoot(t *testing.T) {
 	// Load should work with the actual project config.default.json
-	cfg := Load("/Users/justin/projects/jdonohoo/vern-bot")
+	cfg := Load(filepath.Join("..", "..", ".."))
 	if cfg == nil {
 		t.Fatal("Load returned nil")
 	}

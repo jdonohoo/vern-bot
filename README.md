@@ -4,13 +4,23 @@
 
 # Vern-Bot
 
+[![CI](https://github.com/jdonohoo/vern-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/jdonohoo/vern-bot/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/jdonohoo/vern-bot)](https://github.com/jdonohoo/vern-bot/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 https://jdonohoo.github.io/vern-bot/
 
 AI discovery pipelines with personality disorders. Multi-LLM orchestration, competing AI personas, VernHole council tiers, Oracle vision, Historian indexing, and chaos-to-clarity workflows.
 
-Now available as a **standalone terminal app** — no Claude Code required.
+Runs as a **Claude Code plugin** or a **standalone terminal app** that drives the LLM CLIs you already have: Claude Code, Codex, Antigravity and Grok.
 
-## The 18 Personas
+**One idea in, battle-tested plan out.** Give it an idea; several models and personas analyze it, argue about it, and hand you a consolidated plan broken into tasks. See real runs in [`sample-output/`](sample-output/) — for example [todo-web](sample-output/todo-web/): the [step-by-step analysis](sample-output/todo-web/output/), the [VernHole council](sample-output/todo-web/vernhole/), and the [Oracle's vision](sample-output/todo-web/oracle-vision.md).
+
+Upgrading from 2.x? See the [changelog](CHANGELOG.md).
+
+## The 17 Personas
+
+The **Model** column is what each persona's agent file asks for when it runs inside Claude Code. In the standalone CLI, discovery pipeline steps use the LLM set for each step in the config (MightyVern on Codex, YOLO Vern on Antigravity by default), and VernHole council members run on Claude, except the Historian, which prefers Antigravity.
 
 ### Core Personas
 | Command | Model | Best For |
@@ -19,8 +29,8 @@ Now available as a **standalone terminal app** — no Claude Code required.
 | `/vern:great` | Opus | Architecture, elegant solutions, quality code |
 | `/vern:nyquil` | Haiku | Quick answers, minimal output, brevity |
 | `/vern:ketamine` | Opus | Deep exploration, multi-pass planning, patterns |
-| `/vern:yolo` | Antigravity | Fast execution, no guardrails, chaos |
-| `/vern:mighty` | Codex | Comprehensive code gen, thorough analysis |
+| `/vern:yolo` | Sonnet | Fast execution, no guardrails, chaos |
+| `/vern:mighty` | Opus | Comprehensive code gen, thorough analysis |
 
 ### Specialist Personas
 | Command | Model | Best For |
@@ -149,7 +159,7 @@ vern tui
 
 ```
 ┌──────────────────────────────────┐
-│         VERN-BOT v2.9            │
+│         VERN-BOT v3.0            │
 │                                  │
 │  [1] Discovery Pipeline          │
 │  [2] VernHole Council            │
@@ -293,6 +303,8 @@ Or use the shorthand router:
 | `/vern:historian` | Index a directory of input files into a structured concept map |
 | `/vern:generate` | Generate a new Vern persona using AI |
 | `/vern:oracle-consult` | Run Oracle consult/apply on existing VernHole output |
+| `/vern:rerun-discovery` | Rerun a discovery pipeline on an existing project with fresh config |
+| `/vern:vernhole-existing` | Point a VernHole council at existing discovery output |
 | `/vern:setup` | Configure LLMs, pipeline personas, preferences |
 | `/vern:help` | Show all available commands and personas |
 
@@ -492,7 +504,7 @@ vern-bot/
 ├── .claude-plugin/
 │   ├── plugin.json          # Plugin metadata
 │   └── marketplace.json     # Marketplace manifest
-├── agents/                   # 18 agent definitions (16 personas + orchestrator + historian)
+├── agents/                   # 18 agent definitions (17 personas + the VernHole orchestrator)
 │   ├── mediocre.md
 │   ├── great.md
 │   ├── nyquil.md
@@ -511,12 +523,12 @@ vern-bot/
 │   ├── oracle.md
 │   ├── historian.md
 │   └── vernhole-orchestrator.md
-├── commands/                  # 22 command definitions (16 personas + 6 workflows/utility)
+├── commands/                  # 24 command definitions (17 personas + 7 workflows/utility)
 │   ├── v.md                  # /vern:v shorthand router
 │   ├── help.md               # /vern:help command reference
 │   ├── setup.md              # /vern:setup configuration
 │   └── {persona}.md          # Per-persona command files
-├── skills/                    # 22 skill definitions
+├── skills/                    # 24 skill definitions
 │   ├── mediocre/SKILL.md
 │   ├── great/SKILL.md
 │   ├── nyquil/SKILL.md
@@ -538,6 +550,8 @@ vern-bot/
 │   ├── generate/SKILL.md
 │   ├── hole/SKILL.md
 │   ├── discovery/SKILL.md
+│   ├── rerun-discovery/SKILL.md
+│   ├── vernhole-existing/SKILL.md
 │   └── new-idea/SKILL.md
 ├── go/                        # Compiled CLI (vern run, discovery, hole, tobeads, historian, generate, oracle, tui, setup)
 │   ├── cmd/vern/             # Cobra CLI entry points
@@ -554,14 +568,15 @@ vern-bot/
 │   ├── vern-historian        # Historian indexing wrapper (bash)
 │   ├── install-vern-cli      # Auto-download CLI binary from GitHub releases (bash)
 │   └── install-vern-cli.cmd  # Auto-download CLI binary from GitHub releases (Windows)
-├── discovery/                 # Discovery pipeline output
+├── sample-output/             # Real discovery runs, kept as examples
+├── discovery/                 # Discovery pipeline output (your runs)
 └── README.md
 ```
 
 ## Development
 
 ### Prerequisites
-- Go 1.22+ (`brew install go`)
+- Go 1.25+ (`brew install go`)
 
 ### Build
 ```bash
@@ -589,9 +604,17 @@ vern setup                            # First-run configuration wizard
 
 ### Release
 ```bash
-git tag v2.x.0 && git push --tags
+git tag v3.x.y && git push --tags
 # GitHub Actions builds binaries automatically via GoReleaser
 ```
+
+## Contributing
+
+Issues and pull requests are welcome. Run `cd go && go vet ./... && go test ./...` before opening a PR; CI runs the same checks on Linux, macOS and Windows. If you change anything in `agents/` or `config.default.json`, run `go generate ./internal/embedded/` so the compiled-in copies stay in sync (CI checks this). Note user-facing changes in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE)
 
 ## Dad Jokes
 

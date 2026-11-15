@@ -1,6 +1,7 @@
 package council
 
 import (
+	"path/filepath"
 	"testing"
 )
 
@@ -99,7 +100,7 @@ func TestResolveCouncilBareNumberClamped(t *testing.T) {
 
 func TestScanRoster(t *testing.T) {
 	// Test with actual agents dir
-	roster := ScanRoster("/Users/justin/projects/jdonohoo/vern-bot/agents")
+	roster := ScanRoster(filepath.Join("..", "..", "..", "agents"))
 	if len(roster) < 10 {
 		t.Errorf("expected at least 10 agents, got %d", len(roster))
 	}

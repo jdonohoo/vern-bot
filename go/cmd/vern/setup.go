@@ -65,7 +65,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	// Save config
-	configDir := filepath.Join(os.Getenv("HOME"), ".config", "vern")
+	configDir := filepath.Join(config.HomeDir(), ".config", "vern")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return fmt.Errorf("create config dir: %w", err)
 	}
