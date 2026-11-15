@@ -53,6 +53,7 @@ type Result struct {
 	Model    string // model passed to the CLI ("" = its default)
 	Effort   string // effort passed to the CLI ("" = its default)
 	ReadOnly bool   // whether the CLI ran read-only
+	Usage    Usage  // tokens and cost, as far as the CLI reports them
 	Duration time.Duration
 }
 
@@ -181,6 +182,18 @@ func Run(opts RunOptions) (*Result, error) {
 		outputStr = string(data)
 	}
 
+	var usage Usage
+	if provider.ParseOutput != nil {
+		text, u, failed := provider.ParseOutput(outputStr, stderrBuf.String())
+		usage = u
+		outputStr = text
+		if failed && exitCode == 0 {
+			exitCode = 1
+			stderrBuf.WriteString("\n" + strings.TrimSpace(text))
+			outputStr = ""
+		}
+	}
+
 	// Some CLIs report a failed turn on stdout with exit 0.
 	if exitCode == 0 {
 		trimmed := strings.TrimSpace(outputStr)
@@ -203,6 +216,7 @@ func Run(opts RunOptions) (*Result, error) {
 		Model:    sel.Model,
 		Effort:   sel.Effort,
 		ReadOnly: inv.ReadOnly,
+		Usage:    usage,
 		Duration: duration,
 	}
 

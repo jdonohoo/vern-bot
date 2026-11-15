@@ -24,10 +24,14 @@ that LLM only (a fallback to claude uses claude's default); --effort is one
 of low, medium, high, xhigh, max. Without them the persona's tier decides
 (see "vern models").
 
+--json prints the output with the LLM, model, effort, exit code and the
+usage the CLI reported, instead of the bare output.
+
 Exit codes:
   0    Success
-  1    Usage error / unknown LLM
-  124  Timeout (GNU timeout convention)`,
+  1    Usage error / unknown LLM / the CLI failed
+  124  Timeout (GNU timeout convention)
+  other  the CLI's own exit code`,
 	Args: cobra.ExactArgs(2),
 	RunE: runRun,
 }
@@ -39,6 +43,7 @@ var (
 	runModel      string
 	runEffort     string
 	runTier       string
+	runJSON       bool
 )
 
 func init() {
@@ -48,6 +53,7 @@ func init() {
 	runCmd.Flags().StringVarP(&runModel, "model", "m", "", "Model id for this LLM (see vern models)")
 	runCmd.Flags().StringVar(&runEffort, "effort", "", "Reasoning effort: low, medium, high, xhigh, max")
 	runCmd.Flags().StringVar(&runTier, "tier", "", "Persona tier to use: deep, balanced, fast")
+	runCmd.Flags().BoolVar(&runJSON, "json", false, "Print the result as JSON (output, llm, model, exit code, usage)")
 	rootCmd.AddCommand(runCmd)
 }
 
@@ -86,6 +92,38 @@ func runRun(cmd *cobra.Command, args []string) error {
 	result, err := llm.Run(opts)
 	if err != nil {
 		return err
+	}
+
+	if runJSON {
+		out := struct {
+			LLM        string     `json:"llm"`
+			Model      string     `json:"model,omitempty"`
+			Effort     string     `json:"effort,omitempty"`
+			ReadOnly   bool       `json:"read_only"`
+			ExitCode   int        `json:"exit_code"`
+			TimedOut   bool       `json:"timed_out"`
+			DurationMS int64      `json:"duration_ms"`
+			Usage      *llm.Usage `json:"usage,omitempty"`
+			Output     string     `json:"output"`
+			Error      string     `json:"error,omitempty"`
+		}{
+			LLM: result.LLMUsed, Model: result.Model, Effort: result.Effort, ReadOnly: result.ReadOnly,
+			ExitCode: result.ExitCode, TimedOut: result.TimedOut, DurationMS: result.Duration.Milliseconds(),
+			Output: result.Output,
+		}
+		if !result.Usage.IsZero() {
+			out.Usage = &result.Usage
+		}
+		if result.ExitCode != 0 {
+			out.Error = llm.FirstLine(result.Stderr)
+		}
+		if err := printJSON(out); err != nil {
+			return err
+		}
+		if result.ExitCode != 0 {
+			os.Exit(result.ExitCode)
+		}
+		return nil
 	}
 
 	// Print output to stdout (tee behavior when output file is set)

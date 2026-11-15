@@ -15,7 +15,13 @@ All notable changes to vern-bot. Versions follow [Semantic Versioning](https://s
 - **`vern doctor`**: checks each CLI's install, version, sign-in and whether it still accepts the flags vern passes. `--json` for scripts.
 - **`vern models`**: shows the tier mapping, personas by tier, and the models Codex and Antigravity offer.
 - Antigravity runs that end with "no output produced" (a tool denied in headless mode) now count as failures, so the step retries or falls back instead of keeping an error as its output.
-- The run log records the model, effort and whether the run was read-only.
+- The run log records the model, effort, usage and whether the run was read-only.
+- **Structured tasks**: discovery writes `output/tasks.json` next to the VTS files, following the published [task schema v1](schemas/tasks.v1.json) (ids, dependencies, acceptance criteria, files, optional groups and parents). Oracle apply keeps it in step.
+- **Run manifest**: `output/run.json` records every step's persona, LLM and fallback, model, effort, read-only mode, duration and usage, plus the run's status, updated after each step.
+- **Usage and cost**: Claude now runs with `--output-format json`, so vern records its tokens and cost; Codex's token count is read from its output. Totals per run are in `run.json` and the report.
+- **`--json`** on `discovery`, `hole` and `run`: JSON on stdout, progress on stderr. `discovery --json` exits 0 when the run is ok, 3 when partial and 1 when it failed.
+- **`vern report <dir>`** renders a run (steps, tasks, VernHole, Oracle) as one self-contained HTML page; discovery writes `output/report.html` at the end of every run.
+- **AGENTS.md** tells coding agents how to drive vern and how to work on this repo.
 
 ## 3.0.0
 

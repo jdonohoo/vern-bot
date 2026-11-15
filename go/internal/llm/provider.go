@@ -65,6 +65,10 @@ type Provider struct {
 	// exited 0 (agy prints "jetski: no output produced" when a tool was
 	// denied in headless mode).
 	FailurePrefixes []string
+	// ParseOutput turns raw stdout and stderr into the answer text and the
+	// usage the CLI reported; failed marks an error reported in the
+	// output. nil keeps stdout as the answer.
+	ParseOutput func(stdout, stderr string) (text string, usage Usage, failed bool)
 }
 
 // Invocation carries the per-run values a provider needs to build its args.
@@ -135,7 +139,7 @@ var providers = []*Provider{
 		// Read-only runs use dontAsk: reads are allowed, and anything that
 		// would need a permission prompt (edits, shell) is denied.
 		Args: func(inv Invocation) []string {
-			args := []string{"-p"}
+			args := []string{"-p", "--output-format", "json"}
 			if inv.ReadOnly {
 				args = append(args, "--permission-mode", "dontAsk")
 			} else {
@@ -146,9 +150,10 @@ var providers = []*Provider{
 		Env:         []string{"NODE_OPTIONS=--max-old-space-size=32768"},
 		VersionArgs: []string{"--version"},
 		AuthArgs:    []string{"auth", "status"},
+		ParseOutput: parseClaudeJSON,
 		ModelsHint:  "aliases opus, sonnet, haiku, fable, or a full model id",
 		HelpArgs:    []string{"--help"},
-		Flags:       []string{"--print", "--permission-mode", "--dangerously-skip-permissions", "--model", "--effort"},
+		Flags:       []string{"--print", "--output-format", "--permission-mode", "--dangerously-skip-permissions", "--model", "--effort"},
 		Install:     "npm install -g @anthropic-ai/claude-code",
 	},
 	{
@@ -183,6 +188,7 @@ var providers = []*Provider{
 		},
 		VersionArgs: []string{"--version"},
 		AuthArgs:    []string{"login", "status"},
+		ParseOutput: parseCodexUsage,
 		ModelsArgs:  []string{"debug", "models"},
 		HelpArgs:    []string{"exec", "--help"},
 		Flags:       []string{"--sandbox", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "--cd", "--output-last-message", "--model", "--config"},
@@ -363,4 +369,13 @@ func promptFilePointer(path string) string {
 	return "Your complete instructions are in the file " + path +
 		". Read that entire file now, then follow the instructions in it exactly. " +
 		"Do not modify or delete that file. Do not mention the file in your answer."
+}
+
+// Register adds a provider to the registry and returns a function that
+// removes it again. vern's own CLIs are built in; this is for tests and
+// for programs that embed vern's packages.
+func Register(p *Provider) (restore func()) {
+	saved := providers
+	providers = append(append([]*Provider{}, providers...), p)
+	return func() { providers = saved }
 }

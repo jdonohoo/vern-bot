@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jdonohoo/vern-bot/blob/master/schemas/tasks.v1.json",
+  "title": "vern task graph v1",
+  "description": "The tasks a vern discovery run produces (output/tasks.json), and what task sinks receive on stdin.",
+  "type": "object",
+  "required": ["version", "source", "tasks"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"const": 1},
+    "source": {"type": "string", "description": "What produced the tasks: discovery or oracle."},
+    "idea": {"type": "string", "description": "The request the tasks answer."},
+    "groups": {
+      "type": "array",
+      "description": "Optional groupings above tasks, such as epics. A sink that supports hierarchy creates these first.",
+      "items": {
+        "type": "object",
+        "required": ["id", "title"],
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "parent": {"type": "string", "description": "Another group's id."},
+          "body": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "num", "title"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z]+-[0-9]+$", "examples": ["VTS-001"]},
+          "num": {"type": "integer", "minimum": 0},
+          "title": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["task", "deliverable"], "default": "task"},
+          "description": {"type": "string"},
+          "acceptance_criteria": {"type": "array", "items": {"type": "string"}},
+          "complexity": {"type": "string", "description": "S, M, L or XL; ? when the architect gave none.", "examples": ["S", "M", "L", "XL"]},
+          "dependencies": {"type": "array", "items": {"type": "string"}, "description": "Ids of tasks that must finish first."},
+          "files": {"type": "array", "items": {"type": "string"}},
+          "group": {"type": "string", "description": "A group id."},
+          "parent": {"type": "string", "description": "A task or group id."},
+          "status": {"type": "string", "default": "pending"},
+          "body": {"type": "string", "description": "The task's full markdown."},
+          "vts_file": {"type": "string", "description": "Path of the task's VTS file, relative to the output folder."}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

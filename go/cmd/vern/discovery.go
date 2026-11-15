@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jdonohoo/vern-bot/go/internal/pipeline"
+	"github.com/jdonohoo/vern-bot/go/internal/report"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,17 @@ Flags:
   --resume-from N      Resume pipeline from step N
   --max-retries N      Max retry attempts per step
   --llm-mode MODE      LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, etc.)
-  --single-llm LLM     Use a single LLM for all steps`,
+  --single-llm LLM     Use a single LLM for all steps
+  --json               Print the run manifest (output/run.json) on stdout; progress goes to stderr
+
+Every run writes output/run.json (steps, LLMs, models, timings, usage),
+output/tasks.json (the tasks as JSON, schema v1: schemas/tasks.v1.json) and
+output/report.html (the whole run as one page; rebuild with vern report).
+
+Exit codes with --json:
+  0  every step succeeded and tasks were produced
+  1  the run could not start, or every step failed
+  3  partial: some steps failed, VernHole failed, or no tasks were produced`,
 	Args: cobra.RangeArgs(1, 2),
 	RunE: runDiscovery,
 }
@@ -42,11 +53,12 @@ var (
 	discOracle        bool
 	discOracleApply   bool
 	discExpanded      bool
-	discExtraContext   []string
+	discExtraContext  []string
 	discResumeFrom    int
 	discMaxRetries    int
 	discLLMMode       string
 	discSingleLLM     string
+	discJSON          bool
 )
 
 func init() {
@@ -63,6 +75,7 @@ func init() {
 	discoveryCmd.Flags().IntVar(&discMaxRetries, "max-retries", 0, "Max retry attempts per step")
 	discoveryCmd.Flags().StringVar(&discLLMMode, "llm-mode", "", "LLM fallback mode (mixed_claude_fallback, mixed_codex_fallback, mixed_antigravity_fallback, mixed_grok_fallback, single_llm)")
 	discoveryCmd.Flags().StringVar(&discSingleLLM, "single-llm", "", "Use a single LLM for all steps (shorthand for --llm-mode single_llm)")
+	discoveryCmd.Flags().BoolVar(&discJSON, "json", false, "Print the run manifest as JSON on stdout (progress on stderr)")
 	rootCmd.AddCommand(discoveryCmd)
 }
 
@@ -126,5 +139,34 @@ func runDiscovery(cmd *cobra.Command, args []string) error {
 		SingleLLM:         discSingleLLM,
 	}
 
-	return pipeline.Run(opts)
+	if !discJSON {
+		err := pipeline.Run(opts)
+		if err == nil {
+			if path, rerr := report.Write(discoveryDir); rerr == nil {
+				fmt.Printf("Report: %s\n", path)
+			}
+		}
+		return err
+	}
+
+	// --json: progress to stderr, the manifest alone on stdout.
+	opts.BatchMode = true
+	opts.OnLog = func(line string) { fmt.Fprintln(os.Stderr, line) }
+	m, err := pipeline.RunWithManifest(opts)
+	if err != nil {
+		return err
+	}
+	report.Write(discoveryDir)
+	if err := printJSON(m); err != nil {
+		return err
+	}
+	switch m.Status {
+	case "ok":
+		return nil
+	case "failed":
+		os.Exit(1)
+	default:
+		os.Exit(3)
+	}
+	return nil
 }

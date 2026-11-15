@@ -11,6 +11,7 @@ import (
 
 	"github.com/jdonohoo/vern-bot/go/internal/config"
 	"github.com/jdonohoo/vern-bot/go/internal/llm"
+	taskspkg "github.com/jdonohoo/vern-bot/go/internal/tasks"
 	"github.com/jdonohoo/vern-bot/go/internal/vts"
 )
 
@@ -50,6 +51,10 @@ type Pipeline struct {
 	statusPath    string    // path to pipeline-status.md
 	startTime     time.Time // pipeline start time
 	mode          string    // pipeline mode (default/expanded)
+	failed        []int     // failed step numbers
+	vernhole      string    // "", ok or failed
+	// Result is the final run manifest, set when Run returns.
+	Result *Manifest
 }
 
 // printf prints to stdout in CLI mode, or routes to OnLog in TUI mode.
@@ -67,6 +72,13 @@ func (p *Pipeline) printf(format string, args ...interface{}) {
 
 // Run executes the full discovery pipeline.
 func Run(opts Options) error {
+	_, err := RunWithManifest(opts)
+	return err
+}
+
+// RunWithManifest executes the pipeline and returns its run manifest
+// (also saved as output/run.json).
+func RunWithManifest(opts Options) (*Manifest, error) {
 	cfg := config.Load(opts.ProjectRoot)
 
 	// Apply LLM mode overrides from CLI flags
@@ -108,7 +120,11 @@ func Run(opts Options) error {
 		results: make([]StepResult, len(steps)),
 	}
 
-	return p.execute(mode)
+	err := p.execute(mode)
+	if p.statusPath != "" {
+		p.Result = p.writeManifest(true)
+	}
+	return p.Result, err
 }
 
 func (p *Pipeline) execute(mode string) error {
@@ -307,6 +323,7 @@ func (p *Pipeline) execute(mode string) error {
 
 		var actualLLM string
 		var lastStderr string
+		var tracked StepResult
 		for attempt := 1; attempt <= totalAttempts; attempt++ {
 			if attempt > 1 {
 				p.printf("    Retry %d/%d for step %d (%s) with %s...\n", attempt-1, opts.MaxRetries, stepNum, step.Name, retryLLM)
@@ -327,6 +344,7 @@ func (p *Pipeline) execute(mode string) error {
 				Tier:        step.Tier,
 			})
 
+			tracked.track(result)
 			lastExitCode = result.ExitCode
 			attemptCount = attempt
 			duration = result.Duration
@@ -381,6 +399,7 @@ func (p *Pipeline) execute(mode string) error {
 				Tier:        step.Tier,
 			})
 
+			tracked.track(result)
 			attemptCount++
 			lastExitCode = result.ExitCode
 			duration = result.Duration
@@ -447,6 +466,7 @@ func (p *Pipeline) execute(mode string) error {
 			os.WriteFile(outputFile, []byte(failureContent), 0644)
 
 			failedSteps = append(failedSteps, stepNum)
+			p.failed = failedSteps
 			p.results[idx] = StepResult{
 				StepNum:     stepNum,
 				Name:        step.Name,
@@ -462,6 +482,12 @@ func (p *Pipeline) execute(mode string) error {
 				ErrorDetail: stderrSnippet,
 			}
 		}
+
+		p.results[idx].Persona = retryPersona
+		p.results[idx].Model = tracked.Model
+		p.results[idx].Effort = tracked.Effort
+		p.results[idx].ReadOnly = tracked.ReadOnly
+		p.results[idx].Usage = tracked.Usage
 
 		// Write structured JSON log entry + update status file
 		p.logJSON(p.results[idx])
@@ -618,6 +644,22 @@ func (p *Pipeline) processVTS(architectFile string, vtsDir string, source string
 	if err := vts.WriteSummary(tasks, architectFile, header, footer, "", onLog); err != nil {
 		p.printf("  Error writing summary: %v\n", err)
 	}
+
+	p.writeTasksJSON(tasks, filepath.Dir(vtsDir), source)
+}
+
+// writeTasksJSON saves the structured task graph next to the VTS folder.
+func (p *Pipeline) writeTasksJSON(parsed []vts.Task, outputDir, source string) {
+	doc := taskspkg.FromVTS(parsed, source, p.opts.Idea)
+	if err := doc.Validate(); err != nil {
+		p.printf("  Warning: task graph: %v\n", err)
+	}
+	path := filepath.Join(outputDir, taskspkg.FileName)
+	if err := doc.Write(path); err != nil {
+		p.printf("  Error writing %s: %v\n", taskspkg.FileName, err)
+		return
+	}
+	p.printf("  Created: %s (%d tasks)\n", taskspkg.FileName, len(doc.Tasks))
 }
 
 func (p *Pipeline) runVernHole() {
@@ -660,10 +702,12 @@ func (p *Pipeline) runVernHole() {
 	if err != nil {
 		p.printf("\nWARNING: VernHole failed: %v\n", err)
 		p.log("VernHole: FAILED (%v)", err)
+		p.vernhole = "failed"
 		p.writeStatus("complete_vernhole_failed", nil)
 		return
 	}
 
+	p.vernhole = "ok"
 	p.log("VernHole: OK")
 
 	// Oracle integration
@@ -908,4 +952,5 @@ func (p *Pipeline) writeStatus(phase string, failedSteps []int) {
 	}
 
 	os.WriteFile(p.statusPath, []byte(b.String()), 0644)
+	p.writeManifest(false)
 }

@@ -34,9 +34,7 @@ func withFakeProvider(t *testing.T, p *Provider) {
 	if p.Preamble == nil {
 		p.Preamble = func(bool) string { return "" }
 	}
-	saved := providers
-	providers = append(append([]*Provider{}, providers...), p)
-	t.Cleanup(func() { providers = saved })
+	t.Cleanup(Register(p))
 }
 
 func fakeArgs(inv Invocation) []string {
@@ -160,7 +158,7 @@ func TestPersonaTier(t *testing.T) {
 func TestProviderArgsReadOnlyModelEffort(t *testing.T) {
 	inv := Invocation{ReadOnly: true, Model: "m1", Effort: "high", OutputPath: "out.md"}
 	cases := map[string][]string{
-		"claude":      {"--permission-mode dontAsk", "--model m1", "--effort high"},
+		"claude":      {"--output-format json", "--permission-mode dontAsk", "--model m1", "--effort high"},
 		"codex":       {"--sandbox read-only", "--model m1", "-c model_reasoning_effort=high"},
 		"antigravity": {"--mode plan --sandbox --settings", `"command(*)"`, "--model m1", "--effort high"},
 		"grok":        {"--model m1", "--effort high", "--always-approve"},
@@ -221,5 +219,35 @@ func TestSignedOut(t *testing.T) {
 	}
 	if signedOut("Logged in using ChatGPT") {
 		t.Error("'Logged in using ChatGPT' is signed in")
+	}
+}
+
+func TestParseClaudeJSON(t *testing.T) {
+	out := "Warning: this sign-in can end at any time\n" +
+		`{"type":"result","subtype":"success","is_error":false,"result":"banana-42","total_cost_usd":0.0123,"usage":{"input_tokens":10,"cache_read_input_tokens":90,"output_tokens":5}}` + "\n"
+	text, u, failed := parseClaudeJSON(out, "")
+	if text != "banana-42" || failed {
+		t.Fatalf("text %q failed %v", text, failed)
+	}
+	if u.InputTokens != 100 || u.OutputTokens != 5 || u.TotalTokens != 105 || u.CostUSD != 0.0123 {
+		t.Errorf("usage = %+v", u)
+	}
+	if _, _, failed := parseClaudeJSON(`{"type":"result","is_error":true,"result":"API error"}`, ""); !failed {
+		t.Error("is_error should fail the run")
+	}
+	// Anything else passes through as text.
+	if text, _, _ := parseClaudeJSON("plain answer {not json}", ""); text != "plain answer {not json}" {
+		t.Errorf("plain text changed: %q", text)
+	}
+}
+
+func TestParseCodexUsage(t *testing.T) {
+	_, u, _ := parseCodexUsage("answer", "session id: x\ntokens used\n13,477\n")
+	if u.TotalTokens != 13477 {
+		t.Errorf("usage = %+v", u)
+	}
+	_, u, _ = parseCodexUsage("answer", "tokens used 7,501")
+	if u.TotalTokens != 7501 {
+		t.Errorf("usage = %+v", u)
 	}
 }

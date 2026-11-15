@@ -468,11 +468,18 @@ discovery/{name}/
 │   ├── 04-mighty-consolidation.md   # (or 06-... in expanded)
 │   ├── 05-architect-architect-breakdown.md  # (or 07-... in expanded)
 │   ├── vts/                   # Vern Task Spec files
+│   ├── tasks.json             # The same tasks as JSON (schemas/tasks.v1.json)
+│   ├── run.json               # Run manifest: steps, LLMs, models, timings, usage
+│   ├── report.html            # The whole run as one shareable page
 │   ├── pipeline.log           # Per-step status, timestamps, exit codes
 │   └── pipeline-status.md     # Human-readable progress summary
 ├── vernhole/                  # Only if you opted in
 └── oracle-vision.md           # Only if Oracle ran
 ```
+
+### For agents and scripts
+
+`vern discovery --json`, `vern hole --json`, `vern run --json`, `vern doctor --json` and `vern models --json` print JSON on stdout and progress on stderr, so an agent can run vern and read the result without parsing markdown. Read `output/tasks.json` for the tasks ([schema v1](schemas/tasks.v1.json)) and `output/run.json` for what happened. `vern report <dir>` rebuilds `report.html` for any run, including ones from before v3.1. [AGENTS.md](AGENTS.md) lists the commands, outputs and exit codes.
 
 ## VTS → Beads
 
@@ -627,6 +634,7 @@ cd go && go test ./...
 vern run <llm> <prompt>              # Single LLM run (--model, --effort, --tier)
 vern doctor                           # Check CLIs, sign-ins and the flags vern uses
 vern models [llm]                     # Persona tiers and the models each CLI offers
+vern report <discovery-dir>           # Render a run as one HTML page
 vern discovery <prompt>               # Full discovery pipeline
 vern hole <idea>                      # VernHole council
 vern tobeads <vts-dir>               # Import VTS tasks into Beads
